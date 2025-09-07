@@ -9,12 +9,15 @@ use crossterm::{
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use rand::{self, Rng};
+use rand::seq::SliceRandom;
+use std::collections::HashSet;
 
 // --- 定数 ---
 const BOARD_WIDTH: usize = 10;
 const BOARD_HEIGHT: usize = 20;
 const FALL_SPEED_START: Duration = Duration::from_millis(800);
 const LINE_CLEAR_ANIMATION_DELAY: Duration = Duration::from_millis(40);
+const COLOR_PALETTE: [Color; 4] = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
 
 // --- データ構造 ---
 
@@ -26,17 +29,17 @@ enum Cell {
 
 type Board = Vec<Vec<Cell>>;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum TetrominoShape {
     I, O, T, L, J, S, Z,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Tetromino {
     _shape: TetrominoShape,
     matrix: &'static [[(i8, i8); 4]; 4],
     pos: (i8, i8),
-    color: Color,
+    colors: [Color; 4],
     rotation: u8,
 }
 
@@ -65,27 +68,35 @@ impl Tetromino {
             3 => TetrominoShape::L, 4 => TetrominoShape::J, 5 => TetrominoShape::S,
             _ => TetrominoShape::Z,
         };
-        Self::from_shape(shape)
+        
+        let mut colors = COLOR_PALETTE;
+        colors.shuffle(&mut rng);
+
+        Self::from_shape(shape, colors)
     }
 
-    fn from_shape(shape: TetrominoShape) -> Self {
-        let (matrix, color) = match shape {
-            TetrominoShape::I => (&SHAPES[0], Color::Cyan),       TetrominoShape::O => (&SHAPES[1], Color::Yellow),
-            TetrominoShape::T => (&SHAPES[2], Color::Magenta),    TetrominoShape::L => (&SHAPES[3], Color::Blue),
-            TetrominoShape::J => (&SHAPES[4], Color::DarkBlue),   TetrominoShape::S => (&SHAPES[5], Color::Green),
-            TetrominoShape::Z => (&SHAPES[6], Color::Red),
+    fn from_shape(shape: TetrominoShape, colors: [Color; 4]) -> Self {
+        let matrix = match shape {
+            TetrominoShape::I => &SHAPES[0],
+            TetrominoShape::O => &SHAPES[1],
+            TetrominoShape::T => &SHAPES[2],
+            TetrominoShape::L => &SHAPES[3],
+            TetrominoShape::J => &SHAPES[4],
+            TetrominoShape::S => &SHAPES[5],
+            TetrominoShape::Z => &SHAPES[6],
         };
         Tetromino {
             _shape: shape, matrix,
             pos: ((BOARD_WIDTH as i8) / 2 - 2, 0),
-            color, rotation: 0,
+            colors, rotation: 0,
         }
     }
 
-    fn iter_blocks(&self) -> impl Iterator<Item = (i8, i8)> + '_ {
+    fn iter_blocks(&self) -> impl Iterator<Item = ((i8, i8), Color)> + '_ {
         self.matrix[self.rotation as usize]
             .iter()
-            .map(move |&(x, y)| (self.pos.0 + x, self.pos.1 + y))
+            .zip(self.colors.iter())
+            .map(move |(&pos, &color)| ((self.pos.0 + pos.0, self.pos.1 + pos.1), color))
     }
 
     fn moved(&self, dx: i8, dy: i8) -> Self {
@@ -114,6 +125,16 @@ impl GameState {
         }
     }
 
+    fn ghost_piece(&self) -> Option<Tetromino> {
+        self.current_piece.as_ref().map(|piece| {
+            let mut ghost = piece.clone();
+            while self.is_valid_position(&ghost.moved(0, 1)) {
+                ghost = ghost.moved(0, 1);
+            }
+            ghost
+        })
+    }
+
     fn spawn_piece(&mut self) {
         let new_piece = Tetromino::new_random();
         if self.is_valid_position(&new_piece) {
@@ -124,7 +145,7 @@ impl GameState {
     }
 
     fn is_valid_position(&self, piece: &Tetromino) -> bool {
-        for (x, y) in piece.iter_blocks() {
+        for ((x, y), _) in piece.iter_blocks() {
             if x < 0 || x >= BOARD_WIDTH as i8 || y < 0 || y >= BOARD_HEIGHT as i8 {
                 return false;
             }
@@ -137,9 +158,9 @@ impl GameState {
 
     fn lock_piece(&mut self) {
         if let Some(piece) = self.current_piece.take() {
-            for (x, y) in piece.iter_blocks() {
+            for ((x, y), color) in piece.iter_blocks() {
                 if y >= 0 {
-                    self.board[y as usize][x as usize] = Cell::Occupied(piece.color);
+                    self.board[y as usize][x as usize] = Cell::Occupied(color);
                 }
             }
         }
@@ -197,10 +218,28 @@ impl GameState {
 fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> io::Result<()> {
     if prev_state == state { return Ok(()); }
 
+    // ゴーストピースの描画/消去
+    let prev_ghost = prev_state.ghost_piece();
+    let current_ghost = state.ghost_piece();
+
+    if prev_ghost != current_ghost {
+        if let Some(ghost) = prev_ghost {
+            let landing_cols: HashSet<i8> = ghost.iter_blocks().map(|((x, _), _)| x).collect();
+            for x in landing_cols {
+                execute!(stdout, MoveTo((x as u16 * 2) + 1, BOARD_HEIGHT as u16 + 1), SetForegroundColor(Color::Grey), Print("──"))?;
+            }
+        }
+        if let Some(ghost) = current_ghost {
+            for ((x, _), color) in ghost.iter_blocks() {
+                execute!(stdout, MoveTo((x as u16 * 2) + 1, BOARD_HEIGHT as u16 + 1), SetForegroundColor(color), Print("[]"))?;
+            }
+        }
+    }
+
     // ピースの描画/消去
     if let Some(piece) = &prev_state.current_piece {
         if prev_state.animation.is_none() {
-            for (x, y) in piece.iter_blocks() {
+            for ((x, y), _) in piece.iter_blocks() {
                 if y >= 0 {
                     let screen_x = (x as u16 * 2) + 1;
                     let screen_y = y as u16 + 1;
@@ -210,11 +249,11 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
         }
     }
     if let Some(piece) = &state.current_piece {
-        for (x, y) in piece.iter_blocks() {
+        for ((x, y), color) in piece.iter_blocks() {
             if y >= 0 {
                 let screen_x = (x as u16 * 2) + 1;
                 let screen_y = y as u16 + 1;
-                execute!(stdout, MoveTo(screen_x, screen_y), SetForegroundColor(piece.color), Print("[]"), ResetColor)?;
+                execute!(stdout, MoveTo(screen_x, screen_y), SetForegroundColor(color), Print("[]"), ResetColor)?;
             }
         }
     }
