@@ -10,7 +10,6 @@ use crossterm::{
 };
 use rand::{self, Rng};
 use rand::seq::SliceRandom;
-use std::collections::HashSet;
 
 // --- 定数 ---
 const BOARD_WIDTH: usize = 10;
@@ -218,57 +217,58 @@ impl GameState {
 fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> io::Result<()> {
     if prev_state == state { return Ok(()); }
 
-    // ゴーストピースの描画/消去
-    let prev_ghost = prev_state.ghost_piece();
-    let current_ghost = state.ghost_piece();
-
-    if prev_ghost != current_ghost {
-        if let Some(ghost) = prev_ghost {
-            let landing_cols: HashSet<i8> = ghost.iter_blocks().map(|((x, _), _)| x).collect();
-            for x in landing_cols {
-                execute!(stdout, MoveTo((x as u16 * 2) + 1, BOARD_HEIGHT as u16 + 1), SetForegroundColor(Color::Grey), Print("──"))?;
-            }
-        }
-        if let Some(ghost) = current_ghost {
-            for ((x, _), color) in ghost.iter_blocks() {
-                execute!(stdout, MoveTo((x as u16 * 2) + 1, BOARD_HEIGHT as u16 + 1), SetForegroundColor(color), Print("[]"))?;
+    // --- 消去フェーズ ---
+    // 古いゴーストとピースがあった場所をクリア
+    if let Some(ghost) = &prev_state.ghost_piece() {
+        if Some(ghost) != prev_state.current_piece.as_ref() {
+            for ((x, y), _) in ghost.iter_blocks() {
+                if y >= 0 { execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1), Print("  "))?; }
             }
         }
     }
-
-    // ピースの描画/消去
     if let Some(piece) = &prev_state.current_piece {
         if prev_state.animation.is_none() {
             for ((x, y), _) in piece.iter_blocks() {
-                if y >= 0 {
-                    let screen_x = (x as u16 * 2) + 1;
-                    let screen_y = y as u16 + 1;
-                    execute!(stdout, MoveTo(screen_x, screen_y), Print("  "))?;
-                }
-            }
-        }
-    }
-    if let Some(piece) = &state.current_piece {
-        for ((x, y), color) in piece.iter_blocks() {
-            if y >= 0 {
-                let screen_x = (x as u16 * 2) + 1;
-                let screen_y = y as u16 + 1;
-                execute!(stdout, MoveTo(screen_x, screen_y), SetForegroundColor(color), Print("[]"), ResetColor)?;
+                if y >= 0 { execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1), Print("  "))?; }
             }
         }
     }
 
-    // ボードの差分描画
+    // --- 描画フェーズ ---
+
+    // ボードの差分描画 (クリアした部分を元に戻すため、差分だけでなく前のピース/ゴーストがあった場所も再描画)
     for (y, row) in state.board.iter().enumerate() {
         for (x, &cell) in row.iter().enumerate() {
-            if cell != prev_state.board[y][x] {
-                let screen_x = (x as u16 * 2) + 1;
-                let screen_y = y as u16 + 1;
-                execute!(stdout, MoveTo(screen_x, screen_y))?;
+            let pos = (x as i8, y as i8);
+            let was_ghost = prev_state.ghost_piece().as_ref().map_or(false, |g| g.iter_blocks().any(|(p, _)| p == pos));
+            let was_piece = prev_state.current_piece.as_ref().map_or(false, |p| p.iter_blocks().any(|(p, _)| p == pos));
+
+            if cell != prev_state.board[y][x] || ((was_ghost || was_piece) && cell != Cell::Empty) {
+                execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1))?;
                 match cell {
                     Cell::Empty => execute!(stdout, Print("  "))?,
                     Cell::Occupied(color) => execute!(stdout, SetForegroundColor(color), Print("[]"), ResetColor)?,
                 }
+            }
+        }
+    }
+    
+    // ゴーストピースを描画
+    if let Some(ghost) = &state.ghost_piece() {
+        if Some(ghost) != state.current_piece.as_ref() {
+            for ((x, y), _) in ghost.iter_blocks() {
+                if y >= 0 && state.board[y as usize][x as usize] == Cell::Empty {
+                    execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1), SetForegroundColor(Color::Grey), Print("::"))?;
+                }
+            }
+        }
+    }
+
+    // 現在のピースを描画
+    if let Some(piece) = &state.current_piece {
+        for ((x, y), color) in piece.iter_blocks() {
+            if y >= 0 {
+                execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1), SetForegroundColor(color), Print("[]"), ResetColor)?;
             }
         }
     }
