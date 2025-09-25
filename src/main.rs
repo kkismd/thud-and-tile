@@ -1,15 +1,18 @@
-use std::io::{self, stdout, Write};
-use std::time::{Duration, Instant};
-use std::thread;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
-    event::{self, Event, KeyCode, KeyEventKind, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags},
+    event::{
+        self, Event, KeyCode, KeyEventKind, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
+        PushKeyboardEnhancementFlags,
+    },
     execute,
     style::{Color, Print, ResetColor, SetForegroundColor},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use rand::{self, Rng};
 use rand::seq::SliceRandom;
+use rand::{self, Rng};
+use std::io::{self, Write, stdout};
+use std::thread;
+use std::time::{Duration, Instant};
 
 // --- 定数 ---
 const BOARD_WIDTH: usize = 10;
@@ -32,7 +35,13 @@ type Board = Vec<Vec<Cell>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum TetrominoShape {
-    I, O, T, L, J, S, Z,
+    I,
+    O,
+    T,
+    L,
+    J,
+    S,
+    Z,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,7 +62,11 @@ struct Tetromino {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Animation {
-    LineBlink { lines: Vec<usize>, count: usize, start: Instant },
+    LineBlink {
+        lines: Vec<usize>,
+        count: usize,
+        start: Instant,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -71,11 +84,15 @@ impl Tetromino {
     fn new_random() -> Self {
         let mut rng = rand::thread_rng();
         let shape = match rng.gen_range(0..7) {
-            0 => TetrominoShape::I, 1 => TetrominoShape::O, 2 => TetrominoShape::T,
-            3 => TetrominoShape::L, 4 => TetrominoShape::J, 5 => TetrominoShape::S,
+            0 => TetrominoShape::I,
+            1 => TetrominoShape::O,
+            2 => TetrominoShape::T,
+            3 => TetrominoShape::L,
+            4 => TetrominoShape::J,
+            5 => TetrominoShape::S,
             _ => TetrominoShape::Z,
         };
-        
+
         let mut colors = COLOR_PALETTE;
         colors.shuffle(&mut rng);
 
@@ -93,9 +110,11 @@ impl Tetromino {
             TetrominoShape::Z => &SHAPES[6],
         };
         Tetromino {
-            _shape: shape, matrix,
+            _shape: shape,
+            matrix,
             pos: ((BOARD_WIDTH as i8) / 2 - 2, 0),
-            colors, rotation: 0,
+            colors,
+            rotation: 0,
         }
     }
 
@@ -171,14 +190,21 @@ impl GameState {
                 }
             }
         }
-        
-        let lines_to_clear: Vec<usize> = self.board.iter().enumerate()
+
+        let lines_to_clear: Vec<usize> = self
+            .board
+            .iter()
+            .enumerate()
             .filter(|(_, row)| row.iter().all(|&cell| matches!(cell, Cell::Occupied(_))))
             .map(|(y, _)| y)
             .collect();
 
         if !lines_to_clear.is_empty() {
-            self.animation = Some(Animation::LineBlink { lines: lines_to_clear, count: 0, start: Instant::now() });
+            self.animation = Some(Animation::LineBlink {
+                lines: lines_to_clear,
+                count: 0,
+                start: Instant::now(),
+            });
         } else {
             self.spawn_piece();
         }
@@ -186,7 +212,11 @@ impl GameState {
 
     fn update_score(&mut self, lines: u32) {
         let points = match lines {
-            1 => 100, 2 => 300, 3 => 500, 4 => 800, _ => 0,
+            1 => 100,
+            2 => 300,
+            3 => 500,
+            4 => 800,
+            _ => 0,
         };
         self.score += points;
         self.lines_cleared += lines;
@@ -195,8 +225,79 @@ impl GameState {
         }
     }
 
+    fn clear_lines(&mut self, lines: &[usize]) {
+        // For now, we only handle a single line clear at a time.
+        let y = lines[0];
+        let is_bottom_line = y == BOARD_HEIGHT - 1;
+
+        if is_bottom_line {
+            // Standard Tetris clear for the bottom line
+            let num_cleared = lines.len();
+            let mut sorted_lines = lines.to_vec();
+            sorted_lines.sort_by(|a, b| b.cmp(a));
+            for &line_y in &sorted_lines {
+                self.board.remove(line_y);
+            }
+            for _ in 0..num_cleared {
+                self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+            }
+            self.update_score(num_cleared as u32);
+            self.animation = None;
+            self.spawn_piece();
+        } else {
+            // Custom logic for non-bottom lines
+            self.remove_isolated_blocks(y);
+
+            // The test expects the cleared line to still exist for now,
+            // so we don't remove it. We also don't spawn a new piece yet.
+            // This will change in later steps of the TDD plan.
+            self.animation = None; // End the animation
+            self.spawn_piece(); // TODO: This should trigger the next custom animation, not spawn a piece.
+        }
+    }
+
+    fn remove_isolated_blocks(&mut self, cleared_line_y: usize) {
+        let mut blocks_to_remove = Vec::new();
+
+        // Iterate from the row below the cleared line to the bottom
+        for y in (cleared_line_y + 1)..BOARD_HEIGHT {
+            for x in 0..BOARD_WIDTH {
+                if let Cell::Occupied(color) = self.board[y][x] {
+                    // Check neighbors
+                    let mut is_isolated = true;
+                    let neighbors = [
+                        (x as i8 - 1, y as i8),
+                        (x as i8 + 1, y as i8),
+                        (x as i8, y as i8 - 1),
+                        (x as i8, y as i8 + 1),
+                    ];
+
+                    for (nx, ny) in neighbors {
+                        if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8
+                            && let Cell::Occupied(neighbor_color) =
+                                self.board[ny as usize][nx as usize]
+                                && neighbor_color == color {
+                                    is_isolated = false;
+                                    break;
+                                }
+                    }
+
+                    if is_isolated {
+                        blocks_to_remove.push((x, y));
+                    }
+                }
+            }
+        }
+
+        for (x, y) in blocks_to_remove {
+            self.board[y][x] = Cell::Empty;
+        }
+    }
+
     fn handle_input(&mut self, code: KeyCode) {
-        if self.current_piece.is_none() { return; }
+        if self.current_piece.is_none() {
+            return;
+        }
         let mut piece = self.current_piece.clone().unwrap();
 
         match code {
@@ -253,7 +354,9 @@ fn draw_title_screen(stdout: &mut io::Stdout) -> io::Result<()> {
 }
 
 fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> io::Result<()> {
-    if prev_state == state { return Ok(()); }
+    if prev_state == state {
+        return Ok(());
+    }
 
     match state.mode {
         GameMode::Title => { /* Do nothing, handled by draw_title_screen */ }
@@ -266,18 +369,35 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                 execute!(stdout, MoveTo(0, 0), Print("┌"))?;
                 execute!(stdout, MoveTo((BOARD_WIDTH * 2) as u16 + 1, 0), Print("┐"))?;
                 execute!(stdout, MoveTo(0, BOARD_HEIGHT as u16 + 1), Print("└"))?;
-                execute!(stdout, MoveTo((BOARD_WIDTH * 2) as u16 + 1, BOARD_HEIGHT as u16 + 1), Print("┘"))?;
+                execute!(
+                    stdout,
+                    MoveTo((BOARD_WIDTH * 2) as u16 + 1, BOARD_HEIGHT as u16 + 1),
+                    Print("┘")
+                )?;
                 for y in 1..=BOARD_HEIGHT {
                     execute!(stdout, MoveTo(0, y as u16), Print("│"))?;
-                    execute!(stdout, MoveTo((BOARD_WIDTH * 2) as u16 + 1, y as u16), Print("│"))?;
+                    execute!(
+                        stdout,
+                        MoveTo((BOARD_WIDTH * 2) as u16 + 1, y as u16),
+                        Print("│")
+                    )?;
                 }
                 for x in 0..BOARD_WIDTH {
                     execute!(stdout, MoveTo((x * 2) as u16 + 1, 0), Print("──"))?;
-                    execute!(stdout, MoveTo((x * 2) as u16 + 1, BOARD_HEIGHT as u16 + 1), Print("──"))?;
+                    execute!(
+                        stdout,
+                        MoveTo((x * 2) as u16 + 1, BOARD_HEIGHT as u16 + 1),
+                        Print("──")
+                    )?;
                 }
                 execute!(stdout, ResetColor)?;
                 let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
-                execute!(stdout, SetForegroundColor(Color::White), MoveTo(ui_x, 2), Print("Score: 0     "))?;
+                execute!(
+                    stdout,
+                    SetForegroundColor(Color::White),
+                    MoveTo(ui_x, 2),
+                    Print("Score: 0     ")
+                )?;
                 execute!(stdout, MoveTo(ui_x, 3), Print("Lines: 0     "))?;
                 execute!(stdout, MoveTo(ui_x, 5), Print("Controls:"))?;
                 execute!(stdout, MoveTo(ui_x, 6), Print("←/→: Move"))?;
@@ -288,105 +408,163 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
             }
 
             // --- 消去フェーズ ---
-            if let Some(ghost) = &prev_state.ghost_piece() {
-                if Some(ghost) != prev_state.current_piece.as_ref() {
+            if let Some(ghost) = &prev_state.ghost_piece()
+                && Some(ghost) != prev_state.current_piece.as_ref() {
                     for ((x, y), _) in ghost.iter_blocks() {
-                        if y >= 0 { execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1), Print("  "))?; }
+                        if y >= 0 {
+                            execute!(
+                                stdout,
+                                MoveTo((x as u16 * 2) + 1, y as u16 + 1),
+                                Print("  ")
+                            )?;
+                        }
                     }
                 }
-            }
-            if let Some(piece) = &prev_state.current_piece {
-                if prev_state.animation.is_none() {
+            if let Some(piece) = &prev_state.current_piece
+                && prev_state.animation.is_none() {
                     for ((x, y), _) in piece.iter_blocks() {
-                        if y >= 0 { execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1), Print("  "))?; }
+                        if y >= 0 {
+                            execute!(
+                                stdout,
+                                MoveTo((x as u16 * 2) + 1, y as u16 + 1),
+                                Print("  ")
+                            )?;
+                        }
                     }
                 }
-            }
 
             // --- 描画フェーズ ---
-            let blink_state = if let Some(Animation::LineBlink { lines, count, .. }) = &state.animation {
-                Some((lines, *count))
-            } else {
-                None
-            };
+            let blink_state =
+                if let Some(Animation::LineBlink { lines, count, .. }) = &state.animation {
+                    Some((lines, *count))
+                } else {
+                    None
+                };
 
             for (y, row) in state.board.iter().enumerate() {
                 // Handle blinking lines
-                if let Some((blinking_lines, count)) = blink_state {
-                    if blinking_lines.contains(&y) {
-                        let prev_anim_count = if let Some(Animation::LineBlink{ count, .. }) = prev_state.animation {
+                if let Some((blinking_lines, count)) = blink_state
+                    && blinking_lines.contains(&y) {
+                        let prev_anim_count = if let Some(Animation::LineBlink { count, .. }) =
+                            prev_state.animation
+                        {
                             Some(count)
                         } else {
                             None
                         };
 
                         // Redraw if the blink on/off state has changed, or if animation just started.
-                        if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(0) % 2 != count % 2) {
+                        if prev_anim_count.is_none()
+                            || (prev_anim_count.unwrap_or(0) % 2 != count % 2)
+                        {
                             for x in 0..BOARD_WIDTH {
                                 execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1))?;
-                                if count % 2 == 0 { // "On" state
+                                if count % 2 == 0 {
+                                    // "On" state
                                     if let Cell::Occupied(color) = state.board[y][x] {
-                                        execute!(stdout, SetForegroundColor(color), Print("[]"), ResetColor)?;
+                                        execute!(
+                                            stdout,
+                                            SetForegroundColor(color),
+                                            Print("[]"),
+                                            ResetColor
+                                        )?;
                                     } else {
                                         execute!(stdout, Print("  "))?;
                                     }
-                                } else { // "Off" state
+                                } else {
+                                    // "Off" state
                                     execute!(stdout, Print("  "))?;
                                 }
                             }
                         }
                         continue; // Done with this row
                     }
-                }
 
                 // Default drawing for non-blinking lines
                 for (x, &cell) in row.iter().enumerate() {
                     let pos = (x as i8, y as i8);
-                    let was_ghost = prev_state.ghost_piece().as_ref().map_or(false, |g| g.iter_blocks().any(|(p, _)| p == pos));
-                    let was_piece = prev_state.current_piece.as_ref().map_or(false, |p| p.iter_blocks().any(|(p, _)| p == pos));
+                    let was_ghost = prev_state
+                        .ghost_piece()
+                        .as_ref()
+                        .is_some_and(|g| g.iter_blocks().any(|(p, _)| p == pos));
+                    let was_piece = prev_state
+                        .current_piece
+                        .as_ref()
+                        .is_some_and(|p| p.iter_blocks().any(|(p, _)| p == pos));
 
-                    if cell != prev_state.board[y][x] || ((was_ghost || was_piece) && cell != Cell::Empty) {
+                    if cell != prev_state.board[y][x]
+                        || ((was_ghost || was_piece) && cell != Cell::Empty)
+                    {
                         execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1))?;
                         match cell {
                             Cell::Empty => execute!(stdout, Print("  "))?,
-                            Cell::Occupied(color) => execute!(stdout, SetForegroundColor(color), Print("[]"), ResetColor)?,
+                            Cell::Occupied(color) => execute!(
+                                stdout,
+                                SetForegroundColor(color),
+                                Print("[]"),
+                                ResetColor
+                            )?,
                         }
                     }
                 }
             }
-            
-            if let Some(ghost) = &state.ghost_piece() {
-                if Some(ghost) != state.current_piece.as_ref() {
+
+            if let Some(ghost) = &state.ghost_piece()
+                && Some(ghost) != state.current_piece.as_ref() {
                     for ((x, y), _) in ghost.iter_blocks() {
                         if y >= 0 && state.board[y as usize][x as usize] == Cell::Empty {
-                            execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1), SetForegroundColor(Color::Grey), Print("::"))?;
+                            execute!(
+                                stdout,
+                                MoveTo((x as u16 * 2) + 1, y as u16 + 1),
+                                SetForegroundColor(Color::Grey),
+                                Print("::")
+                            )?;
                         }
                     }
                 }
-            }
 
             if let Some(piece) = &state.current_piece {
                 for ((x, y), color) in piece.iter_blocks() {
                     if y >= 0 {
-                        execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1), SetForegroundColor(color), Print("[]"), ResetColor)?;
+                        execute!(
+                            stdout,
+                            MoveTo((x as u16 * 2) + 1, y as u16 + 1),
+                            SetForegroundColor(color),
+                            Print("[]"),
+                            ResetColor
+                        )?;
                     }
                 }
             }
 
             let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
             if prev_state.score != state.score {
-                execute!(stdout, SetForegroundColor(Color::White), MoveTo(ui_x, 2), Print(format!("Score: {:<6}", state.score)))?;
+                execute!(
+                    stdout,
+                    SetForegroundColor(Color::White),
+                    MoveTo(ui_x, 2),
+                    Print(format!("Score: {:<6}", state.score))
+                )?;
             }
             if prev_state.lines_cleared != state.lines_cleared {
-                execute!(stdout, MoveTo(ui_x, 3), Print(format!("Lines: {:<6}", state.lines_cleared)))?;
+                execute!(
+                    stdout,
+                    MoveTo(ui_x, 3),
+                    Print(format!("Lines: {:<6}", state.lines_cleared))
+                )?;
             }
         }
         GameMode::GameOver => {
-             if prev_state.mode != GameMode::GameOver {
+            if prev_state.mode != GameMode::GameOver {
                 let msg = "GAME OVER";
                 let x = (BOARD_WIDTH * 2 + 3 - msg.len()) as u16 / 2;
                 let y = (BOARD_HEIGHT / 2) as u16;
-                execute!(stdout, SetForegroundColor(Color::Red), MoveTo(x, y), Print(msg))?;
+                execute!(
+                    stdout,
+                    SetForegroundColor(Color::Red),
+                    MoveTo(x, y),
+                    Print(msg)
+                )?;
             }
         }
     }
@@ -397,7 +575,10 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
 fn main() -> io::Result<()> {
     let mut stdout = stdout();
     execute!(stdout, EnterAlternateScreen, Hide)?;
-    execute!(stdout, PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES))?;
+    execute!(
+        stdout,
+        PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES)
+    )?;
     terminal::enable_raw_mode()?;
 
     let mut state = GameState::new();
@@ -414,9 +595,9 @@ fn main() -> io::Result<()> {
 
         match state.mode {
             GameMode::Title => {
-                if event::poll(Duration::from_millis(100))? {
-                    if let Event::Key(key) = event::read()? {
-                        if key.kind == KeyEventKind::Press {
+                if event::poll(Duration::from_millis(100))?
+                    && let Event::Key(key) = event::read()?
+                        && key.kind == KeyEventKind::Press {
                             match key.code {
                                 KeyCode::Enter => {
                                     state = GameState::new();
@@ -427,33 +608,30 @@ fn main() -> io::Result<()> {
                                 _ => {}
                             }
                         }
-                    }
-                }
             }
             GameMode::Playing => {
                 // アニメーション処理
                 if let Some(anim) = state.animation.clone() {
                     match anim {
-                        Animation::LineBlink { lines, count, start } => {
-                            let steps_done = (start.elapsed().as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
+                        Animation::LineBlink {
+                            lines,
+                            count,
+                            start,
+                        } => {
+                            let steps_done = (start.elapsed().as_millis()
+                                / BLINK_ANIMATION_STEP.as_millis())
+                                as usize;
 
                             if steps_done >= BLINK_COUNT_MAX {
                                 // Animation finished, clear lines
-                                let num_cleared = lines.len();
-                                let mut sorted_lines = lines.clone();
-                                sorted_lines.sort_by(|a, b| b.cmp(a));
-                                for &y in &sorted_lines {
-                                    state.board.remove(y);
-                                }
-                                for _ in 0..num_cleared {
-                                    state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-                                }
-                                state.update_score(num_cleared as u32);
-                                state.animation = None;
-                                state.spawn_piece();
+                                state.clear_lines(&lines);
                             } else if steps_done > count {
                                 // Continue animation, advance step
-                                state.animation = Some(Animation::LineBlink { lines, count: steps_done, start });
+                                state.animation = Some(Animation::LineBlink {
+                                    lines,
+                                    count: steps_done,
+                                    start,
+                                });
                             }
                         }
                     }
@@ -463,11 +641,10 @@ fn main() -> io::Result<()> {
                 // 入力処理 (ノンブロッキング)
                 let mut last_key_press: Option<KeyCode> = None;
                 while event::poll(Duration::ZERO)? {
-                    if let Event::Key(key) = event::read()? {
-                        if key.kind == KeyEventKind::Press {
+                    if let Event::Key(key) = event::read()?
+                        && key.kind == KeyEventKind::Press {
                             last_key_press = Some(key.code);
                         }
-                    }
                 }
                 if let Some(key_code) = last_key_press {
                     if key_code == KeyCode::Char('q') {
@@ -496,15 +673,16 @@ fn main() -> io::Result<()> {
                 thread::sleep(Duration::from_millis(16));
             }
             GameMode::GameOver => {
-                if event::poll(Duration::from_millis(50))? {
-                    if let Event::Key(key) = event::read()? {
-                        if key.code == KeyCode::Char('q') { break; }
+                if event::poll(Duration::from_millis(50))?
+                    && let Event::Key(key) = event::read()? {
+                        if key.code == KeyCode::Char('q') {
+                            break;
+                        }
                         if key.code == KeyCode::Enter {
                             state = GameState::new();
                             draw_title_screen(&mut stdout)?;
                         }
                     }
-                }
             }
         }
     }
@@ -514,13 +692,48 @@ fn main() -> io::Result<()> {
 }
 
 const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
-    [[(1, 0), (1, 1), (1, 2), (1, 3)], [(0, 2), (1, 2), (2, 2), (3, 2)], [(2, 0), (2, 1), (2, 2), (2, 3)], [(0, 1), (1, 1), (2, 1), (3, 1)]],
-    [[(1, 1), (2, 1), (1, 2), (2, 2)], [(1, 1), (2, 1), (1, 2), (2, 2)], [(1, 1), (2, 1), (1, 2), (2, 2)], [(1, 1), (2, 1), (1, 2), (2, 2)]],
-    [[(1, 0), (0, 1), (1, 1), (2, 1)], [(1, 0), (1, 1), (2, 1), (1, 2)], [(0, 1), (1, 1), (2, 1), (1, 2)], [(1, 0), (0, 1), (1, 1), (1, 2)]],
-    [[(2, 0), (0, 1), (1, 1), (2, 1)], [(1, 0), (1, 1), (1, 2), (2, 2)], [(0, 1), (1, 1), (2, 1), (0, 2)], [(0, 0), (1, 0), (1, 1), (1, 2)]],
-    [[(0, 0), (0, 1), (1, 1), (2, 1)], [(1, 0), (2, 0), (1, 1), (1, 2)], [(0, 1), (1, 1), (2, 1), (2, 2)], [(1, 0), (1, 1), (0, 2), (1, 2)]],
-    [[(1, 0), (2, 0), (0, 1), (1, 1)], [(1, 0), (1, 1), (2, 1), (2, 2)], [(1, 1), (2, 1), (0, 2), (1, 2)], [(0, 0), (0, 1), (1, 1), (1, 2)]],
-    [[(0, 0), (1, 0), (1, 1), (2, 1)], [(2, 0), (1, 1), (2, 1), (1, 2)], [(0, 1), (1, 1), (1, 2), (2, 2)], [(1, 0), (0, 1), (1, 1), (0, 2)]],
+    [
+        [(1, 0), (1, 1), (1, 2), (1, 3)],
+        [(0, 2), (1, 2), (2, 2), (3, 2)],
+        [(2, 0), (2, 1), (2, 2), (2, 3)],
+        [(0, 1), (1, 1), (2, 1), (3, 1)],
+    ],
+    [
+        [(1, 1), (2, 1), (1, 2), (2, 2)],
+        [(1, 1), (2, 1), (1, 2), (2, 2)],
+        [(1, 1), (2, 1), (1, 2), (2, 2)],
+        [(1, 1), (2, 1), (1, 2), (2, 2)],
+    ],
+    [
+        [(1, 0), (0, 1), (1, 1), (2, 1)],
+        [(1, 0), (1, 1), (2, 1), (1, 2)],
+        [(0, 1), (1, 1), (2, 1), (1, 2)],
+        [(1, 0), (0, 1), (1, 1), (1, 2)],
+    ],
+    [
+        [(2, 0), (0, 1), (1, 1), (2, 1)],
+        [(1, 0), (1, 1), (1, 2), (2, 2)],
+        [(0, 1), (1, 1), (2, 1), (0, 2)],
+        [(0, 0), (1, 0), (1, 1), (1, 2)],
+    ],
+    [
+        [(0, 0), (0, 1), (1, 1), (2, 1)],
+        [(1, 0), (2, 0), (1, 1), (1, 2)],
+        [(0, 1), (1, 1), (2, 1), (2, 2)],
+        [(1, 0), (1, 1), (0, 2), (1, 2)],
+    ],
+    [
+        [(1, 0), (2, 0), (0, 1), (1, 1)],
+        [(1, 0), (1, 1), (2, 1), (2, 2)],
+        [(1, 1), (2, 1), (0, 2), (1, 2)],
+        [(0, 0), (0, 1), (1, 1), (1, 2)],
+    ],
+    [
+        [(0, 0), (1, 0), (1, 1), (2, 1)],
+        [(2, 0), (1, 1), (2, 1), (1, 2)],
+        [(0, 1), (1, 1), (1, 2), (2, 2)],
+        [(1, 0), (0, 1), (1, 1), (0, 2)],
+    ],
 ];
 
 #[cfg(test)]
@@ -544,11 +757,84 @@ mod tests {
         }
 
         // Create a piece to lock and trigger the line clear
-        let piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red, Color::Red, Color::Red, Color::Red]);
+        let piece = Tetromino::from_shape(
+            TetrominoShape::I,
+            [Color::Red, Color::Red, Color::Red, Color::Red],
+        );
         state.current_piece = Some(piece);
 
         state.lock_piece();
 
         assert!(matches!(state.animation, Some(Animation::LineBlink { .. })));
+    }
+
+    #[test]
+    fn test_bottom_line_is_cleared_normally() {
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        // Create a full line at the bottom
+        for x in 0..BOARD_WIDTH {
+            state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(Color::Blue);
+        }
+        // Add a marker block on the row above
+        state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Red);
+
+        // Clear the bottom line
+        state.clear_lines(&[BOARD_HEIGHT - 1]);
+
+        // Assert that the marker block has moved down into the bottom row
+        assert_eq!(state.board[BOARD_HEIGHT - 1][0], Cell::Occupied(Color::Red));
+        // Assert that the top row is now empty
+        assert!(state.board[0].iter().all(|&c| c == Cell::Empty));
+        // Assert score and line count
+        assert_eq!(state.lines_cleared, 1);
+        assert_eq!(state.score, 100);
+    }
+
+    #[test]
+    fn test_isolated_blocks_are_removed_on_non_bottom_clear() {
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        let clear_line_y = BOARD_HEIGHT - 5;
+
+        // 1. Create a full line at a non-bottom row
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+
+        // 2. Place an isolated block and a non-isolated group below the line
+        let isolated_block_pos = (5, clear_line_y + 2);
+        state.board[isolated_block_pos.1][isolated_block_pos.0] = Cell::Occupied(Color::Red);
+
+        let non_isolated_group_pos1 = (2, clear_line_y + 3);
+        let non_isolated_group_pos2 = (3, clear_line_y + 3);
+        state.board[non_isolated_group_pos1.1][non_isolated_group_pos1.0] =
+            Cell::Occupied(Color::Green);
+        state.board[non_isolated_group_pos2.1][non_isolated_group_pos2.0] =
+            Cell::Occupied(Color::Green);
+
+        // 3. Call the line clear logic
+        state.clear_lines(&[clear_line_y]);
+
+        // 4. Assert that the isolated block is gone
+        assert_eq!(
+            state.board[isolated_block_pos.1][isolated_block_pos.0],
+            Cell::Empty,
+            "Isolated block should be removed"
+        );
+
+        // 5. Assert that the non-isolated group remains
+        assert_ne!(
+            state.board[non_isolated_group_pos1.1][non_isolated_group_pos1.0],
+            Cell::Empty,
+            "Non-isolated block should remain"
+        );
+        assert_ne!(
+            state.board[non_isolated_group_pos2.1][non_isolated_group_pos2.0],
+            Cell::Empty,
+            "Non-isolated block should remain"
+        );
     }
 }
