@@ -15,8 +15,10 @@ use rand::seq::SliceRandom;
 const BOARD_WIDTH: usize = 10;
 const BOARD_HEIGHT: usize = 20;
 const FALL_SPEED_START: Duration = Duration::from_millis(800);
-const LINE_CLEAR_ANIMATION_DELAY: Duration = Duration::from_millis(40);
+
 const COLOR_PALETTE: [Color; 4] = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+const BLINK_ANIMATION_STEP: Duration = Duration::from_millis(120);
+const BLINK_COUNT_MAX: usize = 6; // 3 blinks: on-off-on-off-on-off
 
 // --- データ構造 ---
 
@@ -50,9 +52,8 @@ struct Tetromino {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct LineClearAnimation {
-    lines: Vec<usize>,
-    step: usize,
+pub enum Animation {
+    LineBlink { lines: Vec<usize>, count: usize, start: Instant },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -60,7 +61,7 @@ struct GameState {
     mode: GameMode,
     board: Board,
     current_piece: Option<Tetromino>,
-    animation: Option<LineClearAnimation>,
+    animation: Option<Animation>,
     score: u32,
     lines_cleared: u32,
     fall_speed: Duration,
@@ -177,7 +178,7 @@ impl GameState {
             .collect();
 
         if !lines_to_clear.is_empty() {
-            self.animation = Some(LineClearAnimation { lines: lines_to_clear, step: 0 });
+            self.animation = Some(Animation::LineBlink { lines: lines_to_clear, count: 0, start: Instant::now() });
         } else {
             self.spawn_piece();
         }
@@ -303,7 +304,42 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
             }
 
             // --- 描画フェーズ ---
+            let blink_state = if let Some(Animation::LineBlink { lines, count, .. }) = &state.animation {
+                Some((lines, *count))
+            } else {
+                None
+            };
+
             for (y, row) in state.board.iter().enumerate() {
+                // Handle blinking lines
+                if let Some((blinking_lines, count)) = blink_state {
+                    if blinking_lines.contains(&y) {
+                        let prev_anim_count = if let Some(Animation::LineBlink{ count, .. }) = prev_state.animation {
+                            Some(count)
+                        } else {
+                            None
+                        };
+
+                        // Redraw if the blink on/off state has changed, or if animation just started.
+                        if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(0) % 2 != count % 2) {
+                            for x in 0..BOARD_WIDTH {
+                                execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1))?;
+                                if count % 2 == 0 { // "On" state
+                                    if let Cell::Occupied(color) = state.board[y][x] {
+                                        execute!(stdout, SetForegroundColor(color), Print("[]"), ResetColor)?;
+                                    } else {
+                                        execute!(stdout, Print("  "))?;
+                                    }
+                                } else { // "Off" state
+                                    execute!(stdout, Print("  "))?;
+                                }
+                            }
+                        }
+                        continue; // Done with this row
+                    }
+                }
+
+                // Default drawing for non-blinking lines
                 for (x, &cell) in row.iter().enumerate() {
                     let pos = (x as i8, y as i8);
                     let was_ghost = prev_state.ghost_piece().as_ref().map_or(false, |g| g.iter_blocks().any(|(p, _)| p == pos));
@@ -396,28 +432,30 @@ fn main() -> io::Result<()> {
             }
             GameMode::Playing => {
                 // アニメーション処理
-                if let Some(mut anim) = state.animation.clone() {
-                    thread::sleep(LINE_CLEAR_ANIMATION_DELAY);
-                    for &y in &anim.lines {
-                        state.board[y][anim.step] = Cell::Empty;
-                    }
-                    anim.step += 1;
+                if let Some(anim) = state.animation.clone() {
+                    match anim {
+                        Animation::LineBlink { lines, count, start } => {
+                            let steps_done = (start.elapsed().as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
 
-                    if anim.step >= BOARD_WIDTH {
-                        let num_cleared = anim.lines.len();
-                        let mut sorted_lines = anim.lines.clone();
-                        sorted_lines.sort_by(|a, b| b.cmp(a));
-                        for &y in &sorted_lines {
-                            state.board.remove(y);
+                            if steps_done >= BLINK_COUNT_MAX {
+                                // Animation finished, clear lines
+                                let num_cleared = lines.len();
+                                let mut sorted_lines = lines.clone();
+                                sorted_lines.sort_by(|a, b| b.cmp(a));
+                                for &y in &sorted_lines {
+                                    state.board.remove(y);
+                                }
+                                for _ in 0..num_cleared {
+                                    state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+                                }
+                                state.update_score(num_cleared as u32);
+                                state.animation = None;
+                                state.spawn_piece();
+                            } else if steps_done > count {
+                                // Continue animation, advance step
+                                state.animation = Some(Animation::LineBlink { lines, count: steps_done, start });
+                            }
                         }
-                        for _ in 0..num_cleared {
-                            state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-                        }
-                        state.update_score(num_cleared as u32);
-                        state.animation = None;
-                        state.spawn_piece();
-                    } else {
-                        state.animation = Some(anim);
                     }
                     continue;
                 }
@@ -493,5 +531,24 @@ mod tests {
     fn test_game_starts_in_title_mode() {
         let state = GameState::new();
         assert_eq!(state.mode, GameMode::Title);
+    }
+
+    #[test]
+    fn test_line_clear_triggers_blink_animation() {
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        // Create a full line at the bottom
+        for x in 0..BOARD_WIDTH {
+            state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(Color::Blue);
+        }
+
+        // Create a piece to lock and trigger the line clear
+        let piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red, Color::Red, Color::Red, Color::Red]);
+        state.current_piece = Some(piece);
+
+        state.lock_piece();
+
+        assert!(matches!(state.animation, Some(Animation::LineBlink { .. })));
     }
 }
