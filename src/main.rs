@@ -245,14 +245,19 @@ impl GameState {
             self.animation = None;
             self.spawn_piece();
         } else {
-            // Custom logic for non-bottom lines
+            // Custom logic for non-bottom lines:
+            // 1. Remove isolated blocks below the cleared line.
             self.remove_isolated_blocks(y);
 
-            // The test expects the cleared line to still exist for now,
-            // so we don't remove it. We also don't spawn a new piece yet.
-            // This will change in later steps of the TDD plan.
-            self.animation = None; // End the animation
-            self.spawn_piece(); // TODO: This should trigger the next custom animation, not spawn a piece.
+            // 2. Perform a standard clear on the line itself to fix the bug.
+            // This makes the game playable. The full push-down mechanic will be implemented later.
+            let num_cleared = lines.len();
+            self.board.remove(y);
+            self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+
+            self.update_score(num_cleared as u32);
+            self.animation = None;
+            self.spawn_piece();
         }
     }
 
@@ -836,5 +841,27 @@ mod tests {
             Cell::Empty,
             "Non-isolated block should remain"
         );
+    }
+
+    #[test]
+    fn test_non_bottom_line_clear_removes_line_and_shifts_rows() {
+        let mut state = GameState::new();
+        let clear_line_y = BOARD_HEIGHT - 5;
+
+        // Create a full line at a non-bottom row
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+        // Add a marker block on the row above the cleared line
+        let marker_pos = (3, clear_line_y - 1);
+        state.board[marker_pos.1][marker_pos.0] = Cell::Occupied(Color::Yellow);
+
+        // Call the line clear logic
+        state.clear_lines(&[clear_line_y]);
+
+        // Assert that the marker block has shifted down into the cleared line's original row
+        assert_eq!(state.board[clear_line_y][marker_pos.0], Cell::Occupied(Color::Yellow));
+        // Assert that the top row is now empty
+        assert!(state.board[0].iter().all(|&c| c == Cell::Empty));
     }
 }
