@@ -10,7 +10,7 @@ use crossterm::{
 };
 use rand::seq::SliceRandom;
 use rand::{self, Rng};
-use std::io::{self, Write, stdout};
+use std::io::{self, stdout, Write};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -278,13 +278,17 @@ impl GameState {
                     ];
 
                     for (nx, ny) in neighbors {
-                        if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8
+                        if nx >= 0
+                            && nx < BOARD_WIDTH as i8
+                            && ny >= 0
+                            && ny < BOARD_HEIGHT as i8
                             && let Cell::Occupied(neighbor_color) =
                                 self.board[ny as usize][nx as usize]
-                                && neighbor_color == color {
-                                    is_isolated = false;
-                                    break;
-                                }
+                            && neighbor_color == color
+                        {
+                            is_isolated = false;
+                            break;
+                        }
                     }
 
                     if is_isolated {
@@ -414,29 +418,31 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
 
             // --- 消去フェーズ ---
             if let Some(ghost) = &prev_state.ghost_piece()
-                && Some(ghost) != prev_state.current_piece.as_ref() {
-                    for ((x, y), _) in ghost.iter_blocks() {
-                        if y >= 0 {
-                            execute!(
-                                stdout,
-                                MoveTo((x as u16 * 2) + 1, y as u16 + 1),
-                                Print("  ")
-                            )?;
-                        }
+                && Some(ghost) != prev_state.current_piece.as_ref()
+            {
+                for ((x, y), _) in ghost.iter_blocks() {
+                    if y >= 0 {
+                        execute!(
+                            stdout,
+                            MoveTo((x as u16 * 2) + 1, y as u16 + 1),
+                            Print("  ")
+                        )?;
                     }
                 }
+            }
             if let Some(piece) = &prev_state.current_piece
-                && prev_state.animation.is_none() {
-                    for ((x, y), _) in piece.iter_blocks() {
-                        if y >= 0 {
-                            execute!(
-                                stdout,
-                                MoveTo((x as u16 * 2) + 1, y as u16 + 1),
-                                Print("  ")
-                            )?;
-                        }
+                && prev_state.animation.is_none()
+            {
+                for ((x, y), _) in piece.iter_blocks() {
+                    if y >= 0 {
+                        execute!(
+                            stdout,
+                            MoveTo((x as u16 * 2) + 1, y as u16 + 1),
+                            Print("  ")
+                        )?;
                     }
                 }
+            }
 
             // --- 描画フェーズ ---
             let blink_state =
@@ -449,41 +455,40 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
             for (y, row) in state.board.iter().enumerate() {
                 // Handle blinking lines
                 if let Some((blinking_lines, count)) = blink_state
-                    && blinking_lines.contains(&y) {
-                        let prev_anim_count = if let Some(Animation::LineBlink { count, .. }) =
-                            prev_state.animation
-                        {
+                    && blinking_lines.contains(&y)
+                {
+                    let prev_anim_count =
+                        if let Some(Animation::LineBlink { count, .. }) = prev_state.animation {
                             Some(count)
                         } else {
                             None
                         };
 
-                        // Redraw if the blink on/off state has changed, or if animation just started.
-                        if prev_anim_count.is_none()
-                            || (prev_anim_count.unwrap_or(0) % 2 != count % 2)
-                        {
-                            for x in 0..BOARD_WIDTH {
-                                execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1))?;
-                                if count % 2 == 0 {
-                                    // "On" state
-                                    if let Cell::Occupied(color) = state.board[y][x] {
-                                        execute!(
-                                            stdout,
-                                            SetForegroundColor(color),
-                                            Print("[]"),
-                                            ResetColor
-                                        )?;
-                                    } else {
-                                        execute!(stdout, Print("  "))?;
-                                    }
+                    // Redraw if the blink on/off state has changed, or if animation just started.
+                    if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(0) % 2 != count % 2)
+                    {
+                        for x in 0..BOARD_WIDTH {
+                            execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1))?;
+                            if count % 2 == 0 {
+                                // "On" state
+                                if let Cell::Occupied(color) = state.board[y][x] {
+                                    execute!(
+                                        stdout,
+                                        SetForegroundColor(color),
+                                        Print("[]"),
+                                        ResetColor
+                                    )?;
                                 } else {
-                                    // "Off" state
                                     execute!(stdout, Print("  "))?;
                                 }
+                            } else {
+                                // "Off" state
+                                execute!(stdout, Print("  "))?;
                             }
                         }
-                        continue; // Done with this row
                     }
+                    continue; // Done with this row
+                }
 
                 // Default drawing for non-blinking lines
                 for (x, &cell) in row.iter().enumerate() {
@@ -515,18 +520,19 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
             }
 
             if let Some(ghost) = &state.ghost_piece()
-                && Some(ghost) != state.current_piece.as_ref() {
-                    for ((x, y), _) in ghost.iter_blocks() {
-                        if y >= 0 && state.board[y as usize][x as usize] == Cell::Empty {
-                            execute!(
-                                stdout,
-                                MoveTo((x as u16 * 2) + 1, y as u16 + 1),
-                                SetForegroundColor(Color::Grey),
-                                Print("::")
-                            )?;
-                        }
+                && Some(ghost) != state.current_piece.as_ref()
+            {
+                for ((x, y), _) in ghost.iter_blocks() {
+                    if y >= 0 && state.board[y as usize][x as usize] == Cell::Empty {
+                        execute!(
+                            stdout,
+                            MoveTo((x as u16 * 2) + 1, y as u16 + 1),
+                            SetForegroundColor(Color::Grey),
+                            Print("::")
+                        )?;
                     }
                 }
+            }
 
             if let Some(piece) = &state.current_piece {
                 for ((x, y), color) in piece.iter_blocks() {
@@ -602,17 +608,18 @@ fn main() -> io::Result<()> {
             GameMode::Title => {
                 if event::poll(Duration::from_millis(100))?
                     && let Event::Key(key) = event::read()?
-                        && key.kind == KeyEventKind::Press {
-                            match key.code {
-                                KeyCode::Enter => {
-                                    state = GameState::new();
-                                    state.mode = GameMode::Playing;
-                                    state.spawn_piece();
-                                }
-                                KeyCode::Char('q') => break,
-                                _ => {}
-                            }
+                    && key.kind == KeyEventKind::Press
+                {
+                    match key.code {
+                        KeyCode::Enter => {
+                            state = GameState::new();
+                            state.mode = GameMode::Playing;
+                            state.spawn_piece();
                         }
+                        KeyCode::Char('q') => break,
+                        _ => {}
+                    }
+                }
             }
             GameMode::Playing => {
                 // アニメーション処理
@@ -647,9 +654,10 @@ fn main() -> io::Result<()> {
                 let mut last_key_press: Option<KeyCode> = None;
                 while event::poll(Duration::ZERO)? {
                     if let Event::Key(key) = event::read()?
-                        && key.kind == KeyEventKind::Press {
-                            last_key_press = Some(key.code);
-                        }
+                        && key.kind == KeyEventKind::Press
+                    {
+                        last_key_press = Some(key.code);
+                    }
                 }
                 if let Some(key_code) = last_key_press {
                     if key_code == KeyCode::Char('q') {
@@ -679,15 +687,16 @@ fn main() -> io::Result<()> {
             }
             GameMode::GameOver => {
                 if event::poll(Duration::from_millis(50))?
-                    && let Event::Key(key) = event::read()? {
-                        if key.code == KeyCode::Char('q') {
-                            break;
-                        }
-                        if key.code == KeyCode::Enter {
-                            state = GameState::new();
-                            draw_title_screen(&mut stdout)?;
-                        }
+                    && let Event::Key(key) = event::read()?
+                {
+                    if key.code == KeyCode::Char('q') {
+                        break;
                     }
+                    if key.code == KeyCode::Enter {
+                        state = GameState::new();
+                        draw_title_screen(&mut stdout)?;
+                    }
+                }
             }
         }
     }
@@ -744,6 +753,7 @@ const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::VecDeque;
 
     #[test]
     fn test_game_starts_in_title_mode() {
@@ -843,7 +853,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn test_non_bottom_line_clear_removes_line_and_shifts_rows() {
         let mut state = GameState::new();
         let clear_line_y = BOARD_HEIGHT - 5;
@@ -860,8 +869,104 @@ mod tests {
         state.clear_lines(&[clear_line_y]);
 
         // Assert that the marker block has shifted down into the cleared line's original row
-        assert_eq!(state.board[clear_line_y][marker_pos.0], Cell::Occupied(Color::Yellow));
+        assert_eq!(
+            state.board[clear_line_y][marker_pos.0],
+            Cell::Occupied(Color::Yellow)
+        );
         // Assert that the top row is now empty
         assert!(state.board[0].iter().all(|&c| c == Cell::Empty));
+    }
+
+    type Point = (usize, usize);
+    fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u32)> {
+        let mut results = Vec::new();
+        let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
+
+        for y in (cleared_line_y + 1)..BOARD_HEIGHT {
+            for x in 0..BOARD_WIDTH {
+                if let Cell::Occupied(color) = board[y][x] {
+                    if visited[y][x] {
+                        continue;
+                    }
+
+                    let mut component = Vec::new();
+                    let mut queue = VecDeque::new();
+
+                    visited[y][x] = true;
+                    queue.push_back((x, y));
+
+                    while let Some((qx, qy)) = queue.pop_front() {
+                        component.push((qx, qy));
+
+                        let neighbors = [
+                            (qx as i8 - 1, qy as i8),
+                            (qx as i8 + 1, qy as i8),
+                            (qx as i8, qy as i8 - 1),
+                            (qx as i8, qy as i8 + 1),
+                        ];
+
+                        for (nx, ny) in neighbors {
+                            if nx >= 0
+                                && nx < BOARD_WIDTH as i8
+                                && ny >= 0
+                                && ny < BOARD_HEIGHT as i8
+                            {
+                                let (nx, ny) = (nx as usize, ny as usize);
+                                if !visited[ny][nx] {
+                                    if let Cell::Occupied(neighbor_color) = board[ny][nx] {
+                                        if neighbor_color == color {
+                                            visited[ny][nx] = true;
+                                            queue.push_back((nx, ny));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    let component_size = component.len() as u32;
+                    for &(px, py) in &component {
+                        results.push(((px, py), component_size));
+                    }
+                }
+            }
+        }
+
+        results
+    }
+
+    #[test]
+    fn test_counts_connected_blocks() {
+        let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+        let cleared_line_y = 15;
+
+        // Setup a 2x2 group of green blocks
+        let green_group = [
+            (2, cleared_line_y + 2),
+            (3, cleared_line_y + 2),
+            (2, cleared_line_y + 3),
+            (3, cleared_line_y + 3),
+        ];
+        for &(x, y) in &green_group {
+            board[y][x] = Cell::Occupied(Color::Green);
+        }
+
+        // Setup a single isolated red block
+        let red_block = (7, cleared_line_y + 1);
+        board[red_block.1][red_block.0] = Cell::Occupied(Color::Red);
+
+        let mut results = count_connected_blocks(&board, cleared_line_y);
+        results.sort_by_key(|k| (k.0.1, k.0.0)); // Sort for consistent order
+
+        let mut expected = vec![
+            (red_block, 1),
+            (green_group[0], 4),
+            (green_group[1], 4),
+            (green_group[2], 4),
+            (green_group[3], 4),
+        ];
+        expected.sort_by_key(|k| (k.0.1, k.0.0));
+
+        assert_eq!(results, expected);
     }
 }
