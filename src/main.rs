@@ -23,6 +23,7 @@ const FALL_SPEED_START: Duration = Duration::from_millis(800);
 const COLOR_PALETTE: [Color; 4] = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
 const BLINK_ANIMATION_STEP: Duration = Duration::from_millis(120);
 const BLINK_COUNT_MAX: usize = 6; // 3 blinks: on-off-on-off-on-off
+const PUSH_DOWN_STEP_DURATION: Duration = Duration::from_millis(100);
 
 // --- データ構造 ---
 
@@ -647,6 +648,63 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
     stdout.flush()
 }
 
+fn handle_animation(state: &mut GameState) {
+    if let Some(anim) = state.animation.clone() {
+        match anim {
+            Animation::LineBlink {
+                lines,
+                count,
+                start,
+            } => {
+                let steps_done =
+                    (start.elapsed().as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
+
+                if steps_done >= BLINK_COUNT_MAX {
+                    state.clear_lines(&lines);
+                } else if steps_done > count {
+                    state.animation = Some(Animation::LineBlink {
+                        lines,
+                        count: steps_done,
+                        start,
+                    });
+                }
+            }
+            Animation::PushDown { gray_line_y, start } => {
+                let steps_to_move =
+                    (start.elapsed().as_millis() / PUSH_DOWN_STEP_DURATION.as_millis()) as usize;
+
+                if steps_to_move == 0 {
+                    return;
+                }
+
+                let mut current_y = gray_line_y;
+                for _ in 0..steps_to_move {
+                    if current_y + 1 >= BOARD_HEIGHT {
+                        break;
+                    }
+                    // Remove the row below the gray line
+                    state.board.remove(current_y + 1);
+                    // Add a new empty row at the top
+                    state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+                    current_y += 1;
+                }
+
+                if current_y >= BOARD_HEIGHT - 1 {
+                    // Animation finished
+                    state.animation = None;
+                    // TODO: Spawn new piece, handle scoring, etc.
+                } else {
+                    // Update the animation state with the new position
+                    state.animation = Some(Animation::PushDown {
+                        gray_line_y: current_y,
+                        start: Instant::now(), // Reset timer for the next step
+                    });
+                }
+            }
+        }
+    }
+}
+
 fn main() -> io::Result<()> {
     let mut stdout = stdout();
     execute!(stdout, EnterAlternateScreen, Hide)?;
@@ -687,31 +745,8 @@ fn main() -> io::Result<()> {
             }
             GameMode::Playing => {
                 // アニメーション処理
-                if let Some(anim) = state.animation.clone() {
-                    match anim {
-                        Animation::LineBlink {
-                            lines,
-                            count,
-                            start,
-                        } => {
-                            let steps_done = (start.elapsed().as_millis()
-                                / BLINK_ANIMATION_STEP.as_millis())
-                                as usize;
-
-                            if steps_done >= BLINK_COUNT_MAX {
-                                // Animation finished, clear lines
-                                state.clear_lines(&lines);
-                            } else if steps_done > count {
-                                // Continue animation, advance step
-                                state.animation = Some(Animation::LineBlink {
-                                    lines,
-                                    count: steps_done,
-                                    start,
-                                });
-                            }
-                        }
-                        Animation::PushDown { .. } => {}
-                    }
+                if state.animation.is_some() {
+                    handle_animation(&mut state);
                     continue;
                 }
 
@@ -986,5 +1021,46 @@ mod tests {
 
         // Assert that the correct animation has been triggered
         assert!(matches!(state.animation, Some(Animation::PushDown { .. })));
+    }
+
+    #[test]
+    fn test_pushdown_animation_moves_line() {
+        let mut state = GameState::new();
+        let clear_line_y = BOARD_HEIGHT - 5;
+        let marker_y = clear_line_y + 1;
+        let marker_x = 3;
+
+        // Create a full line at a non-bottom row
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+        // Create a marker block in the row below the cleared line
+        state.board[marker_y][marker_x] = Cell::Occupied(Color::Red);
+
+        // 1. Trigger the line clear and subsequent pushdown animation
+        state.clear_lines(&[clear_line_y]);
+
+        // The line should now be gray
+        assert_eq!(state.board[clear_line_y][0], Cell::Occupied(Color::Grey));
+
+        // 2. Manually handle the animation step
+        // In a real game loop, this would be called repeatedly.
+        handle_animation(&mut state);
+        thread::sleep(PUSH_DOWN_STEP_DURATION);
+        handle_animation(&mut state);
+
+        // 3. Assert the board state has changed
+        // The gray line should have moved down one step
+        assert_eq!(
+            state.board[clear_line_y + 1][0],
+            Cell::Occupied(Color::Grey)
+        );
+        // The original gray line row should now be empty
+        assert_eq!(state.board[clear_line_y][0], Cell::Empty);
+        // The marker block should be gone because its row was deleted and replaced by the gray line
+        assert_eq!(
+            state.board[clear_line_y + 1][marker_x],
+            Cell::Occupied(Color::Grey)
+        );
     }
 }
