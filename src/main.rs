@@ -33,6 +33,7 @@ type Point = (usize, usize);
 enum Cell {
     Empty,
     Occupied(Color),
+    Solid,
 }
 
 type Board = Vec<Vec<Cell>>;
@@ -579,6 +580,12 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                                 Print("[]"),
                                 ResetColor
                             )?,
+                            Cell::Solid => execute!(
+                                stdout,
+                                SetForegroundColor(Color::Grey),
+                                Print("[]"),
+                                ResetColor
+                            )?,
                         }
                     }
                 }
@@ -1106,5 +1113,18 @@ mod tests {
         assert_eq!(state.score, 160);
         // The scoring list should be cleared after processing
         assert!(state.blocks_to_score.is_empty());
+    }
+
+    #[test]
+    fn test_solid_cell_is_collision() {
+        let mut state = GameState::new();
+        let solid_pos = (4, 5);
+        state.board[solid_pos.1][solid_pos.0] = Cell::Solid;
+
+        let mut piece = Tetromino::from_shape(TetrominoShape::I, COLOR_PALETTE);
+        // Position the piece to overlap with the solid cell
+        piece.pos = (solid_pos.0 as i8 - 1, solid_pos.1 as i8 - 1);
+
+        assert!(!state.is_valid_position(&piece));
     }
 }

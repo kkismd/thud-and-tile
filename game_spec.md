@@ -120,9 +120,9 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
     - [ ] Refactor: N/A.
 
 - [ ] **ステップ8: 灰色ラインの定着とフィールドの縮小**
-    - [ ] **ステップ8a: `Cell::Solid`の導入と基本ロジックの更新**
-        - [ ] Red: `Cell::Solid`が衝突判定(`is_valid_position`)でブロックとして扱われることを確認するテストを記述する。
-        - [ ] Green: `Cell` enumに`Solid`バリアントを追加し、`is_valid_position`と`draw`関数を更新して新しいセルタイプを処理するようにする。
+    - [x] **ステップ8a: `Cell::Solid`の導入と基本ロジックの更新**
+        - [x] Red: `Cell::Solid`が衝突判定(`is_valid_position`)でブロックとして扱われることを確認するテストを記述する。
+        - [x] Green: `Cell` enumに`Solid`バリアントを追加し、`is_valid_position`と`draw`関数を更新して新しいセルタイプを処理するようにする。
         - [ ] Refactor: N/A
     - [ ] **ステップ8b: `PushDown`アニメーションの完了ロジック更新**
         - [ ] Red: `PushDown`アニメーション完了後、最下段が`Cell::Solid`で埋められることを確認するテストを記述する。
