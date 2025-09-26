@@ -648,6 +648,20 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
     stdout.flush()
 }
 
+fn handle_scoring(state: &mut GameState) {
+    if state.blocks_to_score.is_empty() {
+        return;
+    }
+
+    let mut total_score = 0;
+    for (_, component_size) in &state.blocks_to_score {
+        total_score += component_size * 10;
+    }
+
+    state.score += total_score;
+    state.blocks_to_score.clear();
+}
+
 fn handle_animation(state: &mut GameState) {
     if let Some(anim) = state.animation.clone() {
         match anim {
@@ -692,7 +706,8 @@ fn handle_animation(state: &mut GameState) {
                 if current_y >= BOARD_HEIGHT - 1 {
                     // Animation finished
                     state.animation = None;
-                    // TODO: Spawn new piece, handle scoring, etc.
+                    handle_scoring(state);
+                    state.spawn_piece();
                 } else {
                     // Update the animation state with the new position
                     state.animation = Some(Animation::PushDown {
@@ -1062,5 +1077,34 @@ mod tests {
             state.board[clear_line_y + 1][marker_x],
             Cell::Occupied(Color::Grey)
         );
+    }
+
+    #[test]
+    fn test_scoring_after_pushdown() {
+        let mut state = GameState::new();
+        let clear_line_y = BOARD_HEIGHT - 5;
+
+        // Setup a 2x2 group of green blocks below the clear line
+        let green_group = [
+            (2, clear_line_y + 2),
+            (3, clear_line_y + 2),
+            (2, clear_line_y + 3),
+            (3, clear_line_y + 3),
+        ];
+        for &(x, y) in &green_group {
+            state.board[y][x] = Cell::Occupied(Color::Green);
+        }
+
+        // The `blocks_to_score` is populated by `clear_lines`
+        state.blocks_to_score = count_connected_blocks(&state.board, clear_line_y);
+        assert_eq!(state.blocks_to_score.len(), 4); // Sanity check
+
+        // Manually call the scoring logic
+        handle_scoring(&mut state);
+
+        // Each of the 4 blocks is in a component of size 4, so 4 * (4 * 10) = 160
+        assert_eq!(state.score, 160);
+        // The scoring list should be cleared after processing
+        assert!(state.blocks_to_score.is_empty());
     }
 }
