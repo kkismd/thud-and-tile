@@ -10,7 +10,8 @@ use crossterm::{
 };
 use rand::seq::SliceRandom;
 use rand::{self, Rng};
-use std::io::{self, stdout, Write};
+use std::collections::VecDeque;
+use std::io::{self, Write, stdout};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -24,6 +25,8 @@ const BLINK_ANIMATION_STEP: Duration = Duration::from_millis(120);
 const BLINK_COUNT_MAX: usize = 6; // 3 blinks: on-off-on-off-on-off
 
 // --- データ構造 ---
+
+type Point = (usize, usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Cell {
@@ -78,6 +81,7 @@ struct GameState {
     score: u32,
     lines_cleared: u32,
     fall_speed: Duration,
+    blocks_to_score: Vec<(Point, u32)>,
 }
 
 impl Tetromino {
@@ -148,6 +152,7 @@ impl GameState {
             score: 0,
             lines_cleared: 0,
             fall_speed: FALL_SPEED_START,
+            blocks_to_score: Vec::new(),
         }
     }
 
@@ -245,19 +250,20 @@ impl GameState {
             self.animation = None;
             self.spawn_piece();
         } else {
-            // Custom logic for non-bottom lines:
             // 1. Remove isolated blocks below the cleared line.
             self.remove_isolated_blocks(y);
 
-            // 2. Perform a standard clear on the line itself to fix the bug.
-            // This makes the game playable. The full push-down mechanic will be implemented later.
-            let num_cleared = lines.len();
-            self.board.remove(y);
-            self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+            // 2. Count connected blocks for scoring (Step 4)
+            self.blocks_to_score = count_connected_blocks(&self.board, y);
 
-            self.update_score(num_cleared as u32);
+            // 3. Turn the cleared line to gray (Step 5)
+            for x in 0..BOARD_WIDTH {
+                self.board[y][x] = Cell::Occupied(Color::Grey);
+            }
+
+            // TODO: The next step will be to trigger the push-down animation (Step 6).
+            // For now, we just end the blink animation. A new piece should not spawn yet.
             self.animation = None;
-            self.spawn_piece();
         }
     }
 
@@ -330,6 +336,58 @@ impl GameState {
             self.current_piece = Some(piece);
         }
     }
+}
+
+fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u32)> {
+    let mut results = Vec::new();
+    let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
+
+    for y in (cleared_line_y + 1)..BOARD_HEIGHT {
+        for x in 0..BOARD_WIDTH {
+            if let Cell::Occupied(color) = board[y][x] {
+                if visited[y][x] {
+                    continue;
+                }
+
+                let mut component = Vec::new();
+                let mut queue = VecDeque::new();
+
+                visited[y][x] = true;
+                queue.push_back((x, y));
+
+                while let Some((qx, qy)) = queue.pop_front() {
+                    component.push((qx, qy));
+
+                    let neighbors = [
+                        (qx as i8 - 1, qy as i8),
+                        (qx as i8 + 1, qy as i8),
+                        (qx as i8, qy as i8 - 1),
+                        (qx as i8, qy as i8 + 1),
+                    ];
+
+                    for (nx, ny) in neighbors {
+                        if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8 {
+                            let (nx, ny) = (nx as usize, ny as usize);
+                            if !visited[ny][nx]
+                                && let Cell::Occupied(neighbor_color) = board[ny][nx]
+                                && neighbor_color == color
+                            {
+                                visited[ny][nx] = true;
+                                queue.push_back((nx, ny));
+                            }
+                        }
+                    }
+                }
+
+                let component_size = component.len() as u32;
+                for &(px, py) in &component {
+                    results.push(((px, py), component_size));
+                }
+            }
+        }
+    }
+
+    results
 }
 
 fn draw_title_screen(stdout: &mut io::Stdout) -> io::Result<()> {
@@ -753,7 +811,6 @@ const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::VecDeque;
 
     #[test]
     fn test_game_starts_in_title_mode() {
@@ -853,88 +910,6 @@ mod tests {
         );
     }
 
-    fn test_non_bottom_line_clear_removes_line_and_shifts_rows() {
-        let mut state = GameState::new();
-        let clear_line_y = BOARD_HEIGHT - 5;
-
-        // Create a full line at a non-bottom row
-        for x in 0..BOARD_WIDTH {
-            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
-        }
-        // Add a marker block on the row above the cleared line
-        let marker_pos = (3, clear_line_y - 1);
-        state.board[marker_pos.1][marker_pos.0] = Cell::Occupied(Color::Yellow);
-
-        // Call the line clear logic
-        state.clear_lines(&[clear_line_y]);
-
-        // Assert that the marker block has shifted down into the cleared line's original row
-        assert_eq!(
-            state.board[clear_line_y][marker_pos.0],
-            Cell::Occupied(Color::Yellow)
-        );
-        // Assert that the top row is now empty
-        assert!(state.board[0].iter().all(|&c| c == Cell::Empty));
-    }
-
-    type Point = (usize, usize);
-    fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u32)> {
-        let mut results = Vec::new();
-        let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
-
-        for y in (cleared_line_y + 1)..BOARD_HEIGHT {
-            for x in 0..BOARD_WIDTH {
-                if let Cell::Occupied(color) = board[y][x] {
-                    if visited[y][x] {
-                        continue;
-                    }
-
-                    let mut component = Vec::new();
-                    let mut queue = VecDeque::new();
-
-                    visited[y][x] = true;
-                    queue.push_back((x, y));
-
-                    while let Some((qx, qy)) = queue.pop_front() {
-                        component.push((qx, qy));
-
-                        let neighbors = [
-                            (qx as i8 - 1, qy as i8),
-                            (qx as i8 + 1, qy as i8),
-                            (qx as i8, qy as i8 - 1),
-                            (qx as i8, qy as i8 + 1),
-                        ];
-
-                        for (nx, ny) in neighbors {
-                            if nx >= 0
-                                && nx < BOARD_WIDTH as i8
-                                && ny >= 0
-                                && ny < BOARD_HEIGHT as i8
-                            {
-                                let (nx, ny) = (nx as usize, ny as usize);
-                                if !visited[ny][nx] {
-                                    if let Cell::Occupied(neighbor_color) = board[ny][nx] {
-                                        if neighbor_color == color {
-                                            visited[ny][nx] = true;
-                                            queue.push_back((nx, ny));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    let component_size = component.len() as u32;
-                    for &(px, py) in &component {
-                        results.push(((px, py), component_size));
-                    }
-                }
-            }
-        }
-
-        results
-    }
-
     #[test]
     fn test_counts_connected_blocks() {
         let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
@@ -968,5 +943,24 @@ mod tests {
         expected.sort_by_key(|k| (k.0.1, k.0.0));
 
         assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn test_cleared_non_bottom_line_turns_gray() {
+        let mut state = GameState::new();
+        let clear_line_y = BOARD_HEIGHT - 5;
+
+        // Create a full line at a non-bottom row
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+
+        // Call the line clear logic
+        state.clear_lines(&[clear_line_y]);
+
+        // Assert that the cleared line has turned gray
+        for x in 0..BOARD_WIDTH {
+            assert_eq!(state.board[clear_line_y][x], Cell::Occupied(Color::Grey));
+        }
     }
 }

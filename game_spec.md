@@ -67,6 +67,7 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 *    cargo testでテストを実施する
 *    cargo clippyとcargo fmtでコードの品質を担保する
 *    TDDの1サイクルが終わるたびにcargo test, cargo clipply, cargo fmtを実行してからgitにコミットする
+*    改行を含むコミットメッセージはコマンドラインで失敗しやすいので一時ファイル経由で登録する
 
 
 ---
@@ -88,14 +89,14 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
     - [x] Green: これらのブロックを識別して削除する`remove_isolated_blocks(board: &mut Board, cleared_line_y: usize)`関数を実装する。
     - [ ] Refactor: ブロック消去ロジックを最適化する。
 
-- [ ] **ステップ4: 非最下段ライン - 連結ブロックのカウント**
-    - [ ] Red: ルール3.3のテストを記述する。孤立したブロックが削除された後のボード状態で、`count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u32)>>`関数をテストする。この関数は、同じ色の連結ブロックの各コンポーネントのサイズを返す。
-    - [ ] Green: 連結コンポーネントのカウントロジック（例：BFSまたはDFSを使用）を実装する。
-    - [ ] Refactor: カウントアルゴリズムをクリーンアップする。
+- [x] **ステップ4: 非最下段ライン - 連結ブロックのカウント**
+    - [x] Red: ルール3.3のテストを記述する。孤立したブロックが削除された後のボード状態で、`count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u32)>>`関数をテストする。この関数は、同じ色の連結ブロックの各コンポーネントのサイズを返す。
+    - [x] Green: 連結コンポーネントのカウントロジック（例：BFSまたはDFSを使用）を実装する。
+    - [x] Refactor: カウントアルゴリズムをクリーンアップする。
 
 - [ ] **ステップ5: 非最下段ライン - ラインが灰色に変わる**
-    - [ ] Red: 非最下段ラインが消去された後、そのラインのブロックが`Cell::Occupied(Color::Grey)`に置き換えられることを確認するテストを記述する。
-    - [ ] Green: `lock_piece`関数でこの状態変化を実装する。
+    - [x] Red: 非最下段ラインが消去された後、そのラインのブロックが`Cell::Occupied(Color::Grey)`に置き換えられることを確認するテストを記述する。
+    - [x] Green: `lock_piece`関数でこの状態変化を実装する。
     - [ ] Refactor: N/A.
 
 - [ ] **ステップ6: 非最下段ライン - 「プッシュダウン」アニメーション**
