@@ -715,6 +715,10 @@ fn handle_animation(state: &mut GameState) {
                     state.animation = None;
                     handle_scoring(state);
                     state.spawn_piece();
+                    // Fill the bottom row with Solid cells
+                    for x in 0..BOARD_WIDTH {
+                        state.board[BOARD_HEIGHT - 1][x] = Cell::Solid;
+                    }
                 } else {
                     // Update the animation state with the new position
                     state.animation = Some(Animation::PushDown {
@@ -1126,5 +1130,39 @@ mod tests {
         piece.pos = (solid_pos.0 as i8 - 1, solid_pos.1 as i8 - 1);
 
         assert!(!state.is_valid_position(&piece));
+    }
+
+    #[test]
+    fn test_pushdown_finishes_with_solid_line() {
+        let mut state = GameState::new();
+        let clear_line_y = BOARD_HEIGHT - 2; // Clear line near bottom
+
+        // Create a full line at a non-bottom row
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+
+        // Trigger the line clear and subsequent pushdown animation
+        state.clear_lines(&[clear_line_y]);
+
+        // Manually advance the gray line to the bottom
+        if let Some(Animation::PushDown {
+            gray_line_y: _,
+            start,
+        }) = &mut state.animation
+        {
+            *start =
+                Instant::now() - PUSH_DOWN_STEP_DURATION * (BOARD_HEIGHT - 1 - clear_line_y) as u32;
+        }
+
+        // Call handle_animation to process the final step
+        handle_animation(&mut state);
+
+        // Assert that the bottom row is now solid
+        for x in 0..BOARD_WIDTH {
+            assert_eq!(state.board[BOARD_HEIGHT - 1][x], Cell::Solid);
+        }
+        // Assert that the animation is finished
+        assert!(state.animation.is_none());
     }
 }

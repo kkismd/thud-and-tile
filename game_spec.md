@@ -124,9 +124,9 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
         - [x] Red: `Cell::Solid`が衝突判定(`is_valid_position`)でブロックとして扱われることを確認するテストを記述する。
         - [x] Green: `Cell` enumに`Solid`バリアントを追加し、`is_valid_position`と`draw`関数を更新して新しいセルタイプを処理するようにする。
         - [ ] Refactor: N/A
-    - [ ] **ステップ8b: `PushDown`アニメーションの完了ロジック更新**
-        - [ ] Red: `PushDown`アニメーション完了後、最下段が`Cell::Solid`で埋められることを確認するテストを記述する。
-        - [ ] Green: `handle_animation`の`PushDown`ハンドラを修正し、アニメーション完了時に最下段を`Cell::Solid`で埋めるようにする。
+    - [x] **ステップ8b: `PushDown`アニメーションの完了ロジック更新**
+        - [x] Red: `PushDown`アニメーション完了後、最下段が`Cell::Solid`で埋められることを確認するテストを記述する。
+        - [x] Green: `handle_animation`の`PushDown`ハンドラを修正し、アニメーション完了時に最下段を`Cell::Solid`で埋めるようにする。
         - [ ] Refactor: N/A
     - [ ] **ステップ8c: ライン消去ロジックの更新**
         - [ ] Red: `Cell::Solid`の行が存在する場合に、その上の行だけが正しく消去されることを確認するテストを記述する。
