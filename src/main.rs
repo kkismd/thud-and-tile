@@ -70,6 +70,10 @@ pub enum Animation {
         count: usize,
         start: Instant,
     },
+    PushDown {
+        gray_line_y: usize,
+        start: Instant,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -262,8 +266,10 @@ impl GameState {
             }
 
             // TODO: The next step will be to trigger the push-down animation (Step 6).
-            // For now, we just end the blink animation. A new piece should not spawn yet.
-            self.animation = None;
+            self.animation = Some(Animation::PushDown {
+                gray_line_y: y,
+                start: Instant::now(),
+            });
         }
     }
 
@@ -704,6 +710,7 @@ fn main() -> io::Result<()> {
                                 });
                             }
                         }
+                        Animation::PushDown { .. } => {}
                     }
                     continue;
                 }
@@ -962,5 +969,22 @@ mod tests {
         for x in 0..BOARD_WIDTH {
             assert_eq!(state.board[clear_line_y][x], Cell::Occupied(Color::Grey));
         }
+    }
+
+    #[test]
+    fn test_non_bottom_clear_triggers_pushdown() {
+        let mut state = GameState::new();
+        let clear_line_y = BOARD_HEIGHT - 5;
+
+        // Create a full line at a non-bottom row
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+
+        // Call the line clear logic
+        state.clear_lines(&[clear_line_y]);
+
+        // Assert that the correct animation has been triggered
+        assert!(matches!(state.animation, Some(Animation::PushDown { .. })));
     }
 }
