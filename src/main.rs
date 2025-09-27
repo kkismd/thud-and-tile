@@ -183,11 +183,10 @@ impl GameState {
         self.next_piece = Some(Tetromino::new_random());
 
         // current_pieceが有効な位置にあるかチェック
-        if let Some(piece) = &self.current_piece {
-            if !self.is_valid_position(piece) {
+        if let Some(piece) = &self.current_piece
+            && !self.is_valid_position(piece) {
                 self.mode = GameMode::GameOver;
             }
-        }
     }
 
     fn is_valid_position(&self, piece: &Tetromino) -> bool {
@@ -651,8 +650,8 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
 
             // NEXTミノの描画
             // 以前のNEXTミノをクリア
-            if let Some(prev_next_piece) = &prev_state.next_piece {
-                if prev_state.next_piece != state.next_piece {
+            if let Some(prev_next_piece) = &prev_state.next_piece
+                && prev_state.next_piece != state.next_piece {
                     // NEXTミノが変更された場合
                     let next_piece_offset_x = ui_x;
                     let next_piece_offset_y = 7;
@@ -662,7 +661,6 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                         execute!(stdout, MoveTo(draw_x, draw_y), Print("  "))?;
                     }
                 }
-            }
 
             if let Some(next_piece) = &state.next_piece {
                 execute!(stdout, SetForegroundColor(Color::White))?;
