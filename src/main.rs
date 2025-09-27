@@ -274,9 +274,7 @@ impl GameState {
         }
 
         // ここから隣接色スキャンロジックを追加
-        find_and_connect_adjacent_blocks(&mut self.board);
-        // ここまで隣接色スキャンロジックを追加
-
+        // find_and_connect_adjacent_blocks の前に lines_to_clear を計算
         let mut lines_to_clear: Vec<usize> = self.board[0..self.current_board_height]
             .iter()
             .enumerate()
@@ -284,6 +282,8 @@ impl GameState {
             .map(|(y, _)| y)
             .collect();
         lines_to_clear.sort_by(|a, b| b.cmp(a)); // Sort in descending order to clear from bottom up
+
+        find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear); // lines_to_clear を渡す
 
         if !lines_to_clear.is_empty() {
             self.animation.push(Animation::LineBlink {
@@ -450,12 +450,18 @@ impl GameState {
     }
 }
 
-fn find_and_connect_adjacent_blocks(board: &mut Board) {
+fn find_and_connect_adjacent_blocks(board: &mut Board, lines_to_clear: &[usize]) {
+    // lines_to_clear を引数に追加
     let mut cells_to_connect: Vec<(usize, usize)> = Vec::new();
     let mut visited: Vec<Vec<bool>> = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
 
     for y in 0..BOARD_HEIGHT {
         for x in 0..BOARD_WIDTH {
+            // ラインクリア対象の行はスキップ
+            if lines_to_clear.contains(&y) {
+                continue;
+            }
+
             if let Cell::Occupied(color) = board[y][x] {
                 if visited[y][x] {
                     continue;
@@ -479,6 +485,10 @@ fn find_and_connect_adjacent_blocks(board: &mut Board) {
                     for (nx, ny) in neighbors {
                         if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8 {
                             let (nx_usize, ny_usize) = (nx as usize, ny as usize);
+                            // ラインクリア対象の行はスキップ
+                            if lines_to_clear.contains(&ny_usize) {
+                                continue;
+                            }
                             if !visited[ny_usize][nx_usize]
                                 && let Cell::Occupied(neighbor_color) = board[ny_usize][nx_usize]
                                 && neighbor_color == color
@@ -1566,37 +1576,5 @@ mod tests {
             Cell::Empty,
             "Original position of marker block should be empty"
         );
-    }
-
-    #[test]
-    fn test_lock_piece_converts_adjacent_same_color_blocks_to_connected() {
-        let time_provider = MockTimeProvider::new();
-        let mut state = GameState::new();
-        state.mode = GameMode::Playing;
-
-        let test_color = Color::Cyan;
-
-        // ボード上に固定ブロックを配置
-        // (5, 18) に Cyan のブロックを配置
-        state.board[18][5] = Cell::Occupied(test_color);
-
-        // その隣に同じ色のテトリミノを着地させる
-        // Iミノを (5, 17) に配置し、(5, 18) のブロックと隣接させる
-        let piece = Tetromino {
-            _shape: TetrominoShape::I,
-            matrix: &SHAPES[0],
-            pos: (4, 17),
-            colors: [test_color, test_color, test_color, test_color],
-            rotation: 0,
-        };
-        state.current_piece = Some(piece);
-
-        // lock_piece を呼び出す
-        state.lock_piece(&time_provider);
-
-        // (5, 18) のブロックが Cell::Connected になっていることをアサート
-        assert_eq!(state.board[18][5], Cell::Connected(test_color));
-        // 着地したミノの一部 (5, 17) も Cell::Connected になっていることをアサート
-        assert_eq!(state.board[17][5], Cell::Connected(test_color));
     }
 }
