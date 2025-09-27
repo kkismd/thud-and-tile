@@ -266,11 +266,16 @@ impl GameState {
     fn lock_piece(&mut self, time_provider: &dyn TimeProvider) {
         if let Some(piece) = self.current_piece.take() {
             for ((x, y), color) in piece.iter_blocks() {
-                if y >= 0 {
+                if y >= 0 && y < BOARD_HEIGHT as i8 {
+                    // ここを修正
                     self.board[y as usize][x as usize] = Cell::Occupied(color);
                 }
             }
         }
+
+        // ここから隣接色スキャンロジックを追加
+        find_and_connect_adjacent_blocks(&mut self.board);
+        // ここまで隣接色スキャンロジックを追加
 
         let mut lines_to_clear: Vec<usize> = self.board[0..self.current_board_height]
             .iter()
@@ -441,6 +446,62 @@ impl GameState {
 
         if self.is_valid_position(&piece) {
             self.current_piece = Some(piece);
+        }
+    }
+}
+
+fn find_and_connect_adjacent_blocks(board: &mut Board) {
+    let mut cells_to_connect: Vec<(usize, usize)> = Vec::new();
+    let mut visited: Vec<Vec<bool>> = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
+
+    for y in 0..BOARD_HEIGHT {
+        for x in 0..BOARD_WIDTH {
+            if let Cell::Occupied(color) = board[y][x] {
+                if visited[y][x] {
+                    continue;
+                }
+
+                let mut component: Vec<(usize, usize)> = Vec::new();
+                let mut queue: VecDeque<(usize, usize)> = VecDeque::new();
+
+                visited[y][x] = true;
+                queue.push_back((x, y));
+                component.push((x, y));
+
+                while let Some((cx, cy)) = queue.pop_front() {
+                    let neighbors = [
+                        (cx as i8 - 1, cy as i8),
+                        (cx as i8 + 1, cy as i8),
+                        (cx as i8, cy as i8 - 1),
+                        (cx as i8, cy as i8 + 1),
+                    ];
+
+                    for (nx, ny) in neighbors {
+                        if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8 {
+                            let (nx_usize, ny_usize) = (nx as usize, ny as usize);
+                            if !visited[ny_usize][nx_usize]
+                                && let Cell::Occupied(neighbor_color) = board[ny_usize][nx_usize]
+                                && neighbor_color == color
+                            {
+                                visited[ny_usize][nx_usize] = true;
+                                queue.push_back((nx_usize, ny_usize));
+                                component.push((nx_usize, ny_usize));
+                            }
+                        }
+                    }
+                }
+
+                if component.len() > 1 {
+                    // 2つ以上のブロックが繋がっている場合
+                    cells_to_connect.extend(component);
+                }
+            }
+        }
+    }
+
+    for (x, y) in cells_to_connect {
+        if let Cell::Occupied(color) = board[y][x] {
+            board[y][x] = Cell::Connected(color);
         }
     }
 }
@@ -1505,5 +1566,37 @@ mod tests {
             Cell::Empty,
             "Original position of marker block should be empty"
         );
+    }
+
+    #[test]
+    fn test_lock_piece_converts_adjacent_same_color_blocks_to_connected() {
+        let time_provider = MockTimeProvider::new();
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        let test_color = Color::Cyan;
+
+        // ボード上に固定ブロックを配置
+        // (5, 18) に Cyan のブロックを配置
+        state.board[18][5] = Cell::Occupied(test_color);
+
+        // その隣に同じ色のテトリミノを着地させる
+        // Iミノを (5, 17) に配置し、(5, 18) のブロックと隣接させる
+        let piece = Tetromino {
+            _shape: TetrominoShape::I,
+            matrix: &SHAPES[0],
+            pos: (4, 17),
+            colors: [test_color, test_color, test_color, test_color],
+            rotation: 0,
+        };
+        state.current_piece = Some(piece);
+
+        // lock_piece を呼び出す
+        state.lock_piece(&time_provider);
+
+        // (5, 18) のブロックが Cell::Connected になっていることをアサート
+        assert_eq!(state.board[18][5], Cell::Connected(test_color));
+        // 着地したミノの一部 (5, 17) も Cell::Connected になっていることをアサート
+        assert_eq!(state.board[17][5], Cell::Connected(test_color));
     }
 }
