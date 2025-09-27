@@ -751,7 +751,7 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
             {
                 // NEXTミノが変更された場合
                 let next_piece_offset_x = ui_x;
-                let next_piece_offset_y = 7;
+                let next_piece_offset_y = 15;
                 for ((x, y), _) in prev_next_piece.iter_blocks() {
                     let draw_x = next_piece_offset_x + (x as u16 * 2);
                     let draw_y = next_piece_offset_y + y as u16;
@@ -761,9 +761,9 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
 
             if let Some(next_piece) = &state.next_piece {
                 execute!(stdout, SetForegroundColor(Color::White))?;
-                execute!(stdout, MoveTo(ui_x, 5), Print("NEXT:"))?; // "NEXT:" ラベル
+                execute!(stdout, MoveTo(ui_x, 13), Print("NEXT:"))?; // "NEXT:" ラベル
                 let next_piece_offset_x = ui_x;
-                let next_piece_offset_y = 7; // "NEXT:" の下あたりに描画
+                let next_piece_offset_y = 15; // "NEXT:" の下あたりに描画
 
                 for ((x, y), color) in next_piece.iter_blocks() {
                     // ミノの座標を調整してUI領域に描画
