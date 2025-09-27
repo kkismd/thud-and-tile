@@ -83,6 +83,7 @@ struct GameState {
     mode: GameMode,
     board: Board,
     current_piece: Option<Tetromino>,
+    next_piece: Option<Tetromino>,
     animation: Option<Animation>,
     score: u32,
     lines_cleared: u32,
@@ -155,6 +156,7 @@ impl GameState {
             mode: GameMode::Title,
             board: vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT],
             current_piece: None,
+            next_piece: Some(Tetromino::new_random()), // next_pieceを初期化
             animation: None,
             score: 0,
             lines_cleared: 0,
@@ -175,11 +177,16 @@ impl GameState {
     }
 
     fn spawn_piece(&mut self) {
-        let new_piece = Tetromino::new_random();
-        if self.is_valid_position(&new_piece) {
-            self.current_piece = Some(new_piece);
-        } else {
-            self.mode = GameMode::GameOver;
+        // next_pieceをcurrent_pieceにする
+        self.current_piece = self.next_piece.take();
+        // 新しいnext_pieceを生成する
+        self.next_piece = Some(Tetromino::new_random());
+
+        // current_pieceが有効な位置にあるかチェック
+        if let Some(piece) = &self.current_piece {
+            if !self.is_valid_position(piece) {
+                self.mode = GameMode::GameOver;
+            }
         }
     }
 
@@ -640,6 +647,41 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                     MoveTo(ui_x, 3),
                     Print(format!("Lines: {:<6}", state.lines_cleared))
                 )?;
+            }
+
+            // NEXTミノの描画
+            // 以前のNEXTミノをクリア
+            if let Some(prev_next_piece) = &prev_state.next_piece {
+                if prev_state.next_piece != state.next_piece {
+                    // NEXTミノが変更された場合
+                    let next_piece_offset_x = ui_x;
+                    let next_piece_offset_y = 7;
+                    for ((x, y), _) in prev_next_piece.iter_blocks() {
+                        let draw_x = next_piece_offset_x + (x as u16 * 2);
+                        let draw_y = next_piece_offset_y + y as u16;
+                        execute!(stdout, MoveTo(draw_x, draw_y), Print("  "))?;
+                    }
+                }
+            }
+
+            if let Some(next_piece) = &state.next_piece {
+                execute!(stdout, SetForegroundColor(Color::White))?;
+                execute!(stdout, MoveTo(ui_x, 5), Print("NEXT:"))?; // "NEXT:" ラベル
+                let next_piece_offset_x = ui_x;
+                let next_piece_offset_y = 7; // "NEXT:" の下あたりに描画
+
+                for ((x, y), color) in next_piece.iter_blocks() {
+                    // ミノの座標を調整してUI領域に描画
+                    let draw_x = next_piece_offset_x + (x as u16 * 2);
+                    let draw_y = next_piece_offset_y + y as u16;
+                    execute!(
+                        stdout,
+                        MoveTo(draw_x, draw_y),
+                        SetForegroundColor(color),
+                        Print("[]"),
+                        ResetColor
+                    )?;
+                }
             }
         }
         GameMode::GameOver => {
@@ -1322,5 +1364,44 @@ mod tests {
             !state.is_valid_position(&colliding_piece),
             "New piece should not be valid on solid lines"
         );
+    }
+
+    #[test]
+    fn test_game_state_initializes_next_piece() {
+        let state = GameState::new();
+        assert!(
+            state.next_piece.is_some(),
+            "next_piece should be initialized"
+        );
+    }
+
+    #[test]
+    fn test_lock_piece_updates_current_and_next_piece() {
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        // Ensure next_piece is initialized
+        assert!(state.next_piece.is_some());
+        let initial_next_piece = state.next_piece.clone();
+
+        // Spawn a piece (this will move initial_next_piece to current_piece and generate a new next_piece)
+        state.spawn_piece();
+        assert_eq!(state.current_piece, initial_next_piece);
+        assert_ne!(state.next_piece, initial_next_piece); // New next_piece should be different
+
+        // Lock the current piece (this should move next_piece to current_piece and generate a new next_piece)
+        // To avoid line clear animation, we'll just lock it without clearing lines.
+        // We need to ensure current_piece is not None for lock_piece to do anything.
+        let piece_to_lock = state.current_piece.clone().unwrap();
+        state.current_piece = Some(piece_to_lock); // Re-assign to avoid .take() in lock_piece for this test
+
+        let next_piece_before_lock = state.next_piece.clone();
+        state.lock_piece();
+
+        // After lock_piece, current_piece should be the one that was next_piece
+        assert_eq!(state.current_piece, next_piece_before_lock);
+        // And a new next_piece should have been generated
+        assert_ne!(state.next_piece, next_piece_before_lock);
+        assert!(state.next_piece.is_some());
     }
 }
