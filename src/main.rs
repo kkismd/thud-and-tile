@@ -88,6 +88,7 @@ enum Cell {
     Empty,
     Occupied(Color),
     Solid,
+    Connected(Color), // これを追加
 }
 
 type Board = Vec<Vec<Cell>>;
@@ -693,6 +694,12 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                             Cell::Solid => execute!(
                                 stdout,
                                 SetForegroundColor(Color::Grey),
+                                Print("[]"),
+                                ResetColor
+                            )?,
+                            Cell::Connected(color) => execute!(
+                                stdout,
+                                SetForegroundColor(color),
                                 Print("[]"),
                                 ResetColor
                             )?,
