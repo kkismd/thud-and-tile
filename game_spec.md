@@ -70,9 +70,10 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 *    TDDのred-green-refactorのサイクルで開発する
 *    cargo testでテストを実施する
 *    cargo clippyとcargo fmtでコードの品質を担保する
-*    TDDの1サイクルが終わるたびにcargo test, cargo clipply, cargo fmtを実行してからgitにコミットする
+*    TDDの1サイクルが終わるたびにcargo test, cargo clipply, cargo fmtを実行してからgit add, commitする
 *    コミット前に`game_spec.md`のTDD計画を更新して、完了したタスクにチェックを入れる
 *    改行を含むコミットメッセージはコマンドラインで失敗しやすいので一時ファイル経由で登録する
+*    コミットメッセージは日本語で記載する
 
 ---
 

@@ -36,7 +36,9 @@ pub struct SystemTimeProvider {
 
 impl SystemTimeProvider {
     pub fn new() -> Self {
-        Self { start: Instant::now() }
+        Self {
+            start: Instant::now(),
+        }
     }
 }
 
@@ -627,10 +629,11 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                 if let Some((blinking_lines, count)) = blink_state
                     && blinking_lines.contains(&y)
                 {
-                    let prev_anim_count = if let Some(Animation::LineBlink { count, .. }) = prev_state
-                        .animation
-                        .iter()
-                        .find(|a| matches!(a, Animation::LineBlink { .. }))
+                    let prev_anim_count = if let Some(Animation::LineBlink { count, .. }) =
+                        prev_state
+                            .animation
+                            .iter()
+                            .find(|a| matches!(a, Animation::LineBlink { .. }))
                     {
                         Some(count)
                     } else {
@@ -823,7 +826,11 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     // Take ownership to process
     for anim in std::mem::take(&mut state.animation) {
         match anim {
-            Animation::LineBlink { lines, count: _, start_time } => {
+            Animation::LineBlink {
+                lines,
+                count: _,
+                start_time,
+            } => {
                 let steps_done =
                     ((now - start_time).as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
 
