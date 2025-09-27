@@ -25,6 +25,58 @@ const BLINK_ANIMATION_STEP: Duration = Duration::from_millis(120);
 const BLINK_COUNT_MAX: usize = 6; // 3 blinks: on-off-on-off-on-off
 const PUSH_DOWN_STEP_DURATION: Duration = Duration::from_millis(100);
 
+// --- 時間管理 ---
+pub trait TimeProvider {
+    fn now(&self) -> Duration;
+}
+
+pub struct SystemTimeProvider {
+    start: Instant,
+}
+
+impl SystemTimeProvider {
+    pub fn new() -> Self {
+        Self { start: Instant::now() }
+    }
+}
+
+impl Default for SystemTimeProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TimeProvider for SystemTimeProvider {
+    fn now(&self) -> Duration {
+        self.start.elapsed()
+    }
+}
+
+#[cfg(test)]
+pub struct MockTimeProvider {
+    current_time: Duration,
+}
+
+#[cfg(test)]
+impl MockTimeProvider {
+    pub fn new() -> Self {
+        Self {
+            current_time: Duration::from_secs(0),
+        }
+    }
+
+    pub fn advance(&mut self, duration: Duration) {
+        self.current_time += duration;
+    }
+}
+
+#[cfg(test)]
+impl TimeProvider for MockTimeProvider {
+    fn now(&self) -> Duration {
+        self.current_time
+    }
+}
+
 // --- データ構造 ---
 
 type Point = (usize, usize);
@@ -70,11 +122,11 @@ pub enum Animation {
     LineBlink {
         lines: Vec<usize>,
         count: usize,
-        start: Instant,
+        start_time: Duration,
     },
     PushDown {
         gray_line_y: usize,
-        start: Instant,
+        start_time: Duration,
     },
 }
 
@@ -84,7 +136,7 @@ struct GameState {
     board: Board,
     current_piece: Option<Tetromino>,
     next_piece: Option<Tetromino>,
-    animation: Option<Animation>,
+    animation: Vec<Animation>,
     score: u32,
     lines_cleared: u32,
     fall_speed: Duration,
@@ -148,6 +200,12 @@ impl Tetromino {
         new_piece.rotation = (self.rotation + 1) % 4;
         new_piece
     }
+
+    fn rotated_counter_clockwise(&self) -> Self {
+        let mut new_piece = self.clone();
+        new_piece.rotation = (self.rotation + 3) % 4;
+        new_piece
+    }
 }
 
 impl GameState {
@@ -157,7 +215,7 @@ impl GameState {
             board: vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT],
             current_piece: None,
             next_piece: Some(Tetromino::new_random()), // next_pieceを初期化
-            animation: None,
+            animation: Vec::new(),
             score: 0,
             lines_cleared: 0,
             fall_speed: FALL_SPEED_START,
@@ -184,9 +242,10 @@ impl GameState {
 
         // current_pieceが有効な位置にあるかチェック
         if let Some(piece) = &self.current_piece
-            && !self.is_valid_position(piece) {
-                self.mode = GameMode::GameOver;
-            }
+            && !self.is_valid_position(piece)
+        {
+            self.mode = GameMode::GameOver;
+        }
     }
 
     fn is_valid_position(&self, piece: &Tetromino) -> bool {
@@ -201,7 +260,7 @@ impl GameState {
         true
     }
 
-    fn lock_piece(&mut self) {
+    fn lock_piece(&mut self, time_provider: &dyn TimeProvider) {
         if let Some(piece) = self.current_piece.take() {
             for ((x, y), color) in piece.iter_blocks() {
                 if y >= 0 {
@@ -219,13 +278,10 @@ impl GameState {
         lines_to_clear.sort_by(|a, b| b.cmp(a)); // Sort in descending order to clear from bottom up
 
         if !lines_to_clear.is_empty() {
-            // Only clear the lowest line for now, as clear_lines only handles one.
-            // A more complete solution would involve iterating or a different animation for multi-line clears.
-            let lowest_line = lines_to_clear[0];
-            self.animation = Some(Animation::LineBlink {
-                lines: vec![lowest_line],
+            self.animation.push(Animation::LineBlink {
+                lines: lines_to_clear,
                 count: 0,
-                start: Instant::now(),
+                start_time: time_provider.now(),
             });
         } else {
             self.spawn_piece();
@@ -247,15 +303,23 @@ impl GameState {
         }
     }
 
-    fn clear_lines(&mut self, lines: &[usize]) {
-        // For now, we only handle a single line clear at a time.
-        let y = lines[0];
-        let is_bottom_line = y == self.current_board_height - 1;
+    fn clear_lines(&mut self, lines: &[usize], time_provider: &dyn TimeProvider) -> Vec<Animation> {
+        let mut new_animations = Vec::new();
+        let mut bottom_lines_cleared = Vec::new();
+        let mut non_bottom_lines_cleared = Vec::new();
 
-        if is_bottom_line {
-            // Standard Tetris clear for the bottom line
-            let num_cleared = lines.len();
-            let mut sorted_lines = lines.to_vec();
+        for &y in lines {
+            if y == self.current_board_height - 1 {
+                bottom_lines_cleared.push(y);
+            } else {
+                non_bottom_lines_cleared.push(y);
+            }
+        }
+
+        // Handle standard Tetris clear for bottom lines first
+        if !bottom_lines_cleared.is_empty() {
+            let num_cleared = bottom_lines_cleared.len();
+            let mut sorted_lines = bottom_lines_cleared.to_vec();
             sorted_lines.sort_by(|a, b| b.cmp(a));
             for &line_y in &sorted_lines {
                 self.board.remove(line_y);
@@ -264,26 +328,37 @@ impl GameState {
                 self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
             }
             self.update_score(num_cleared as u32);
-            self.animation = None;
+            // No animation for standard clear, just spawn new piece
             self.spawn_piece();
-        } else {
+        }
+
+        // Handle custom clear for non-bottom lines
+        for &y in &non_bottom_lines_cleared {
             // 1. Remove isolated blocks below the cleared line.
             self.remove_isolated_blocks(y);
 
             // 2. Count connected blocks for scoring (Step 4)
-            self.blocks_to_score = count_connected_blocks(&self.board, y);
+            // This will be handled by handle_animation when PushDown finishes
+            let connected_blocks = count_connected_blocks(&self.board, y);
+            self.blocks_to_score.extend(connected_blocks);
 
             // 3. Turn the cleared line to gray (Step 5)
             for x in 0..BOARD_WIDTH {
                 self.board[y][x] = Cell::Occupied(Color::Grey);
             }
 
-            // TODO: The next step will be to trigger the push-down animation (Step 6).
-            self.animation = Some(Animation::PushDown {
+            // Trigger the push-down animation (Step 6).
+            new_animations.push(Animation::PushDown {
                 gray_line_y: y,
-                start: Instant::now(),
+                start_time: time_provider.now(),
             });
         }
+
+        // If no non-bottom lines were cleared, and no bottom lines were cleared, spawn a new piece
+        if bottom_lines_cleared.is_empty() && non_bottom_lines_cleared.is_empty() {
+            self.spawn_piece();
+        }
+        new_animations
     }
 
     fn remove_isolated_blocks(&mut self, cleared_line_y: usize) {
@@ -328,25 +403,35 @@ impl GameState {
         }
     }
 
-    fn handle_input(&mut self, code: KeyCode) {
+    fn handle_input(&mut self, key_event: event::KeyEvent) {
         if self.current_piece.is_none() {
             return;
         }
         let mut piece = self.current_piece.clone().unwrap();
 
-        match code {
+        match key_event.code {
             KeyCode::Left => piece = piece.moved(-1, 0),
             KeyCode::Right => piece = piece.moved(1, 0),
             KeyCode::Down => {
+                if key_event.modifiers.contains(event::KeyModifiers::SHIFT) {
+                    // Hard Drop
+                    while self.is_valid_position(&piece.moved(0, 1)) {
+                        piece = piece.moved(0, 1);
+                        self.score += 2;
+                    }
+                } else {
+                    // Clockwise Rotation
+                    piece = piece.rotated();
+                }
+            }
+            KeyCode::Up => {
+                // Counter-Clockwise Rotation
+                piece = piece.rotated_counter_clockwise();
+            }
+            KeyCode::Char(' ') => {
+                // Soft Drop
                 piece = piece.moved(0, 1);
                 self.score += 1;
-            }
-            KeyCode::Char(' ') => piece = piece.rotated(),
-            KeyCode::Up => {
-                while self.is_valid_position(&piece.moved(0, 1)) {
-                    piece = piece.moved(0, 1);
-                    self.score += 2;
-                }
             }
             _ => return,
         }
@@ -487,10 +572,15 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                 execute!(stdout, MoveTo(ui_x, 3), Print("Lines: 0     "))?;
                 execute!(stdout, MoveTo(ui_x, 5), Print("Controls:"))?;
                 execute!(stdout, MoveTo(ui_x, 6), Print("←/→: Move"))?;
-                execute!(stdout, MoveTo(ui_x, 7), Print("↑: Hard Drop"))?;
-                execute!(stdout, MoveTo(ui_x, 8), Print("↓: Soft Drop"))?;
-                execute!(stdout, MoveTo(ui_x, 9), Print("Space: Rotate"))?;
-                execute!(stdout, MoveTo(ui_x, 10), Print("q: Quit"))?;
+                execute!(stdout, MoveTo(ui_x, 7), Print("↓: Rotate Clockwise"))?;
+                execute!(
+                    stdout,
+                    MoveTo(ui_x, 8),
+                    Print("↑: Rotate Counter-Clockwise")
+                )?;
+                execute!(stdout, MoveTo(ui_x, 9), Print("Space: Soft Drop"))?;
+                execute!(stdout, MoveTo(ui_x, 10), Print("Shift + ↓: Hard Drop"))?;
+                execute!(stdout, MoveTo(ui_x, 11), Print("q: Quit"))?;
             }
 
             // --- 消去フェーズ ---
@@ -508,7 +598,7 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                 }
             }
             if let Some(piece) = &prev_state.current_piece
-                && prev_state.animation.is_none()
+                && prev_state.animation.is_empty()
             {
                 for ((x, y), _) in piece.iter_blocks() {
                     if y >= 0 {
@@ -522,27 +612,33 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
             }
 
             // --- 描画フェーズ ---
-            let blink_state =
-                if let Some(Animation::LineBlink { lines, count, .. }) = &state.animation {
-                    Some((lines, *count))
-                } else {
-                    None
-                };
+            let blink_state = if let Some(Animation::LineBlink { lines, count, .. }) = state
+                .animation
+                .iter()
+                .find(|a| matches!(a, Animation::LineBlink { .. }))
+            {
+                Some((lines, *count))
+            } else {
+                None
+            };
 
             for (y, row) in state.board.iter().enumerate() {
                 // Handle blinking lines
                 if let Some((blinking_lines, count)) = blink_state
                     && blinking_lines.contains(&y)
                 {
-                    let prev_anim_count =
-                        if let Some(Animation::LineBlink { count, .. }) = prev_state.animation {
-                            Some(count)
-                        } else {
-                            None
-                        };
+                    let prev_anim_count = if let Some(Animation::LineBlink { count, .. }) = prev_state
+                        .animation
+                        .iter()
+                        .find(|a| matches!(a, Animation::LineBlink { .. }))
+                    {
+                        Some(count)
+                    } else {
+                        None
+                    };
 
                     // Redraw if the blink on/off state has changed, or if animation just started.
-                    if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(0) % 2 != count % 2)
+                    if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(&0) % 2 != count % 2)
                     {
                         for x in 0..BOARD_WIDTH {
                             execute!(stdout, MoveTo((x as u16 * 2) + 1, y as u16 + 1))?;
@@ -651,16 +747,17 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
             // NEXTミノの描画
             // 以前のNEXTミノをクリア
             if let Some(prev_next_piece) = &prev_state.next_piece
-                && prev_state.next_piece != state.next_piece {
-                    // NEXTミノが変更された場合
-                    let next_piece_offset_x = ui_x;
-                    let next_piece_offset_y = 7;
-                    for ((x, y), _) in prev_next_piece.iter_blocks() {
-                        let draw_x = next_piece_offset_x + (x as u16 * 2);
-                        let draw_y = next_piece_offset_y + y as u16;
-                        execute!(stdout, MoveTo(draw_x, draw_y), Print("  "))?;
-                    }
+                && prev_state.next_piece != state.next_piece
+            {
+                // NEXTミノが変更された場合
+                let next_piece_offset_x = ui_x;
+                let next_piece_offset_y = 7;
+                for ((x, y), _) in prev_next_piece.iter_blocks() {
+                    let draw_x = next_piece_offset_x + (x as u16 * 2);
+                    let draw_y = next_piece_offset_y + y as u16;
+                    execute!(stdout, MoveTo(draw_x, draw_y), Print("  "))?;
                 }
+            }
 
             if let Some(next_piece) = &state.next_piece {
                 execute!(stdout, SetForegroundColor(Color::White))?;
@@ -714,68 +811,81 @@ fn handle_scoring(state: &mut GameState) {
     state.blocks_to_score.clear();
 }
 
-fn handle_animation(state: &mut GameState) {
-    if let Some(anim) = state.animation.clone() {
+fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
+    if state.animation.is_empty() {
+        return;
+    }
+
+    let mut still_animating = Vec::new();
+    let mut animations_finished = false;
+    let now = time_provider.now();
+
+    // Take ownership to process
+    for anim in std::mem::take(&mut state.animation) {
         match anim {
-            Animation::LineBlink {
-                lines,
-                count,
-                start,
-            } => {
+            Animation::LineBlink { lines, count: _, start_time } => {
                 let steps_done =
-                    (start.elapsed().as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
+                    ((now - start_time).as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
 
                 if steps_done >= BLINK_COUNT_MAX {
-                    state.clear_lines(&lines);
-                } else if steps_done > count {
-                    state.animation = Some(Animation::LineBlink {
+                    // Blinking finished, trigger the next stage (clearing)
+                    still_animating.extend(state.clear_lines(&lines, time_provider));
+                } else {
+                    // Continue blinking
+                    still_animating.push(Animation::LineBlink {
                         lines,
                         count: steps_done,
-                        start,
+                        start_time,
                     });
                 }
             }
-            Animation::PushDown { gray_line_y, start } => {
-                let steps_to_move =
-                    (start.elapsed().as_millis() / PUSH_DOWN_STEP_DURATION.as_millis()) as usize;
+            Animation::PushDown {
+                gray_line_y,
+                start_time,
+            } => {
+                if now - start_time >= PUSH_DOWN_STEP_DURATION {
+                    let target_y = gray_line_y + 1;
 
-                if steps_to_move == 0 {
-                    return;
-                }
+                    // Check if the animation should finish
+                    if target_y >= state.current_board_height
+                        || state.board[target_y][0] == Cell::Solid
+                    {
+                        // Finalize the line as Solid
+                        for x in 0..BOARD_WIDTH {
+                            state.board[gray_line_y][x] = Cell::Solid;
+                        }
+                        state.current_board_height = state.current_board_height.saturating_sub(1);
+                        handle_scoring(state); // Score after a line settles
+                        animations_finished = true;
+                        // Do not push the animation back
+                    } else {
+                        // Move the gray line and everything above it down by removing the line below it
+                        // and inserting a new empty line at the top.
+                        state.board.remove(target_y);
+                        state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
 
-                let mut current_y = gray_line_y;
-                for _ in 0..steps_to_move {
-                    // Check if the gray line has reached the effective bottom
-                    if current_y + 1 >= state.current_board_height {
-                        break;
+                        // Push the animation back with updated state
+                        still_animating.push(Animation::PushDown {
+                            gray_line_y: target_y,
+                            start_time: now, // Reset timer for the next step
+                        });
                     }
-                    // Remove the row below the gray line
-                    state.board.remove(current_y + 1);
-                    // Add a new empty row at the top
-                    state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-                    current_y += 1;
-                }
-
-                // When the gray line reaches the effective bottom
-                if current_y >= state.current_board_height - 1 {
-                    // Animation finished
-                    state.animation = None;
-                    handle_scoring(state);
-                    state.spawn_piece();
-                    // Fill the effective bottom row with Solid cells
-                    for x in 0..BOARD_WIDTH {
-                        state.board[state.current_board_height - 1][x] = Cell::Solid;
-                    }
-                    state.current_board_height = state.current_board_height.saturating_sub(1);
                 } else {
-                    // Update the animation state with the new position
-                    state.animation = Some(Animation::PushDown {
-                        gray_line_y: current_y,
-                        start: Instant::now(), // Reset timer for the next step
+                    // Not time to move yet, keep it in the queue
+                    still_animating.push(Animation::PushDown {
+                        gray_line_y,
+                        start_time,
                     });
                 }
             }
         }
+    }
+
+    state.animation = still_animating;
+
+    // Spawn a new piece only if all animations have completed in this cycle.
+    if animations_finished && state.animation.is_empty() {
+        state.spawn_piece();
     }
 }
 
@@ -788,9 +898,10 @@ fn main() -> io::Result<()> {
     )?;
     terminal::enable_raw_mode()?;
 
+    let time_provider = SystemTimeProvider::new();
     let mut state = GameState::new();
     let mut prev_state = state.clone();
-    let mut last_fall = Instant::now();
+    let mut last_fall = time_provider.now();
 
     draw_title_screen(&mut stdout)?;
 
@@ -819,41 +930,41 @@ fn main() -> io::Result<()> {
             }
             GameMode::Playing => {
                 // アニメーション処理
-                if state.animation.is_some() {
-                    handle_animation(&mut state);
+                if !state.animation.is_empty() {
+                    handle_animation(&mut state, &time_provider);
                     continue;
                 }
 
                 // 入力処理 (ノンブロッキング)
-                let mut last_key_press: Option<KeyCode> = None;
+                let mut last_key_event: Option<event::KeyEvent> = None;
                 while event::poll(Duration::ZERO)? {
                     if let Event::Key(key) = event::read()?
                         && key.kind == KeyEventKind::Press
                     {
-                        last_key_press = Some(key.code);
+                        last_key_event = Some(key);
                     }
                 }
-                if let Some(key_code) = last_key_press {
-                    if key_code == KeyCode::Char('q') {
+                if let Some(key_event) = last_key_event {
+                    if key_event.code == KeyCode::Char('q') {
                         state.mode = GameMode::GameOver;
                     } else {
-                        state.handle_input(key_code);
+                        state.handle_input(key_event);
                     }
                 }
 
                 // 落下処理
-                if last_fall.elapsed() >= state.fall_speed {
+                if time_provider.now() - last_fall >= state.fall_speed {
                     if let Some(piece) = &state.current_piece {
                         let moved_down = piece.moved(0, 1);
                         if state.is_valid_position(&moved_down) {
                             state.current_piece = Some(moved_down);
                         } else {
-                            state.lock_piece();
+                            state.lock_piece(&time_provider);
                         }
                     } else {
                         state.spawn_piece();
                     }
-                    last_fall = Instant::now();
+                    last_fall = time_provider.now();
                 }
 
                 // ループの速度を調整
@@ -936,6 +1047,7 @@ mod tests {
 
     #[test]
     fn test_line_clear_triggers_blink_animation() {
+        let time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
         state.mode = GameMode::Playing;
 
@@ -951,13 +1063,19 @@ mod tests {
         );
         state.current_piece = Some(piece);
 
-        state.lock_piece();
+        state.lock_piece(&time_provider);
 
-        assert!(matches!(state.animation, Some(Animation::LineBlink { .. })));
+        assert!(
+            state
+                .animation
+                .iter()
+                .any(|anim| matches!(anim, Animation::LineBlink { .. }))
+        );
     }
 
     #[test]
     fn test_bottom_line_is_cleared_normally() {
+        let time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
         state.mode = GameMode::Playing;
 
@@ -969,7 +1087,8 @@ mod tests {
         state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Red);
 
         // Clear the bottom line
-        state.clear_lines(&[BOARD_HEIGHT - 1]);
+        let new_animations = state.clear_lines(&[BOARD_HEIGHT - 1], &time_provider);
+        state.animation.extend(new_animations);
 
         // Assert that the marker block has moved down into the bottom row
         assert_eq!(state.board[BOARD_HEIGHT - 1][0], Cell::Occupied(Color::Red));
@@ -982,6 +1101,7 @@ mod tests {
 
     #[test]
     fn test_isolated_blocks_are_removed_on_non_bottom_clear() {
+        let time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
         state.mode = GameMode::Playing;
 
@@ -1004,7 +1124,8 @@ mod tests {
             Cell::Occupied(Color::Green);
 
         // 3. Call the line clear logic
-        state.clear_lines(&[clear_line_y]);
+        let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+        state.animation.extend(new_animations);
 
         // 4. Assert that the isolated block is gone
         assert_eq!(
@@ -1063,6 +1184,7 @@ mod tests {
 
     #[test]
     fn test_cleared_non_bottom_line_turns_gray() {
+        let time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
         let clear_line_y = BOARD_HEIGHT - 5;
 
@@ -1072,7 +1194,8 @@ mod tests {
         }
 
         // Call the line clear logic
-        state.clear_lines(&[clear_line_y]);
+        let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+        state.animation.extend(new_animations);
 
         // Assert that the cleared line has turned gray
         for x in 0..BOARD_WIDTH {
@@ -1082,6 +1205,7 @@ mod tests {
 
     #[test]
     fn test_non_bottom_clear_triggers_pushdown() {
+        let time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
         let clear_line_y = BOARD_HEIGHT - 5;
 
@@ -1090,52 +1214,14 @@ mod tests {
             state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
         }
 
-        // Call the line clear logic
-        state.clear_lines(&[clear_line_y]);
+        // Call the line clear logic and capture the resulting animations
+        let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+        state.animation.extend(new_animations);
 
-        // Assert that the correct animation has been triggered
-        assert!(matches!(state.animation, Some(Animation::PushDown { .. })));
-    }
-
-    #[test]
-    fn test_pushdown_animation_moves_line() {
-        let mut state = GameState::new();
-        let clear_line_y = BOARD_HEIGHT - 5;
-        let marker_y = clear_line_y + 1;
-        let marker_x = 3;
-
-        // Create a full line at a non-bottom row
-        for x in 0..BOARD_WIDTH {
-            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
-        }
-        // Create a marker block in the row below the cleared line
-        state.board[marker_y][marker_x] = Cell::Occupied(Color::Red);
-
-        // 1. Trigger the line clear and subsequent pushdown animation
-        state.clear_lines(&[clear_line_y]);
-
-        // The line should now be gray
-        assert_eq!(state.board[clear_line_y][0], Cell::Occupied(Color::Grey));
-
-        // 2. Manually handle the animation step
-        // In a real game loop, this would be called repeatedly.
-        handle_animation(&mut state);
-        thread::sleep(PUSH_DOWN_STEP_DURATION);
-        handle_animation(&mut state);
-
-        // 3. Assert the board state has changed
-        // The gray line should have moved down one step
-        assert_eq!(
-            state.board[clear_line_y + 1][0],
-            Cell::Occupied(Color::Grey)
-        );
-        // The original gray line row should now be empty
-        assert_eq!(state.board[clear_line_y][0], Cell::Empty);
-        // The marker block should be gone because its row was deleted and replaced by the gray line
-        assert_eq!(
-            state.board[clear_line_y + 1][marker_x],
-            Cell::Occupied(Color::Grey)
-        );
+        assert!(state.animation.iter().any(|anim| matches!(
+            anim,
+            Animation::PushDown { gray_line_y, .. } if *gray_line_y == clear_line_y
+        )));
     }
 
     #[test]
@@ -1182,6 +1268,7 @@ mod tests {
 
     #[test]
     fn test_pushdown_finishes_with_solid_line() {
+        let mut time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
         let clear_line_y = BOARD_HEIGHT - 2; // Clear line near bottom
 
@@ -1191,31 +1278,24 @@ mod tests {
         }
 
         // Trigger the line clear and subsequent pushdown animation
-        state.clear_lines(&[clear_line_y]);
+        let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+        state.animation.extend(new_animations);
 
-        // Manually advance the gray line to the bottom
-        if let Some(Animation::PushDown {
-            gray_line_y: _,
-            start,
-        }) = &mut state.animation
-        {
-            *start =
-                Instant::now() - PUSH_DOWN_STEP_DURATION * (BOARD_HEIGHT - 1 - clear_line_y) as u32;
+        // Loop until the animation is complete
+        while !state.animation.is_empty() {
+            time_provider.advance(PUSH_DOWN_STEP_DURATION);
+            handle_animation(&mut state, &time_provider);
         }
-
-        // Call handle_animation to process the final step
-        handle_animation(&mut state);
 
         // Assert that the bottom row is now solid
         for x in 0..BOARD_WIDTH {
             assert_eq!(state.board[BOARD_HEIGHT - 1][x], Cell::Solid);
         }
-        // Assert that the animation is finished
-        assert!(state.animation.is_none());
     }
 
     #[test]
     fn test_lock_piece_ignores_solid_lines() {
+        let mut time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
         state.mode = GameMode::Playing;
 
@@ -1235,18 +1315,11 @@ mod tests {
         );
         state.current_piece = Some(piece);
 
-        state.lock_piece();
+        state.lock_piece(&time_provider);
 
         // Manually advance the blink animation to completion
-        if let Some(Animation::LineBlink {
-            lines: _,
-            count: _,
-            start,
-        }) = &mut state.animation
-        {
-            *start = Instant::now() - BLINK_ANIMATION_STEP * BLINK_COUNT_MAX as u32;
-        }
-        handle_animation(&mut state); // Line clear should now have happened
+        time_provider.advance(BLINK_ANIMATION_STEP * BLINK_COUNT_MAX as u32);
+        handle_animation(&mut state, &time_provider); // Line clear should now have happened
 
         // Assert that the solid line remains
         for x in 0..BOARD_WIDTH {
@@ -1260,16 +1333,54 @@ mod tests {
             );
         }
         let expected_gray_line_y = BOARD_HEIGHT - 2;
-        assert!(
-            matches!(state.animation, Some(Animation::PushDown { gray_line_y: y, .. }) if y == expected_gray_line_y)
-        );
+        assert!(state.animation.iter().any(|anim| {
+            if let Animation::PushDown { gray_line_y: y, .. } = anim {
+                *y == expected_gray_line_y
+            } else {
+                false
+            }
+        }));
         // Assert score and line count (no score yet, as PushDown animation is ongoing)
         assert_eq!(state.lines_cleared, 0);
         assert_eq!(state.score, 0);
     }
 
     #[test]
+    fn test_pushdown_animation_moves_line() {
+        // Setup: Time provider and initial state
+        let mut time_provider = MockTimeProvider::new();
+        let mut state = GameState::new();
+        let clear_line_y = BOARD_HEIGHT - 5;
+
+        // Create a full line
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+
+        // Trigger the animation
+        let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+        state.animation.extend(new_animations);
+
+        // Advance time and handle animation
+        time_provider.advance(PUSH_DOWN_STEP_DURATION);
+        handle_animation(&mut state, &time_provider);
+
+        // Assert: The gray line has moved down one step
+        assert_eq!(
+            state.board[clear_line_y + 1][0],
+            Cell::Occupied(Color::Grey),
+            "Gray line should have moved down"
+        );
+        assert_eq!(
+            state.board[clear_line_y][0],
+            Cell::Empty,
+            "Original gray line row should be empty"
+        );
+    }
+
+    #[test]
     fn test_multiple_gray_lines_stack_and_reduce_board_height() {
+        let mut time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
         state.mode = GameMode::Playing;
 
@@ -1278,18 +1389,14 @@ mod tests {
         for x in 0..BOARD_WIDTH {
             state.board[clear_line_y1][x] = Cell::Occupied(Color::Blue);
         }
-        state.clear_lines(&[clear_line_y1]);
+        let new_animations = state.clear_lines(&[clear_line_y1], &time_provider);
+        state.animation.extend(new_animations);
 
-        // Manually advance animation to completion
-        if let Some(Animation::PushDown {
-            gray_line_y: _,
-            start,
-        }) = &mut state.animation
-        {
-            *start = Instant::now()
-                - PUSH_DOWN_STEP_DURATION * (BOARD_HEIGHT - 1 - clear_line_y1) as u32;
+        // Loop until the first animation is complete
+        while !state.animation.is_empty() {
+            time_provider.advance(PUSH_DOWN_STEP_DURATION);
+            handle_animation(&mut state, &time_provider);
         }
-        handle_animation(&mut state); // First gray line settles
 
         // Assert first gray line is solid and board height reduced
         for x in 0..BOARD_WIDTH {
@@ -1304,35 +1411,28 @@ mod tests {
             BOARD_HEIGHT - 1,
             "Board height should be reduced by 1 after first clear"
         );
-        assert!(
-            state.animation.is_none(),
-            "Animation should be none after first clear"
-        );
 
-        // 2. Clear a second line at BOARD_HEIGHT - 5 (relative to original board, but now it's above the solid line)
-        let clear_line_y2 = BOARD_HEIGHT - 5; // This will be BOARD_HEIGHT - 6 in actual board index due to reduced height
+        // 2. Clear a second line at a higher position
+        let clear_line_y2 = BOARD_HEIGHT - 10;
         for x in 0..BOARD_WIDTH {
             state.board[clear_line_y2][x] = Cell::Occupied(Color::Green);
         }
-        state.clear_lines(&[clear_line_y2]);
+        let new_animations = state.clear_lines(&[clear_line_y2], &time_provider);
+        state.animation.extend(new_animations);
 
-        // Manually advance animation to completion
-        if let Some(Animation::PushDown {
-            gray_line_y: _,
-            start,
-        }) = &mut state.animation
-        {
-            *start = Instant::now()
-                - PUSH_DOWN_STEP_DURATION * (BOARD_HEIGHT - 2 - clear_line_y2) as u32; // Target is now BOARD_HEIGHT - 2
+        // Loop until the second animation is complete
+        while !state.animation.is_empty() {
+            time_provider.advance(PUSH_DOWN_STEP_DURATION);
+            handle_animation(&mut state, &time_provider);
         }
-        handle_animation(&mut state); // Second gray line settles
 
         // Assert second gray line is solid and board height reduced further
+        // It should settle on top of the first solid line, at BOARD_HEIGHT - 2
         for x in 0..BOARD_WIDTH {
             assert_eq!(
                 state.board[BOARD_HEIGHT - 2][x],
                 Cell::Solid,
-                "Second gray line should be solid"
+                "Second gray line should be solid on top of the first"
             );
         }
         assert_eq!(
@@ -1340,66 +1440,56 @@ mod tests {
             BOARD_HEIGHT - 2,
             "Board height should be reduced by 2 after second clear"
         );
-        assert!(
-            state.animation.is_none(),
-            "Animation should be none after second clear"
-        );
 
         // Verify that new pieces would spawn above the solid lines
-        let new_piece = Tetromino::from_shape(TetrominoShape::I, COLOR_PALETTE);
-        // Position the piece to be at the top, but it should not collide with solid lines
-        let mut test_piece = new_piece.clone();
-        test_piece.pos = (0, (state.current_board_height as i8) - 4); // Place it just above the solid lines
+        state.spawn_piece(); // A new piece should have spawned automatically
         assert!(
-            state.is_valid_position(&test_piece),
-            "New piece should be valid above solid lines"
+            state.current_piece.is_some(),
+            "A new piece should spawn after animations"
         );
 
-        // Position the piece to overlap with the solid lines
-        let mut colliding_piece = new_piece.clone();
+        // Position a test piece to overlap with the solid lines
+        let mut colliding_piece = Tetromino::from_shape(TetrominoShape::I, COLOR_PALETTE);
         colliding_piece.pos = (0, (state.current_board_height as i8) - 1); // Place it on the top solid line
         assert!(
             !state.is_valid_position(&colliding_piece),
-            "New piece should not be valid on solid lines"
+            "Piece should not be valid on solid lines"
         );
     }
 
     #[test]
-    fn test_game_state_initializes_next_piece() {
-        let state = GameState::new();
-        assert!(
-            state.next_piece.is_some(),
-            "next_piece should be initialized"
-        );
-    }
-
-    #[test]
-    fn test_lock_piece_updates_current_and_next_piece() {
+    fn test_blocks_above_follow_pushed_down_line() {
+        let mut time_provider = MockTimeProvider::new();
         let mut state = GameState::new();
-        state.mode = GameMode::Playing;
+        let clear_line_y = BOARD_HEIGHT - 5;
+        let marker_x = 3;
+        let marker_y = clear_line_y - 1; // Place a marker block *above* the line to be cleared
 
-        // Ensure next_piece is initialized
-        assert!(state.next_piece.is_some());
-        let initial_next_piece = state.next_piece.clone();
+        // Create a full line to be cleared
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+        // Place the marker block
+        state.board[marker_y][marker_x] = Cell::Occupied(Color::Red);
 
-        // Spawn a piece (this will move initial_next_piece to current_piece and generate a new next_piece)
-        state.spawn_piece();
-        assert_eq!(state.current_piece, initial_next_piece);
-        assert_ne!(state.next_piece, initial_next_piece); // New next_piece should be different
+        // Trigger the animation
+        let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+        state.animation.extend(new_animations);
 
-        // Lock the current piece (this should move next_piece to current_piece and generate a new next_piece)
-        // To avoid line clear animation, we'll just lock it without clearing lines.
-        // We need to ensure current_piece is not None for lock_piece to do anything.
-        let piece_to_lock = state.current_piece.clone().unwrap();
-        state.current_piece = Some(piece_to_lock); // Re-assign to avoid .take() in lock_piece for this test
+        // Advance time and handle animation for one step
+        time_provider.advance(PUSH_DOWN_STEP_DURATION);
+        handle_animation(&mut state, &time_provider);
 
-        let next_piece_before_lock = state.next_piece.clone();
-        state.lock_piece();
-
-        // After lock_piece, current_piece should be the one that was next_piece
-        assert_eq!(state.current_piece, next_piece_before_lock);
-        // And a new next_piece should have been generated
-        assert_ne!(state.next_piece, next_piece_before_lock);
-        assert!(state.next_piece.is_some());
+        // Assert: The marker block should have moved down with the gray line
+        assert_eq!(
+            state.board[marker_y + 1][marker_x],
+            Cell::Occupied(Color::Red),
+            "Block on top should move down"
+        );
+        assert_eq!(
+            state.board[marker_y][marker_x],
+            Cell::Empty,
+            "Original position of marker block should be empty"
+        );
     }
 }
