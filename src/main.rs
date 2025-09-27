@@ -598,7 +598,7 @@ fn draw_title_screen(stdout: &mut io::Stdout) -> io::Result<()> {
     stdout.flush()
 }
 
-fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> io::Result<()> {
+fn draw<W: io::Write>(stdout: &mut W, prev_state: &GameState, state: &GameState) -> io::Result<()> {
     if prev_state == state {
         return Ok(());
     }
@@ -771,7 +771,7 @@ fn draw(stdout: &mut io::Stdout, prev_state: &GameState, state: &GameState) -> i
                             Cell::Connected(color) => execute!(
                                 stdout,
                                 SetForegroundColor(color),
-                                Print("[]"),
+                                Print("##"),
                                 ResetColor
                             )?,
                         }
