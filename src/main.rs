@@ -88,6 +88,7 @@ struct GameState {
     lines_cleared: u32,
     fall_speed: Duration,
     blocks_to_score: Vec<(Point, u32)>,
+    current_board_height: usize,
 }
 
 impl Tetromino {
@@ -159,6 +160,7 @@ impl GameState {
             lines_cleared: 0,
             fall_speed: FALL_SPEED_START,
             blocks_to_score: Vec::new(),
+            current_board_height: BOARD_HEIGHT,
         }
     }
 
@@ -183,7 +185,7 @@ impl GameState {
 
     fn is_valid_position(&self, piece: &Tetromino) -> bool {
         for ((x, y), _) in piece.iter_blocks() {
-            if x < 0 || x >= BOARD_WIDTH as i8 || y < 0 || y >= BOARD_HEIGHT as i8 {
+            if x < 0 || x >= BOARD_WIDTH as i8 || y < 0 || y >= self.current_board_height as i8 {
                 return false;
             }
             if y >= 0 && self.board[y as usize][x as usize] != Cell::Empty {
@@ -202,17 +204,20 @@ impl GameState {
             }
         }
 
-        let lines_to_clear: Vec<usize> = self
-            .board
+        let mut lines_to_clear: Vec<usize> = self.board[0..self.current_board_height]
             .iter()
             .enumerate()
             .filter(|(_, row)| row.iter().all(|&cell| matches!(cell, Cell::Occupied(_))))
             .map(|(y, _)| y)
             .collect();
+        lines_to_clear.sort_by(|a, b| b.cmp(a)); // Sort in descending order to clear from bottom up
 
         if !lines_to_clear.is_empty() {
+            // Only clear the lowest line for now, as clear_lines only handles one.
+            // A more complete solution would involve iterating or a different animation for multi-line clears.
+            let lowest_line = lines_to_clear[0];
             self.animation = Some(Animation::LineBlink {
-                lines: lines_to_clear,
+                lines: vec![lowest_line],
                 count: 0,
                 start: Instant::now(),
             });
@@ -239,7 +244,7 @@ impl GameState {
     fn clear_lines(&mut self, lines: &[usize]) {
         // For now, we only handle a single line clear at a time.
         let y = lines[0];
-        let is_bottom_line = y == BOARD_HEIGHT - 1;
+        let is_bottom_line = y == self.current_board_height - 1;
 
         if is_bottom_line {
             // Standard Tetris clear for the bottom line
@@ -700,7 +705,8 @@ fn handle_animation(state: &mut GameState) {
 
                 let mut current_y = gray_line_y;
                 for _ in 0..steps_to_move {
-                    if current_y + 1 >= BOARD_HEIGHT {
+                    // Check if the gray line has reached the effective bottom
+                    if current_y + 1 >= state.current_board_height {
                         break;
                     }
                     // Remove the row below the gray line
@@ -710,15 +716,17 @@ fn handle_animation(state: &mut GameState) {
                     current_y += 1;
                 }
 
-                if current_y >= BOARD_HEIGHT - 1 {
+                // When the gray line reaches the effective bottom
+                if current_y >= state.current_board_height - 1 {
                     // Animation finished
                     state.animation = None;
                     handle_scoring(state);
                     state.spawn_piece();
-                    // Fill the bottom row with Solid cells
+                    // Fill the effective bottom row with Solid cells
                     for x in 0..BOARD_WIDTH {
-                        state.board[BOARD_HEIGHT - 1][x] = Cell::Solid;
+                        state.board[state.current_board_height - 1][x] = Cell::Solid;
                     }
+                    state.current_board_height = state.current_board_height.saturating_sub(1);
                 } else {
                     // Update the animation state with the new position
                     state.animation = Some(Animation::PushDown {
@@ -1164,5 +1172,155 @@ mod tests {
         }
         // Assert that the animation is finished
         assert!(state.animation.is_none());
+    }
+
+    #[test]
+    fn test_lock_piece_ignores_solid_lines() {
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        // Create a solid line at the bottom
+        for x in 0..BOARD_WIDTH {
+            state.board[BOARD_HEIGHT - 1][x] = Cell::Solid;
+        }
+        // Create an occupied line above it
+        for x in 0..BOARD_WIDTH {
+            state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(Color::Blue);
+        }
+
+        // Create a piece to lock and trigger the line clear
+        let piece = Tetromino::from_shape(
+            TetrominoShape::I,
+            [Color::Red, Color::Red, Color::Red, Color::Red],
+        );
+        state.current_piece = Some(piece);
+
+        state.lock_piece();
+
+        // Manually advance the blink animation to completion
+        if let Some(Animation::LineBlink {
+            lines: _,
+            count: _,
+            start,
+        }) = &mut state.animation
+        {
+            *start = Instant::now() - BLINK_ANIMATION_STEP * BLINK_COUNT_MAX as u32;
+        }
+        handle_animation(&mut state); // Line clear should now have happened
+
+        // Assert that the solid line remains
+        for x in 0..BOARD_WIDTH {
+            assert_eq!(state.board[BOARD_HEIGHT - 1][x], Cell::Solid);
+        }
+        // Assert that the occupied line turned gray and triggered PushDown animation
+        for x in 0..BOARD_WIDTH {
+            assert_eq!(
+                state.board[BOARD_HEIGHT - 2][x],
+                Cell::Occupied(Color::Grey)
+            );
+        }
+        let expected_gray_line_y = BOARD_HEIGHT - 2;
+        assert!(
+            matches!(state.animation, Some(Animation::PushDown { gray_line_y: y, .. }) if y == expected_gray_line_y)
+        );
+        // Assert score and line count (no score yet, as PushDown animation is ongoing)
+        assert_eq!(state.lines_cleared, 0);
+        assert_eq!(state.score, 0);
+    }
+
+    #[test]
+    fn test_multiple_gray_lines_stack_and_reduce_board_height() {
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        // 1. Clear a line at BOARD_HEIGHT - 5
+        let clear_line_y1 = BOARD_HEIGHT - 5;
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y1][x] = Cell::Occupied(Color::Blue);
+        }
+        state.clear_lines(&[clear_line_y1]);
+
+        // Manually advance animation to completion
+        if let Some(Animation::PushDown {
+            gray_line_y: _,
+            start,
+        }) = &mut state.animation
+        {
+            *start = Instant::now()
+                - PUSH_DOWN_STEP_DURATION * (BOARD_HEIGHT - 1 - clear_line_y1) as u32;
+        }
+        handle_animation(&mut state); // First gray line settles
+
+        // Assert first gray line is solid and board height reduced
+        for x in 0..BOARD_WIDTH {
+            assert_eq!(
+                state.board[BOARD_HEIGHT - 1][x],
+                Cell::Solid,
+                "First gray line should be solid"
+            );
+        }
+        assert_eq!(
+            state.current_board_height,
+            BOARD_HEIGHT - 1,
+            "Board height should be reduced by 1 after first clear"
+        );
+        assert!(
+            state.animation.is_none(),
+            "Animation should be none after first clear"
+        );
+
+        // 2. Clear a second line at BOARD_HEIGHT - 5 (relative to original board, but now it's above the solid line)
+        let clear_line_y2 = BOARD_HEIGHT - 5; // This will be BOARD_HEIGHT - 6 in actual board index due to reduced height
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y2][x] = Cell::Occupied(Color::Green);
+        }
+        state.clear_lines(&[clear_line_y2]);
+
+        // Manually advance animation to completion
+        if let Some(Animation::PushDown {
+            gray_line_y: _,
+            start,
+        }) = &mut state.animation
+        {
+            *start = Instant::now()
+                - PUSH_DOWN_STEP_DURATION * (BOARD_HEIGHT - 2 - clear_line_y2) as u32; // Target is now BOARD_HEIGHT - 2
+        }
+        handle_animation(&mut state); // Second gray line settles
+
+        // Assert second gray line is solid and board height reduced further
+        for x in 0..BOARD_WIDTH {
+            assert_eq!(
+                state.board[BOARD_HEIGHT - 2][x],
+                Cell::Solid,
+                "Second gray line should be solid"
+            );
+        }
+        assert_eq!(
+            state.current_board_height,
+            BOARD_HEIGHT - 2,
+            "Board height should be reduced by 2 after second clear"
+        );
+        assert!(
+            state.animation.is_none(),
+            "Animation should be none after second clear"
+        );
+
+        // Verify that new pieces would spawn above the solid lines
+        let new_piece = Tetromino::from_shape(TetrominoShape::I, COLOR_PALETTE);
+        // Position the piece to be at the top, but it should not collide with solid lines
+        let mut test_piece = new_piece.clone();
+        test_piece.pos = (0, (state.current_board_height as i8) - 4); // Place it just above the solid lines
+        assert!(
+            state.is_valid_position(&test_piece),
+            "New piece should be valid above solid lines"
+        );
+
+        // Position the piece to overlap with the solid lines
+        let mut colliding_piece = new_piece.clone();
+        colliding_piece.pos = (0, (state.current_board_height as i8) - 1); // Place it on the top solid line
+        assert!(
+            !state.is_valid_position(&colliding_piece),
+            "New piece should not be valid on solid lines"
+        );
     }
 }
