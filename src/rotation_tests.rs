@@ -1,4 +1,5 @@
 use super::*;
+use crate::tetromino::TetrominoShape;
 use std::collections::HashMap;
 
 fn assert_piece_state(
