@@ -80,7 +80,7 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 
 ### バグリスト
 
-*   [ ] 隣接色のスキャンやライン消去の判定にCell::Connectedが含まれてない
+*   [x] 隣接色のスキャンやライン消去の判定にCell::Connectedが含まれてない
 
 ### 改善点リスト
 
@@ -91,22 +91,4 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 
 ---
 
-### TDD計画
 
-*   **機能:** `Cell::Connected`の判定ロジックへの組み込み
-    *   **ステップ 1: `GameState::is_valid_position` で`Cell::Connected`を考慮**
-        *   **Red:** `Cell::Connected`のセルがある位置にテトリミノが移動できないことを確認するテストを作成（最初は失敗）。
-        *   **Green:** `GameState::is_valid_position`関数で`Cell::Connected`のセルも衝突と判定するように修正。テストが成功することを確認。
-        *   **Refactor:** コードの整理。
-    *   **ステップ 2: `GameState::lock_piece`のラインクリア判定で`Cell::Connected`を考慮**
-        *   **Red:** `Cell::Connected`のセルを含むラインが正しくクリアされることを確認するテストを作成（最初は失敗）。
-        *   **Green:** `GameState::lock_piece`関数内の`lines_to_clear`の計算で`Cell::Connected`のセルもラインクリアの対象となるように修正。テストが成功することを確認。
-        *   **Refactor:** コードの整理。
-    *   **ステップ 3: `count_connected_blocks`で`Cell::Connected`を考慮**
-        *   **Red:** `Cell::Connected`のセルも接続されたブロックとして正しくカウントされることを確認するテストを作成（最初は失敗）。
-        *   **Green:** `count_connected_blocks`関数で`Cell::Connected`のセルも接続されたブロックとして扱うように修正。テストが成功することを確認。
-        *   **Refactor:** コードの整理。
-    *   **ステップ 4: `GameState::remove_isolated_blocks`で`Cell::Connected`を考慮**
-        *   **Red:** `Cell::Connected`のセルが孤立ブロックとして正しく削除されることを確認するテストを作成（最初は失敗）。
-        *   **Green:** `GameState::remove_isolated_blocks`関数で`Cell::Connected`のセルも孤立ブロックの対象となるように修正。テストが成功することを確認。
-        *   **Refactor:** コードの整理。
