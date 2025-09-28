@@ -15,15 +15,8 @@ use std::io::{self, Write, stdout};
 use std::thread;
 use std::time::{Duration, Instant};
 
-// --- 定数 ---
-const BOARD_WIDTH: usize = 10;
-const BOARD_HEIGHT: usize = 20;
-const FALL_SPEED_START: Duration = Duration::from_millis(800);
-
-const COLOR_PALETTE: [Color; 4] = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
-const BLINK_ANIMATION_STEP: Duration = Duration::from_millis(120);
-const BLINK_COUNT_MAX: usize = 6; // 3 blinks: on-off-on-off-on-off
-const PUSH_DOWN_STEP_DURATION: Duration = Duration::from_millis(100);
+mod config;
+use config::*;
 
 // --- 時間管理 ---
 pub trait TimeProvider {
