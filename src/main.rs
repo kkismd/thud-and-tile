@@ -81,17 +81,10 @@ impl TimeProvider for MockTimeProvider {
 
 // --- データ構造 ---
 
+mod cell;
+use cell::{Board, Cell};
+
 type Point = (usize, usize);
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Cell {
-    Empty,
-    Occupied(Color),
-    Solid,
-    Connected(Color), // これを追加
-}
-
-type Board = Vec<Vec<Cell>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum TetrominoShape {
