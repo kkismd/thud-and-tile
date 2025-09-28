@@ -805,12 +805,13 @@ fn draw<W: io::Write>(stdout: &mut W, prev_state: &GameState, state: &GameState)
             if let Some(ghost) = &state.ghost_piece()
                 && Some(ghost) != state.current_piece.as_ref()
             {
-                for ((x, y), _) in ghost.iter_blocks() {
+                for ((x, y), color) in ghost.iter_blocks() {
+                    // color を取得
                     if y >= 0 && state.board[y as usize][x as usize] == Cell::Empty {
                         execute!(
                             stdout,
                             MoveTo((x as u16 * 2) + 1, y as u16 + 1),
-                            SetForegroundColor(Color::Grey),
+                            SetForegroundColor(color), // color を使用
                             Print("::")
                         )?;
                     }
