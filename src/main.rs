@@ -278,7 +278,11 @@ impl GameState {
         let mut lines_to_clear: Vec<usize> = self.board[0..self.current_board_height]
             .iter()
             .enumerate()
-            .filter(|(_, row)| row.iter().all(|&cell| matches!(cell, Cell::Occupied(_))))
+            .filter(|(_, row)| {
+                row.iter().all(|&cell| {
+                    matches!(cell, Cell::Occupied(_)) || matches!(cell, Cell::Connected(_))
+                })
+            })
             .map(|(y, _)| y)
             .collect();
         lines_to_clear.sort_by(|a, b| b.cmp(a)); // Sort in descending order to clear from bottom up
