@@ -379,7 +379,12 @@ impl GameState {
         // Iterate from the row below the cleared line to the bottom
         for y in (cleared_line_y + 1)..BOARD_HEIGHT {
             for x in 0..BOARD_WIDTH {
-                if let Cell::Occupied(color) = self.board[y][x] {
+                // Cell::Occupied または Cell::Connected のセルを対象とする
+                if let Some(color) = match self.board[y][x] {
+                    Cell::Occupied(c) => Some(c),
+                    Cell::Connected(c) => Some(c),
+                    _ => None,
+                } {
                     // Check neighbors
                     let mut is_isolated = true;
                     let neighbors = [
@@ -394,8 +399,12 @@ impl GameState {
                             && nx < BOARD_WIDTH as i8
                             && ny >= 0
                             && ny < BOARD_HEIGHT as i8
-                            && let Cell::Occupied(neighbor_color) =
-                                self.board[ny as usize][nx as usize]
+                            // Cell::Occupied または Cell::Connected のセルを対象とする
+                            && let Some(neighbor_color) = match self.board[ny as usize][nx as usize] {
+                                Cell::Occupied(c) => Some(c),
+                                Cell::Connected(c) => Some(c),
+                                _ => None,
+                            }
                             && neighbor_color == color
                         {
                             is_isolated = false;
