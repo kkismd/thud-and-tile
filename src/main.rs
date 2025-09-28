@@ -526,7 +526,12 @@ fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u
 
     for y in (cleared_line_y + 1)..BOARD_HEIGHT {
         for x in 0..BOARD_WIDTH {
-            if let Cell::Occupied(color) = board[y][x] {
+            // Cell::Occupied または Cell::Connected のセルを対象とする
+            if let Some(color) = match board[y][x] {
+                Cell::Occupied(c) => Some(c),
+                Cell::Connected(c) => Some(c),
+                _ => None,
+            } {
                 if visited[y][x] {
                     continue;
                 }
@@ -536,10 +541,9 @@ fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u
 
                 visited[y][x] = true;
                 queue.push_back((x, y));
+                component.push((x, y)); // 最初のセルもコンポーネントに追加
 
                 while let Some((qx, qy)) = queue.pop_front() {
-                    component.push((qx, qy));
-
                     let neighbors = [
                         (qx as i8 - 1, qy as i8),
                         (qx as i8 + 1, qy as i8),
@@ -549,13 +553,19 @@ fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u
 
                     for (nx, ny) in neighbors {
                         if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8 {
-                            let (nx, ny) = (nx as usize, ny as usize);
-                            if !visited[ny][nx]
-                                && let Cell::Occupied(neighbor_color) = board[ny][nx]
+                            let (nx_usize, ny_usize) = (nx as usize, ny as usize);
+                            // Cell::Occupied または Cell::Connected のセルを対象とする
+                            if !visited[ny_usize][nx_usize]
+                                && let Some(neighbor_color) = match board[ny_usize][nx_usize] {
+                                    Cell::Occupied(c) => Some(c),
+                                    Cell::Connected(c) => Some(c),
+                                    _ => None,
+                                }
                                 && neighbor_color == color
                             {
-                                visited[ny][nx] = true;
-                                queue.push_back((nx, ny));
+                                visited[ny_usize][nx_usize] = true;
+                                queue.push_back((nx_usize, ny_usize));
+                                component.push((nx_usize, ny_usize)); // 隣接セルもコンポーネントに追加
                             }
                         }
                     }
