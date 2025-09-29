@@ -1,5 +1,9 @@
 use crossterm::style::Color;
-use rand::{self, Rng, seq::SliceRandom};
+use lazy_static::lazy_static;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+use rand::{self, seq::SliceRandom};
+use std::sync::Mutex;
 
 use crate::config::{BOARD_WIDTH, COLOR_PALETTE};
 
@@ -14,6 +18,46 @@ pub enum TetrominoShape {
     Z,
 }
 
+impl TetrominoShape {
+    pub fn all_shapes() -> Vec<TetrominoShape> {
+        vec![
+            TetrominoShape::I,
+            TetrominoShape::O,
+            TetrominoShape::T,
+            TetrominoShape::L,
+            TetrominoShape::J,
+            TetrominoShape::S,
+            TetrominoShape::Z,
+        ]
+    }
+}
+
+pub struct TetrominoBag {
+    bag: Vec<TetrominoShape>,
+    rng: StdRng,
+}
+
+impl TetrominoBag {
+    pub fn new() -> Self {
+        let mut bag = TetrominoShape::all_shapes();
+        let mut rng = StdRng::from_entropy(); // Use from_entropy for production, fixed seed for testing if needed
+        bag.shuffle(&mut rng);
+        TetrominoBag { bag, rng }
+    }
+
+    pub fn next(&mut self) -> TetrominoShape {
+        if self.bag.is_empty() {
+            self.bag = TetrominoShape::all_shapes();
+            self.bag.shuffle(&mut self.rng);
+        }
+        self.bag.pop().unwrap()
+    }
+}
+
+lazy_static! {
+    static ref TETROMINO_BAG: Mutex<TetrominoBag> = Mutex::new(TetrominoBag::new());
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tetromino {
     _shape: TetrominoShape,
@@ -23,18 +67,10 @@ pub struct Tetromino {
 
 impl Tetromino {
     pub fn new_random() -> Self {
-        let mut rng = rand::thread_rng();
-        let shape = match rng.gen_range(0..7) {
-            0 => TetrominoShape::I,
-            1 => TetrominoShape::O,
-            2 => TetrominoShape::T,
-            3 => TetrominoShape::L,
-            4 => TetrominoShape::J,
-            5 => TetrominoShape::S,
-            _ => TetrominoShape::Z,
-        };
+        let shape = TETROMINO_BAG.lock().unwrap().next();
 
         let mut colors = COLOR_PALETTE;
+        let mut rng = rand::thread_rng(); // Use ThreadRng for color shuffling
         colors.shuffle(&mut rng);
 
         Self::from_shape(shape, colors)
@@ -183,3 +219,44 @@ const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
         [(1, 0), (0, 1), (1, 1), (0, 2)],
     ],
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_new_random_uses_7_bag_system() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let mut rng = StdRng::seed_from_u64(123);
+        let mut test_bag = TetrominoBag {
+            bag: TetrominoShape::all_shapes(),
+            rng: rng,
+        };
+        test_bag.bag.shuffle(&mut test_bag.rng);
+
+        let mut generated_shapes = Vec::new();
+        for _ in 0..14 {
+            // Generate enough pieces for two full bags
+            generated_shapes.push(test_bag.next());
+        }
+
+        // Check the first bag
+        let first_bag_shapes: HashSet<_> = generated_shapes[0..7].iter().collect();
+        assert_eq!(
+            first_bag_shapes.len(),
+            7,
+            "First bag should contain 7 unique shapes"
+        );
+
+        // Check the second bag
+        let second_bag_shapes: HashSet<_> = generated_shapes[7..14].iter().collect();
+        assert_eq!(
+            second_bag_shapes.len(),
+            7,
+            "Second bag should contain 7 unique shapes"
+        );
+    }
+}
