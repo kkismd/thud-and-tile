@@ -17,10 +17,8 @@ pub enum TetrominoShape {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tetromino {
     _shape: TetrominoShape,
-    matrix: &'static [[(i8, i8, u8); 4]; 4],
     pub pos: (i8, i8),
-    colors: [Color; 4],
-    rotation: u8,
+    blocks: Vec<((i8, i8), Color)>,
 }
 
 impl Tetromino {
@@ -50,25 +48,25 @@ impl Tetromino {
             TetrominoShape::L => &SHAPES[3],
             TetrominoShape::J => &SHAPES[4],
             TetrominoShape::S => &SHAPES[5],
-            TetrominoShape::Z => &SHAPES[6],
+            _ => &SHAPES[6],
         };
+        let mut blocks = Vec::new();
+        for (i, &(block_x, block_y)) in matrix[0].iter().enumerate() {
+            blocks.push(((block_x, block_y), colors[i]));
+        }
+
         Tetromino {
             _shape: shape,
-            matrix,
             pos: ((BOARD_WIDTH as i8) / 2 - 2, 0),
-            colors,
-            rotation: 0,
+            blocks,
         }
     }
 
     pub fn iter_blocks(&self) -> impl Iterator<Item = ((i8, i8), Color)> + '_ {
-        self.matrix[self.rotation as usize].iter().map(
-            move |&(block_x, block_y, color_perm_idx)| {
-                let pos = (self.pos.0 + block_x, self.pos.1 + block_y);
-                let color = self.colors[color_perm_idx as usize];
-                (pos, color)
-            },
-        )
+        self.blocks.iter().map(move |&((block_x, block_y), color)| {
+            let pos = (self.pos.0 + block_x, self.pos.1 + block_y);
+            (pos, color)
+        })
     }
 
     pub fn moved(&self, dx: i8, dy: i8) -> Self {
@@ -79,65 +77,79 @@ impl Tetromino {
 
     pub fn rotated(&self) -> Self {
         let mut new_piece = self.clone();
-        new_piece.rotation = (self.rotation + 1) % 4;
+        if self._shape == TetrominoShape::O {
+            return new_piece;
+        }
+        new_piece.blocks = self
+            .blocks
+            .iter()
+            .map(|&((x, y), color)| ((-y, x), color))
+            .collect();
         new_piece
     }
 
     pub fn rotated_counter_clockwise(&self) -> Self {
         let mut new_piece = self.clone();
-        new_piece.rotation = (self.rotation + 3) % 4;
+        if self._shape == TetrominoShape::O {
+            return new_piece;
+        }
+        new_piece.blocks = self
+            .blocks
+            .iter()
+            .map(|&((x, y), color)| ((y, -x), color))
+            .collect();
         new_piece
     }
 }
 
-const SHAPES: [[[(i8, i8, u8); 4]; 4]; 7] = [
+const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
     // I
     [
-        [(1, 0, 0), (1, 1, 1), (1, 2, 2), (1, 3, 3)],
-        [(0, 2, 3), (1, 2, 2), (2, 2, 1), (3, 2, 0)],
-        [(2, 0, 3), (2, 1, 2), (2, 2, 1), (2, 3, 0)],
-        [(0, 1, 3), (1, 1, 2), (2, 1, 1), (3, 1, 0)],
+        [(1, 0), (1, 1), (1, 2), (1, 3)],
+        [(0, 2), (1, 2), (2, 2), (3, 2)],
+        [(2, 0), (2, 1), (2, 2), (2, 3)],
+        [(0, 1), (1, 1), (2, 1), (3, 1)],
     ],
     // O
     [
-        [(1, 1, 0), (2, 1, 1), (1, 2, 2), (2, 2, 3)],
-        [(1, 1, 2), (2, 1, 0), (1, 2, 3), (2, 2, 1)],
-        [(1, 1, 3), (2, 1, 1), (1, 2, 0), (2, 2, 2)],
-        [(1, 1, 1), (2, 1, 0), (1, 2, 2), (2, 2, 3)],
+        [(1, 1), (2, 1), (1, 2), (2, 2)],
+        [(1, 1), (2, 1), (1, 2), (2, 2)],
+        [(1, 1), (2, 1), (1, 2), (2, 2)],
+        [(1, 1), (2, 1), (1, 2), (2, 2)],
     ],
     // T
     [
-        [(1, 0, 0), (0, 1, 1), (1, 1, 2), (2, 1, 3)],
-        [(1, 0, 1), (1, 1, 2), (2, 1, 0), (1, 2, 3)],
-        [(0, 1, 3), (1, 1, 2), (2, 1, 1), (1, 2, 0)],
-        [(1, 0, 0), (0, 1, 3), (1, 1, 2), (1, 2, 1)],
+        [(1, 0), (0, 1), (1, 1), (2, 1)],
+        [(1, 0), (1, 1), (2, 1), (1, 2)],
+        [(0, 1), (1, 1), (2, 1), (1, 2)],
+        [(1, 0), (0, 1), (1, 1), (1, 2)],
     ],
     // L
     [
-        [(2, 0, 0), (0, 1, 1), (1, 1, 2), (2, 1, 3)],
-        [(1, 0, 1), (1, 1, 2), (1, 2, 3), (2, 2, 0)],
-        [(0, 1, 3), (1, 1, 2), (2, 1, 1), (0, 2, 0)],
-        [(0, 0, 0), (1, 0, 3), (1, 1, 2), (1, 2, 1)],
+        [(2, 0), (0, 1), (1, 1), (2, 1)],
+        [(1, 0), (1, 1), (1, 2), (2, 2)],
+        [(0, 1), (1, 1), (2, 1), (0, 2)],
+        [(0, 0), (1, 0), (1, 1), (1, 2)],
     ],
     // J
     [
-        [(0, 0, 0), (0, 1, 1), (1, 1, 2), (2, 1, 3)],
-        [(1, 0, 1), (2, 0, 0), (1, 1, 2), (1, 2, 3)],
-        [(0, 1, 3), (1, 1, 2), (2, 1, 1), (2, 2, 0)],
-        [(1, 0, 3), (1, 1, 2), (0, 2, 0), (1, 2, 1)],
+        [(0, 0), (0, 1), (1, 1), (2, 1)],
+        [(1, 0), (2, 0), (1, 1), (1, 2)],
+        [(0, 1), (1, 1), (2, 1), (2, 2)],
+        [(1, 0), (1, 1), (0, 2), (1, 2)],
     ],
     // S
     [
-        [(1, 0, 0), (2, 0, 1), (0, 1, 2), (1, 1, 3)],
-        [(1, 0, 2), (1, 1, 3), (2, 1, 0), (2, 2, 1)],
-        [(1, 1, 1), (2, 1, 0), (0, 2, 3), (1, 2, 2)],
-        [(0, 0, 0), (0, 1, 3), (1, 1, 2), (1, 2, 1)],
+        [(1, 0), (2, 0), (0, 1), (1, 1)],
+        [(1, 0), (1, 1), (2, 1), (2, 2)],
+        [(1, 1), (2, 1), (0, 2), (1, 2)],
+        [(0, 0), (0, 1), (1, 1), (1, 2)],
     ],
     // Z
     [
-        [(0, 0, 0), (1, 0, 1), (1, 1, 2), (2, 1, 3)],
-        [(2, 0, 0), (1, 1, 2), (2, 1, 1), (1, 2, 3)],
-        [(0, 1, 3), (1, 1, 2), (1, 2, 1), (2, 2, 0)],
-        [(1, 0, 3), (0, 1, 2), (1, 1, 1), (0, 2, 0)],
+        [(0, 0), (1, 0), (1, 1), (2, 1)],
+        [(2, 0), (1, 1), (2, 1), (1, 2)],
+        [(0, 1), (1, 1), (1, 2), (2, 2)],
+        [(1, 0), (0, 1), (1, 1), (0, 2)],
     ],
 ];

@@ -78,7 +78,7 @@ use cell::{Board, Cell};
 type Point = (usize, usize);
 
 mod tetromino;
-use tetromino::{Tetromino, TetrominoShape};
+use tetromino::Tetromino;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GameMode {
@@ -1005,6 +1005,7 @@ fn main() -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tetromino::TetrominoShape;
 
     #[test]
     fn test_game_starts_in_title_mode() {
