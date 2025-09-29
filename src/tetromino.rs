@@ -78,6 +78,21 @@ impl Tetromino {
     pub fn rotated(&self) -> Self {
         let mut new_piece = self.clone();
         if self._shape == TetrominoShape::O {
+            let old_colors: Vec<Color> = self.blocks.iter().map(|&(_, color)| color).collect();
+            let mut new_colors: Vec<Color> = vec![Color::Black; 4]; // Initialize with dummy colors
+
+            // Apply the specific clockwise color rotation for O-mino
+            new_colors[0] = old_colors[2]; // Top-Left gets Bottom-Left's color
+            new_colors[1] = old_colors[0]; // Top-Right gets Top-Left's color
+            new_colors[2] = old_colors[3]; // Bottom-Left gets Bottom-Right's color
+            new_colors[3] = old_colors[1]; // Bottom-Right gets Top-Right's color
+
+            new_piece.blocks = self
+                .blocks
+                .iter()
+                .enumerate()
+                .map(|(i, &((x, y), _))| ((x, y), new_colors[i]))
+                .collect();
             return new_piece;
         }
         new_piece.blocks = self
@@ -91,6 +106,21 @@ impl Tetromino {
     pub fn rotated_counter_clockwise(&self) -> Self {
         let mut new_piece = self.clone();
         if self._shape == TetrominoShape::O {
+            let old_colors: Vec<Color> = self.blocks.iter().map(|&(_, color)| color).collect();
+            let mut new_colors: Vec<Color> = vec![Color::Black; 4]; // Initialize with dummy colors
+
+            // Apply the specific counter-clockwise color rotation for O-mino
+            new_colors[0] = old_colors[1]; // Top-Left gets Top-Right's color
+            new_colors[1] = old_colors[3]; // Top-Right gets Bottom-Right's color
+            new_colors[2] = old_colors[0]; // Bottom-Left gets Top-Left's color
+            new_colors[3] = old_colors[2]; // Bottom-Right gets Bottom-Left's color
+
+            new_piece.blocks = self
+                .blocks
+                .iter()
+                .enumerate()
+                .map(|(i, &((x, y), _))| ((x, y), new_colors[i]))
+                .collect();
             return new_piece;
         }
         new_piece.blocks = self

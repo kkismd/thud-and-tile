@@ -98,10 +98,10 @@ fn test_o_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Cyan),
-            (2, 1, Color::Magenta),
-            (1, 2, Color::Yellow),
-            (2, 2, Color::Green),
+            (1, 1, Color::Yellow),  // Top-Left (was Bottom-Left)
+            (2, 1, Color::Cyan),    // Top-Right (was Top-Left)
+            (1, 2, Color::Green),   // Bottom-Left (was Bottom-Right)
+            (2, 2, Color::Magenta), // Bottom-Right (was Top-Right)
         ],
         "O-Mino rotation 1 is wrong",
     );
@@ -111,10 +111,10 @@ fn test_o_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Cyan),
-            (2, 1, Color::Magenta),
-            (1, 2, Color::Yellow),
-            (2, 2, Color::Green),
+            (1, 1, Color::Green),   // Top-Left (was Bottom-Left)
+            (2, 1, Color::Yellow),  // Top-Right (was Top-Left)
+            (1, 2, Color::Magenta), // Bottom-Left (was Bottom-Right)
+            (2, 2, Color::Cyan),    // Bottom-Right (was Top-Right)
         ],
         "O-Mino rotation 2 is wrong",
     );
@@ -124,10 +124,10 @@ fn test_o_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Cyan),
-            (2, 1, Color::Magenta),
-            (1, 2, Color::Yellow),
-            (2, 2, Color::Green),
+            (1, 1, Color::Magenta), // Top-Left (was Bottom-Left)
+            (2, 1, Color::Green),   // Top-Right (was Top-Left)
+            (1, 2, Color::Cyan),    // Bottom-Left (was Bottom-Right)
+            (2, 2, Color::Yellow),  // Bottom-Right (was Top-Right)
         ],
         "O-Mino rotation 3 is wrong",
     );
@@ -420,5 +420,63 @@ fn test_z_mino_full_rotation_cycle() {
             (1, -2, Color::Green),
         ],
         "Z-Mino rotation 3 is wrong",
+    );
+}
+
+#[test]
+fn test_o_mino_full_counter_clockwise_rotation_cycle() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::O, colors);
+    let p = piece.pos;
+
+    assert_piece_state(
+        &piece,
+        p,
+        &[
+            (1, 1, Color::Cyan),
+            (2, 1, Color::Magenta),
+            (1, 2, Color::Yellow),
+            (2, 2, Color::Green),
+        ],
+        "O-Mino initial state (rot 0) is wrong",
+    );
+
+    piece = piece.rotated_counter_clockwise();
+    assert_piece_state(
+        &piece,
+        p,
+        &[
+            (1, 1, Color::Magenta), // Top-Left (was Top-Right)
+            (2, 1, Color::Green),   // Top-Right (was Bottom-Right)
+            (1, 2, Color::Cyan),    // Bottom-Left (was Top-Left)
+            (2, 2, Color::Yellow),  // Bottom-Right (was Bottom-Left)
+        ],
+        "O-Mino counter-clockwise rotation 1 is wrong",
+    );
+
+    piece = piece.rotated_counter_clockwise();
+    assert_piece_state(
+        &piece,
+        p,
+        &[
+            (1, 1, Color::Green),   // Top-Left (was Bottom-Right)
+            (2, 1, Color::Yellow),  // Top-Right (was Bottom-Left)
+            (1, 2, Color::Magenta), // Bottom-Left (was Top-Right)
+            (2, 2, Color::Cyan),    // Bottom-Right (was Top-Left)
+        ],
+        "O-Mino counter-clockwise rotation 2 is wrong",
+    );
+
+    piece = piece.rotated_counter_clockwise();
+    assert_piece_state(
+        &piece,
+        p,
+        &[
+            (1, 1, Color::Yellow),  // Top-Left (was Bottom-Left)
+            (2, 1, Color::Cyan),    // Top-Right (was Top-Left)
+            (1, 2, Color::Green),   // Bottom-Left (was Bottom-Right)
+            (2, 2, Color::Magenta), // Bottom-Right (was Top-Right)
+        ],
+        "O-Mino counter-clockwise rotation 3 is wrong",
     );
 }
