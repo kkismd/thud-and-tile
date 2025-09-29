@@ -315,84 +315,117 @@ impl GameState {
     }
 }
 
+fn handle_line_blink_animation(
+    state: &mut GameState,
+    time_provider: &dyn TimeProvider,
+    anim: Animation,
+) -> Vec<Animation> {
+    let mut still_animating = Vec::new();
+    if let Animation::LineBlink {
+        lines,
+        count: _,
+        start_time,
+    } = anim
+    {
+        let now = time_provider.now();
+        let steps_done =
+            ((now - start_time).as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
+
+        if steps_done >= BLINK_COUNT_MAX {
+            // Blinking finished, trigger the next stage (clearing)
+            still_animating.extend(state.clear_lines(&lines, time_provider));
+        } else {
+            // Continue blinking
+            still_animating.push(Animation::LineBlink {
+                lines,
+                count: steps_done,
+                start_time,
+            });
+        }
+    }
+    still_animating
+}
+
+fn handle_push_down_animation(
+    state: &mut GameState,
+    time_provider: &dyn TimeProvider,
+    anim: Animation,
+) -> (Vec<Animation>, bool) {
+    let mut still_animating = Vec::new();
+    let mut finished = false;
+    if let Animation::PushDown {
+        gray_line_y,
+        start_time,
+    } = anim
+    {
+        let now = time_provider.now();
+        if now - start_time >= PUSH_DOWN_STEP_DURATION {
+            let target_y = gray_line_y + 1;
+
+            // Check if the animation should finish
+            if target_y >= state.current_board_height || state.board[target_y][0] == Cell::Solid {
+                // Finalize the line as Solid
+                for x in 0..BOARD_WIDTH {
+                    state.board[gray_line_y][x] = Cell::Solid;
+                }
+                state.current_board_height = state.current_board_height.saturating_sub(1);
+                board_logic::handle_scoring(state); // Score after a line settles
+                finished = true;
+                // Do not push the animation back
+            } else {
+                // Move the gray line and everything above it down by removing the line below it
+                // and inserting a new empty line at the top.
+                state.board.remove(target_y);
+                state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+
+                // Push the animation back with updated state
+                still_animating.push(Animation::PushDown {
+                    gray_line_y: target_y,
+                    start_time: now, // Reset timer for the next step
+                });
+            }
+        } else {
+            // Not time to move yet, keep it in the queue
+            still_animating.push(Animation::PushDown {
+                gray_line_y,
+                start_time,
+            });
+        }
+    }
+    (still_animating, finished)
+}
+
 fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     if state.animation.is_empty() {
         return;
     }
 
-    let mut still_animating = Vec::new();
-    let mut animations_finished = false;
-    let now = time_provider.now();
+    let mut still_animating_this_cycle = Vec::new();
+    let mut animations_finished_this_cycle = false;
 
     // Take ownership to process
     for anim in std::mem::take(&mut state.animation) {
         match anim {
-            Animation::LineBlink {
-                lines,
-                count: _,
-                start_time,
-            } => {
-                let steps_done =
-                    ((now - start_time).as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
-
-                if steps_done >= BLINK_COUNT_MAX {
-                    // Blinking finished, trigger the next stage (clearing)
-                    still_animating.extend(state.clear_lines(&lines, time_provider));
-                } else {
-                    // Continue blinking
-                    still_animating.push(Animation::LineBlink {
-                        lines,
-                        count: steps_done,
-                        start_time,
-                    });
-                }
+            Animation::LineBlink { .. } => {
+                still_animating_this_cycle.extend(handle_line_blink_animation(
+                    state,
+                    time_provider,
+                    anim,
+                ));
             }
-            Animation::PushDown {
-                gray_line_y,
-                start_time,
-            } => {
-                if now - start_time >= PUSH_DOWN_STEP_DURATION {
-                    let target_y = gray_line_y + 1;
-
-                    // Check if the animation should finish
-                    if target_y >= state.current_board_height
-                        || state.board[target_y][0] == Cell::Solid
-                    {
-                        // Finalize the line as Solid
-                        for x in 0..BOARD_WIDTH {
-                            state.board[gray_line_y][x] = Cell::Solid;
-                        }
-                        state.current_board_height = state.current_board_height.saturating_sub(1);
-                        board_logic::handle_scoring(state); // Score after a line settles
-                        animations_finished = true;
-                        // Do not push the animation back
-                    } else {
-                        // Move the gray line and everything above it down by removing the line below it
-                        // and inserting a new empty line at the top.
-                        state.board.remove(target_y);
-                        state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-
-                        // Push the animation back with updated state
-                        still_animating.push(Animation::PushDown {
-                            gray_line_y: target_y,
-                            start_time: now, // Reset timer for the next step
-                        });
-                    }
-                } else {
-                    // Not time to move yet, keep it in the queue
-                    still_animating.push(Animation::PushDown {
-                        gray_line_y,
-                        start_time,
-                    });
-                }
+            Animation::PushDown { .. } => {
+                let (remaining_animations, finished) =
+                    handle_push_down_animation(state, time_provider, anim);
+                still_animating_this_cycle.extend(remaining_animations);
+                animations_finished_this_cycle = finished;
             }
         }
     }
 
-    state.animation = still_animating;
+    state.animation = still_animating_this_cycle;
 
     // Spawn a new piece only if all animations have completed in this cycle.
-    if animations_finished && state.animation.is_empty() {
+    if animations_finished_this_cycle && state.animation.is_empty() {
         state.spawn_piece();
     }
 }
@@ -715,6 +748,76 @@ mod tests {
         assert_eq!(state.score, 160);
         // The scoring list should be cleared after processing
         assert!(state.blocks_to_score.is_empty());
+    }
+
+    #[test]
+    fn test_handle_animation_processes_line_blink() {
+        let mut time_provider = MockTimeProvider::new();
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        let clear_line_y = BOARD_HEIGHT - 1;
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+
+        state.animation.push(Animation::LineBlink {
+            lines: vec![clear_line_y],
+            count: 0,
+            start_time: time_provider.now(),
+        });
+
+        // Advance time past the blink animation step
+        time_provider.advance(BLINK_ANIMATION_STEP * BLINK_COUNT_MAX as u32);
+
+        // Call handle_animation
+        handle_animation(&mut state, &time_provider);
+
+        // After blinking, clear_lines should be called, which will either spawn a new piece
+        // or add PushDown animations. In this case, it's a bottom line, so it should spawn a new piece.
+        // We can assert that the animation queue is empty and a new piece is spawned.
+        assert!(state.animation.is_empty());
+        assert!(state.current_piece.is_some());
+        assert_eq!(state.lines_cleared, 1);
+        assert_eq!(state.score, 100);
+    }
+
+    #[test]
+    fn test_handle_animation_processes_push_down() {
+        let mut time_provider = MockTimeProvider::new();
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        let clear_line_y = BOARD_HEIGHT - 5;
+        for x in 0..BOARD_WIDTH {
+            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        }
+
+        // Trigger a PushDown animation
+        let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+        state.animation.extend(new_animations);
+
+        // Ensure there's a PushDown animation
+        assert!(
+            state
+                .animation
+                .iter()
+                .any(|anim| matches!(anim, Animation::PushDown { .. }))
+        );
+
+        // Advance time to trigger the push down step
+        time_provider.advance(PUSH_DOWN_STEP_DURATION);
+        handle_animation(&mut state, &time_provider);
+
+        // Assert that the gray line has moved down one step
+        assert_eq!(
+            state.board[clear_line_y + 1][0],
+            Cell::Occupied(Color::Grey)
+        );
+        assert_eq!(state.board[clear_line_y][0], Cell::Empty);
+
+        // Assert that the animation is still ongoing (unless it reached the bottom)
+        assert!(!state.animation.is_empty());
     }
 
     #[test]
