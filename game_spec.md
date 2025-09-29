@@ -71,11 +71,13 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 *    cargo testでテストを実施する
 *    cargo clippyとcargo fmtでコードの品質を担保する
 *    TDDの1サイクルが終わるたびにcargo check, cargo test, cargo clipply, cargo fmtを実行してからgit add, commitする
+*    non tracking fileをgit addする場合は理由を日本語で説明する
 *    コミット前に`game_spec.md`のTDD計画を更新して、完了したタスクにチェックを入れる
 *    改行を含むコミットメッセージはコマンドラインで失敗しやすいので一時ファイル経由で登録する
 *    コミットメッセージは日本語で記載する
 *    ソースコードを修正したときだけcargoコマンドで検査を行う
 *    TDDのRefactorではRed/Greenで追加したテストを削除しない
+*    コードを変更しようとする場合は必ず日本語で内容を説明する
 
 ---
 
@@ -94,3 +96,4 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 
 ### TDD計画
 
+- [x] 描画ロジックの整理に伴う未使用コードとインポートの削除
