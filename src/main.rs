@@ -397,7 +397,11 @@ fn find_and_connect_adjacent_blocks(board: &mut Board, lines_to_clear: &[usize])
                                 continue;
                             }
                             if !visited[ny_usize][nx_usize]
-                                && let Cell::Occupied(neighbor_color) = board[ny_usize][nx_usize]
+                                && let Some(neighbor_color) = match board[ny_usize][nx_usize] {
+                                    Cell::Occupied(c) => Some(c),
+                                    Cell::Connected(c) => Some(c),
+                                    _ => None,
+                                }
                                 && neighbor_color == color
                             {
                                 visited[ny_usize][nx_usize] = true;
@@ -1138,6 +1142,28 @@ mod tests {
             state.board[marker_y][marker_x],
             Cell::Empty,
             "Original position of marker block should be empty"
+        );
+    }
+
+    #[test]
+    fn test_newly_landed_block_connects_to_existing_connected_block() {
+        let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+        let test_color = Color::Red;
+
+        // 既存のConnectedブロックを配置
+        board[BOARD_HEIGHT - 1][0] = Cell::Connected(test_color);
+
+        // その隣に同じ色の新しく着地したOccupiedブロックを配置
+        board[BOARD_HEIGHT - 1][1] = Cell::Occupied(test_color);
+
+        // 接続を試みる関数を呼び出す
+        find_and_connect_adjacent_blocks(&mut board, &[]);
+
+        // 新しく着地したブロックがConnectedになっていることをアサート
+        assert_eq!(
+            board[BOARD_HEIGHT - 1][1],
+            Cell::Connected(test_color),
+            "既存のConnectedブロックの隣に同じ色のブロックが着地した場合、新しく着地したブロックもConnectedになるべきです"
         );
     }
 }
