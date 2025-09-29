@@ -9,12 +9,14 @@ use crossterm::{
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::collections::VecDeque;
-use std::io::{self, Write, stdout};
+use std::io::{self, Write};
 use std::thread;
 use std::time::{Duration, Instant};
 
 mod config;
 use config::*;
+
+mod render;
 
 // --- 時間管理 ---
 pub trait TimeProvider {
@@ -87,18 +89,7 @@ enum GameMode {
     GameOver,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Animation {
-    LineBlink {
-        lines: Vec<usize>,
-        count: usize,
-        start_time: Duration,
-    },
-    PushDown {
-        gray_line_y: usize,
-        start_time: Duration,
-    },
-}
+use crate::render::Animation; // Use Animation from render module
 
 #[derive(Clone, Debug, PartialEq)]
 struct GameState {
@@ -902,10 +893,10 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
 }
 
 fn main() -> io::Result<()> {
-    let mut stdout = stdout();
-    execute!(stdout, EnterAlternateScreen, Hide)?;
+    let mut renderer = render::CrosstermRenderer::new();
+    execute!(renderer.stdout, EnterAlternateScreen, Hide)?;
     execute!(
-        stdout,
+        renderer.stdout,
         PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES)
     )?;
     terminal::enable_raw_mode()?;
@@ -915,11 +906,11 @@ fn main() -> io::Result<()> {
     let mut prev_state = state.clone();
     let mut last_fall = time_provider.now();
 
-    draw_title_screen(&mut stdout)?;
+    render::draw_title_screen(&mut renderer)?;
 
     loop {
         if state.mode != GameMode::Title {
-            draw(&mut stdout, &prev_state, &state)?;
+            render::draw(&mut renderer, &prev_state, &state)?;
         }
         prev_state = state.clone();
 
@@ -991,14 +982,14 @@ fn main() -> io::Result<()> {
                     }
                     if key.code == KeyCode::Enter {
                         state = GameState::new();
-                        draw_title_screen(&mut stdout)?;
+                        render::draw_title_screen(&mut renderer)?;
                     }
                 }
             }
         }
     }
-    execute!(stdout, PopKeyboardEnhancementFlags)?;
-    execute!(stdout, Show, LeaveAlternateScreen, ResetColor)?;
+    execute!(renderer.stdout, PopKeyboardEnhancementFlags)?;
+    execute!(renderer.stdout, Show, LeaveAlternateScreen, ResetColor)?;
     terminal::disable_raw_mode()
 }
 

@@ -70,7 +70,7 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 *    TDDのred-green-refactorのサイクルで開発する
 *    cargo testでテストを実施する
 *    cargo clippyとcargo fmtでコードの品質を担保する
-*    TDDの1サイクルが終わるたびにcargo test, cargo clipply, cargo fmtを実行してからgit add, commitする
+*    TDDの1サイクルが終わるたびにcargo check, cargo test, cargo clipply, cargo fmtを実行してからgit add, commitする
 *    コミット前に`game_spec.md`のTDD計画を更新して、完了したタスクにチェックを入れる
 *    改行を含むコミットメッセージはコマンドラインで失敗しやすいので一時ファイル経由で登録する
 *    コミットメッセージは日本語で記載する
@@ -81,9 +81,8 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 
 ### バグリスト
 
-*   [ ] ラインが揃ったとき、Connectedブロックも点滅すべき
-*   [ ] SミノとOミノが回転するとき色の配置がずれる
 *   [ ] Connectedブロックの隣に同色のブロックが着地したら同色とみなして落ちたブロックがConnectedになってほしい
+*   [ ] SミノとOミノが回転するとき色の配置がずれる
 
 ### 改善点リスト
 
@@ -94,3 +93,4 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 ---
 
 ### TDD計画
+

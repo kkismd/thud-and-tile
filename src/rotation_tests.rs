@@ -343,10 +343,10 @@ fn test_s_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (-1, 0, Color::Cyan), // (0,1) -> (-1,0)
+            (-1, 0, Color::Cyan),    // (0,1) -> (-1,0)
             (-2, 0, Color::Magenta), // (0,2) -> (-2,0)
-            (0, -1, Color::Yellow), // (-1,0) -> (0,-1)
-            (-1, -1, Color::Green), // (-1,1) -> (-1,-1)
+            (0, -1, Color::Yellow),  // (-1,0) -> (0,-1)
+            (-1, -1, Color::Green),  // (-1,1) -> (-1,-1)
         ],
         "S-Mino rotation 2 is wrong",
     );
@@ -356,10 +356,10 @@ fn test_s_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, -1, Color::Cyan), // (-1,0) -> (0,-1)
+            (0, -1, Color::Cyan),    // (-1,0) -> (0,-1)
             (0, -2, Color::Magenta), // (-2,0) -> (0,-2)
-            (1, 0, Color::Yellow), // (0,-1) -> (1,0)
-            (1, -1, Color::Green), // (-1,-1) -> (1,-1)
+            (1, 0, Color::Yellow),   // (0,-1) -> (1,0)
+            (1, -1, Color::Green),   // (-1,-1) -> (1,-1)
         ],
         "S-Mino rotation 3 is wrong",
     );
