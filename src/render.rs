@@ -6,9 +6,8 @@ use crossterm::{
 };
 use std::io::{self, Write};
 
-use crate::cell::{Board, Cell};
+use crate::cell::Cell;
 use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
-use crate::tetromino::Tetromino;
 use std::time::Duration;
 
 use crate::GameState; // Import GameState from crate root
