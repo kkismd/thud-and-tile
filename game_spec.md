@@ -84,8 +84,7 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 
 ### バグリスト
 
-*   [x] oミノを回転操作したとき色だけ回転してほしい
-*   ミノの出現した高さでも回転できるように、上の壁が衝突するという判定をなくしてほしい。フィールドの高さを増やして上部を表示上は隠すという方法も検討する
+*   ミノの出現した高さでも回転できるように、上の壁が衝突するという判定をなくしてほしい。
 
 ---
 
@@ -98,11 +97,3 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 ---
 
 ### TDD計画
-
-- [x] `cargo test` の警告を修正
-
-### リファクタリング計画: `main.rs` のボードロジックを `board_logic.rs` へ移動
-
-- [x] **1. `src/board_logic.rs` の作成:** ボード関連のゲームロジックをカプセル化するための新しいモジュールを作成します。
-- [x] **2. 関数の移動:** `find_and_connect_adjacent_blocks`、`count_connected_blocks`、`handle_scoring`、`remove_isolated_blocks` を `main.rs` から `src/board_logic.rs` へ移動します。
-- [x] **3. インポートの更新:** 新しいモジュール構造を反映するように、`main.rs` と `src/board_logic.rs` の両方で `use` ステートメントを調整します。
