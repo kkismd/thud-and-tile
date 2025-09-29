@@ -69,22 +69,50 @@ impl Tetromino {
     pub fn new_random() -> Self {
         let shape = TETROMINO_BAG.lock().unwrap().next();
 
-        let mut colors = COLOR_PALETTE;
-        let mut rng = rand::thread_rng(); // Use ThreadRng for color shuffling
-        colors.shuffle(&mut rng);
+        // Loop until a valid coloring is found
+        loop {
+            let mut rng = rand::thread_rng();
+            let colors = [
+                *COLOR_PALETTE.choose(&mut rng).unwrap(),
+                *COLOR_PALETTE.choose(&mut rng).unwrap(),
+                *COLOR_PALETTE.choose(&mut rng).unwrap(),
+                *COLOR_PALETTE.choose(&mut rng).unwrap(),
+            ];
 
-        Self::from_shape(shape, colors)
+            let tetromino = Self::from_shape(shape, colors);
+
+            // Check for adjacency validity
+            let blocks = &tetromino.blocks;
+            let mut is_valid = true;
+            'outer: for i in 0..blocks.len() {
+                for j in (i + 1)..blocks.len() {
+                    let (pos1, color1) = blocks[i];
+                    let (pos2, color2) = blocks[j];
+
+                    let is_adjacent = (pos1.0 - pos2.0).abs() + (pos1.1 - pos2.1).abs() == 1;
+
+                    if is_adjacent && color1 == color2 {
+                        is_valid = false;
+                        break 'outer;
+                    }
+                }
+            }
+
+            if is_valid {
+                return tetromino;
+            }
+        }
     }
 
     pub fn from_shape(shape: TetrominoShape, colors: [Color; 4]) -> Self {
         let matrix = match shape {
-            TetrominoShape::I => &SHAPES[0],
-            TetrominoShape::O => &SHAPES[1],
-            TetrominoShape::T => &SHAPES[2],
-            TetrominoShape::L => &SHAPES[3],
-            TetrominoShape::J => &SHAPES[4],
-            TetrominoShape::S => &SHAPES[5],
-            _ => &SHAPES[6],
+            TetrominoShape::I => &Self::SHAPES[0],
+            TetrominoShape::O => &Self::SHAPES[1],
+            TetrominoShape::T => &Self::SHAPES[2],
+            TetrominoShape::L => &Self::SHAPES[3],
+            TetrominoShape::J => &Self::SHAPES[4],
+            TetrominoShape::S => &Self::SHAPES[5],
+            _ => &Self::SHAPES[6],
         };
         let mut blocks = Vec::new();
         for (i, &(block_x, block_y)) in matrix[0].iter().enumerate() {
@@ -129,13 +157,34 @@ impl Tetromino {
                 .enumerate()
                 .map(|(i, &((x, y), _))| ((x, y), new_colors[i]))
                 .collect();
-            return new_piece;
+        } else if self._shape == TetrominoShape::I {
+            // I-mino specific rotation around the second block
+            let pivot_block_index = 1; // Second block is at index 1
+            let (pivot_x, pivot_y) = self.blocks[pivot_block_index].0;
+
+            new_piece.blocks = self
+                .blocks
+                .iter()
+                .map(|&((block_x, block_y), color)| {
+                    // Translate block so pivot is at (0,0)
+                    let translated_x = block_x - pivot_x;
+                    let translated_y = block_y - pivot_y;
+
+                    // Rotate around (0,0)
+                    let rotated_x = -translated_y;
+                    let rotated_y = translated_x;
+
+                    // Translate back
+                    ((rotated_x + pivot_x, rotated_y + pivot_y), color)
+                })
+                .collect();
+        } else {
+            new_piece.blocks = self
+                .blocks
+                .iter()
+                .map(|&((x, y), color)| ((-y, x), color))
+                .collect();
         }
-        new_piece.blocks = self
-            .blocks
-            .iter()
-            .map(|&((x, y), color)| ((-y, x), color))
-            .collect();
         new_piece
     }
 
@@ -157,68 +206,89 @@ impl Tetromino {
                 .enumerate()
                 .map(|(i, &((x, y), _))| ((x, y), new_colors[i]))
                 .collect();
-            return new_piece;
+        } else if self._shape == TetrominoShape::I {
+            // I-mino specific counter-clockwise rotation around the second block
+            let pivot_block_index = 1; // Second block is at index 1
+            let (pivot_x, pivot_y) = self.blocks[pivot_block_index].0;
+
+            new_piece.blocks = self
+                .blocks
+                .iter()
+                .map(|&((block_x, block_y), color)| {
+                    // Translate block so pivot is at (0,0)
+                    let translated_x = block_x - pivot_x;
+                    let translated_y = block_y - pivot_y;
+
+                    // Rotate around (0,0) (counter-clockwise)
+                    let rotated_x = translated_y;
+                    let rotated_y = -translated_x;
+
+                    // Translate back
+                    ((rotated_x + pivot_x, rotated_y + pivot_y), color)
+                })
+                .collect();
+        } else {
+            new_piece.blocks = self
+                .blocks
+                .iter()
+                .map(|&((x, y), color)| ((y, -x), color))
+                .collect();
         }
-        new_piece.blocks = self
-            .blocks
-            .iter()
-            .map(|&((x, y), color)| ((y, -x), color))
-            .collect();
         new_piece
     }
-}
 
-const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
-    // I
-    [
-        [(1, 0), (1, 1), (1, 2), (1, 3)],
-        [(0, 2), (1, 2), (2, 2), (3, 2)],
-        [(2, 0), (2, 1), (2, 2), (2, 3)],
-        [(0, 1), (1, 1), (2, 1), (3, 1)],
-    ],
-    // O
-    [
-        [(1, 1), (2, 1), (1, 2), (2, 2)],
-        [(1, 1), (2, 1), (1, 2), (2, 2)],
-        [(1, 1), (2, 1), (1, 2), (2, 2)],
-        [(1, 1), (2, 1), (1, 2), (2, 2)],
-    ],
-    // T
-    [
-        [(1, 0), (0, 1), (1, 1), (2, 1)],
-        [(1, 0), (1, 1), (2, 1), (1, 2)],
-        [(0, 1), (1, 1), (2, 1), (1, 2)],
-        [(1, 0), (0, 1), (1, 1), (1, 2)],
-    ],
-    // L
-    [
-        [(2, 0), (0, 1), (1, 1), (2, 1)],
-        [(1, 0), (1, 1), (1, 2), (2, 2)],
-        [(0, 1), (1, 1), (2, 1), (0, 2)],
-        [(0, 0), (1, 0), (1, 1), (1, 2)],
-    ],
-    // J
-    [
-        [(0, 0), (0, 1), (1, 1), (2, 1)],
-        [(1, 0), (2, 0), (1, 1), (1, 2)],
-        [(0, 1), (1, 1), (2, 1), (2, 2)],
-        [(1, 0), (1, 1), (0, 2), (1, 2)],
-    ],
-    // S
-    [
-        [(1, 0), (2, 0), (0, 1), (1, 1)],
-        [(1, 0), (1, 1), (2, 1), (2, 2)],
-        [(1, 1), (2, 1), (0, 2), (1, 2)],
-        [(0, 0), (0, 1), (1, 1), (1, 2)],
-    ],
-    // Z
-    [
-        [(0, 0), (1, 0), (1, 1), (2, 1)],
-        [(2, 0), (1, 1), (2, 1), (1, 2)],
-        [(0, 1), (1, 1), (1, 2), (2, 2)],
-        [(1, 0), (0, 1), (1, 1), (0, 2)],
-    ],
-];
+    const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
+        // I
+        [
+            [(1, 0), (1, 1), (1, 2), (1, 3)],
+            [(0, 2), (1, 2), (2, 2), (3, 2)],
+            [(2, 0), (2, 1), (2, 2), (2, 3)],
+            [(0, 1), (1, 1), (2, 1), (3, 1)],
+        ],
+        // O
+        [
+            [(1, 1), (2, 1), (1, 2), (2, 2)],
+            [(1, 1), (2, 1), (1, 2), (2, 2)],
+            [(1, 1), (2, 1), (1, 2), (2, 2)],
+            [(1, 1), (2, 1), (1, 2), (2, 2)],
+        ],
+        // T
+        [
+            [(1, 0), (0, 1), (1, 1), (2, 1)],
+            [(1, 0), (1, 1), (2, 1), (1, 2)],
+            [(0, 1), (1, 1), (2, 1), (1, 2)],
+            [(1, 0), (0, 1), (1, 1), (1, 2)],
+        ],
+        // L
+        [
+            [(2, 0), (0, 1), (1, 1), (2, 1)],
+            [(1, 0), (1, 1), (1, 2), (2, 2)],
+            [(0, 1), (1, 1), (2, 1), (0, 2)],
+            [(0, 0), (1, 0), (1, 1), (1, 2)],
+        ],
+        // J
+        [
+            [(0, 0), (0, 1), (1, 1), (2, 1)],
+            [(1, 0), (2, 0), (1, 1), (1, 2)],
+            [(0, 1), (1, 1), (2, 1), (2, 2)],
+            [(1, 0), (1, 1), (0, 2), (1, 2)],
+        ],
+        // S
+        [
+            [(1, 0), (2, 0), (0, 1), (1, 1)],
+            [(1, 0), (1, 1), (2, 1), (2, 2)],
+            [(1, 1), (2, 1), (0, 2), (1, 2)],
+            [(0, 0), (0, 1), (1, 1), (1, 2)],
+        ],
+        // Z
+        [
+            [(0, 0), (1, 0), (1, 1), (2, 1)],
+            [(2, 0), (1, 1), (2, 1), (1, 2)],
+            [(0, 1), (1, 1), (1, 2), (2, 2)],
+            [(1, 0), (0, 1), (1, 1), (0, 2)],
+        ],
+    ];
+}
 
 #[cfg(test)]
 mod tests {
@@ -258,5 +328,47 @@ mod tests {
             7,
             "Second bag should contain 7 unique shapes"
         );
+    }
+
+    #[test]
+    fn test_new_tetromino_uses_only_three_colors() {
+        let tetromino = Tetromino::new_random();
+        let allowed_colors = [Color::Cyan, Color::Magenta, Color::Yellow];
+
+        for (_, color) in tetromino.iter_blocks() {
+            assert!(
+                allowed_colors.contains(&color),
+                "Tetromino contains a disallowed color: {:?}",
+                color
+            );
+        }
+    }
+
+    #[test]
+    fn test_adjacent_blocks_have_different_colors() {
+        // ループを複数回実行して、ランダム性の問題を検出する確率を上げる
+        for _ in 0..100 {
+            let tetromino = Tetromino::new_random();
+            let blocks = &tetromino.blocks;
+
+            // すべてのブロックのペアをチェック
+            for i in 0..blocks.len() {
+                for j in (i + 1)..blocks.len() {
+                    let (pos1, color1) = blocks[i];
+                    let (pos2, color2) = blocks[j];
+
+                    // 隣接しているかどうかを判断
+                    let is_adjacent = (pos1.0 - pos2.0).abs() + (pos1.1 - pos2.1).abs() == 1;
+
+                    if is_adjacent {
+                        assert_ne!(
+                            color1, color2,
+                            "Adjacent blocks have the same color in tetromino: {:?}",
+                            tetromino
+                        );
+                    }
+                }
+            }
+        }
     }
 }

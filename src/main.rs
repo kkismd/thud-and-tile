@@ -723,7 +723,7 @@ mod tests {
         let solid_pos = (4, 5);
         state.board[solid_pos.1][solid_pos.0] = Cell::Solid;
 
-        let mut piece = Tetromino::from_shape(TetrominoShape::I, COLOR_PALETTE);
+        let mut piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red; 4]);
         // Position the piece to overlap with the solid cell
         piece.pos = (solid_pos.0 as i8 - 1, solid_pos.1 as i8 - 1);
 
@@ -913,7 +913,7 @@ mod tests {
         );
 
         // Position a test piece to overlap with the solid lines
-        let mut colliding_piece = Tetromino::from_shape(TetrominoShape::I, COLOR_PALETTE);
+        let mut colliding_piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red; 4]);
         colliding_piece.pos = (0, (state.current_board_height as i8) - 1); // Place it on the top solid line
         assert!(
             !state.is_valid_position(&colliding_piece),

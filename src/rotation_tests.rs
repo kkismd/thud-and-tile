@@ -156,10 +156,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 1, Color::Cyan),
-            (-1, 1, Color::Magenta),
-            (-2, 1, Color::Yellow),
-            (-3, 1, Color::Green),
+            (2, 1, Color::Cyan),
+            (1, 1, Color::Magenta),
+            (0, 1, Color::Yellow),
+            (-1, 1, Color::Green),
         ],
         "I-Mino rotation 1 is wrong",
     );
@@ -169,10 +169,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (-1, 0, Color::Cyan),
-            (-1, -1, Color::Magenta),
-            (-1, -2, Color::Yellow),
-            (-1, -3, Color::Green),
+            (1, 2, Color::Cyan),
+            (1, 1, Color::Magenta),
+            (1, 0, Color::Yellow),
+            (1, -1, Color::Green),
         ],
         "I-Mino rotation 2 is wrong",
     );
@@ -182,10 +182,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, -1, Color::Cyan),
-            (1, -1, Color::Magenta),
-            (2, -1, Color::Yellow),
-            (3, -1, Color::Green),
+            (0, 1, Color::Cyan),
+            (1, 1, Color::Magenta),
+            (2, 1, Color::Yellow),
+            (3, 1, Color::Green),
         ],
         "I-Mino rotation 3 is wrong",
     );
