@@ -480,3 +480,37 @@ fn test_o_mino_full_counter_clockwise_rotation_cycle() {
         "O-Mino counter-clockwise rotation 3 is wrong",
     );
 }
+
+#[test]
+fn test_rotation_at_spawn_height_is_invalid_due_to_top_collision() {
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing; // Set to playing mode to allow piece spawning
+
+    // Spawn an I-mino, which often has blocks at y=0 and y=-1 relative to its position
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::I, colors);
+    // Ensure the piece is at its initial spawn position (pos.1 = 0)
+    piece.pos = ((BOARD_WIDTH as i8) / 2 - 2, 0);
+
+    // Rotate the piece once. For an I-mino, this will typically result in some blocks
+    // having negative y-coordinates relative to the piece's origin, which means
+    // they will be at y < 0 in board coordinates.
+    let rotated_piece = piece.rotated();
+
+    // Assert that the rotated piece is considered invalid due to the current
+    // implementation of is_valid_position, which checks y < 0.
+    assert!(
+        state.is_valid_position(&rotated_piece),
+        "Rotated I-mino at spawn height should now be valid after removing top collision check"
+    );
+
+    // Try with a T-mino as well, which also often has blocks at y=-1 after rotation
+    let mut t_piece = Tetromino::from_shape(TetrominoShape::T, colors);
+    t_piece.pos = ((BOARD_WIDTH as i8) / 2 - 2, 0);
+    let rotated_t_piece = t_piece.rotated();
+
+    assert!(
+        state.is_valid_position(&rotated_t_piece),
+        "Rotated T-mino at spawn height should now be valid after removing top collision check"
+    );
+}

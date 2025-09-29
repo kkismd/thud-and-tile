@@ -148,12 +148,20 @@ impl GameState {
 
     fn is_valid_position(&self, piece: &Tetromino) -> bool {
         for ((x, y), _) in piece.iter_blocks() {
-            if x < 0 || x >= BOARD_WIDTH as i8 || y < 0 || y >= self.current_board_height as i8 {
+            // Check horizontal boundaries
+            if x < 0 || x >= BOARD_WIDTH as i8 {
                 return false;
             }
+            // Check bottom boundary
+            if y >= self.current_board_height as i8 {
+                return false;
+            }
+            // Check collision with existing blocks, but only for visible part of the board (y >= 0)
             if y >= 0 && self.board[y as usize][x as usize] != Cell::Empty {
                 return false;
             }
+            // Allow blocks to be at y < 0 (above the visible board) without being invalid
+            // as long as they don't collide with existing blocks (which are only at y >= 0)
         }
         true
     }
