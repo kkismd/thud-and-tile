@@ -74,8 +74,10 @@ impl Renderer for CrosstermRenderer {
 
 #[cfg(test)]
 pub mod mock_renderer {
-    use super::*;
+    use super::Renderer;
+    use crossterm::style::Color;
     use std::cell::RefCell;
+    use std::io;
     use std::rc::Rc;
 
     #[derive(Debug, PartialEq)]
@@ -145,8 +147,6 @@ mod tests {
     use crate::cell::Cell;
     use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
     use crossterm::style::Color;
-    use std::cell::RefCell;
-    use std::rc::Rc;
     use std::time::Duration;
 
     #[test]

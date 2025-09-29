@@ -230,7 +230,7 @@ mod tests {
         use rand::SeedableRng;
         use rand::rngs::StdRng;
 
-        let mut rng = StdRng::seed_from_u64(123);
+        let rng = StdRng::seed_from_u64(123);
         let mut test_bag = TetrominoBag {
             bag: TetrominoShape::all_shapes(),
             rng: rng,

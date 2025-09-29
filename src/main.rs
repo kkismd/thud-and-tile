@@ -8,7 +8,6 @@ use crossterm::{
     style::{Color, ResetColor},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::collections::VecDeque;
 use std::io::{self};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -81,6 +80,8 @@ type Point = (usize, usize);
 
 mod tetromino;
 use tetromino::Tetromino;
+
+mod board_logic;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GameMode {
@@ -181,7 +182,7 @@ impl GameState {
             .collect();
         lines_to_clear.sort_by(|a, b| b.cmp(a)); // Sort in descending order to clear from bottom up
 
-        find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear); // lines_to_clear を渡す
+        board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear); // lines_to_clear を渡す
 
         if !lines_to_clear.is_empty() {
             self.animation.push(Animation::LineBlink {
@@ -241,11 +242,11 @@ impl GameState {
         // Handle custom clear for non-bottom lines
         for &y in &non_bottom_lines_cleared {
             // 1. Remove isolated blocks below the cleared line.
-            self.remove_isolated_blocks(y);
+            board_logic::remove_isolated_blocks(self, y);
 
             // 2. Count connected blocks for scoring (Step 4)
             // This will be handled by handle_animation when PushDown finishes
-            let connected_blocks = count_connected_blocks(&self.board, y);
+            let connected_blocks = board_logic::count_connected_blocks(&self.board, y);
             self.blocks_to_score.extend(connected_blocks);
 
             // 3. Turn the cleared line to gray (Step 5)
@@ -265,57 +266,6 @@ impl GameState {
             self.spawn_piece();
         }
         new_animations
-    }
-
-    fn remove_isolated_blocks(&mut self, cleared_line_y: usize) {
-        let mut blocks_to_remove = Vec::new();
-
-        // Iterate from the row below the cleared line to the bottom
-        for y in (cleared_line_y + 1)..BOARD_HEIGHT {
-            for x in 0..BOARD_WIDTH {
-                // Cell::Occupied または Cell::Connected のセルを対象とする
-                if let Some(color) = match self.board[y][x] {
-                    Cell::Occupied(c) => Some(c),
-                    Cell::Connected(c) => Some(c),
-                    _ => None,
-                } {
-                    // Check neighbors
-                    let mut is_isolated = true;
-                    let neighbors = [
-                        (x as i8 - 1, y as i8),
-                        (x as i8 + 1, y as i8),
-                        (x as i8, y as i8 - 1),
-                        (x as i8, y as i8 + 1),
-                    ];
-
-                    for (nx, ny) in neighbors {
-                        if nx >= 0
-                            && nx < BOARD_WIDTH as i8
-                            && ny >= 0
-                            && ny < BOARD_HEIGHT as i8
-                            // Cell::Occupied または Cell::Connected のセルを対象とする
-                            && let Some(neighbor_color) = match self.board[ny as usize][nx as usize] {
-                                Cell::Occupied(c) => Some(c),
-                                Cell::Connected(c) => Some(c),
-                                _ => None,
-                            }
-                            && neighbor_color == color
-                        {
-                            is_isolated = false;
-                            break;
-                        }
-                    }
-
-                    if is_isolated {
-                        blocks_to_remove.push((x, y));
-                    }
-                }
-            }
-        }
-
-        for (x, y) in blocks_to_remove {
-            self.board[y][x] = Cell::Empty;
-        }
     }
 
     fn handle_input(&mut self, key_event: event::KeyEvent) {
@@ -355,152 +305,6 @@ impl GameState {
             self.current_piece = Some(piece);
         }
     }
-}
-
-fn find_and_connect_adjacent_blocks(board: &mut Board, lines_to_clear: &[usize]) {
-    // lines_to_clear を引数に追加
-    let mut cells_to_connect: Vec<(usize, usize)> = Vec::new();
-    let mut visited: Vec<Vec<bool>> = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
-
-    for y in 0..BOARD_HEIGHT {
-        for x in 0..BOARD_WIDTH {
-            // ラインクリア対象の行はスキップ
-            if lines_to_clear.contains(&y) {
-                continue;
-            }
-
-            if let Cell::Occupied(color) = board[y][x] {
-                if visited[y][x] {
-                    continue;
-                }
-
-                let mut component: Vec<(usize, usize)> = Vec::new();
-                let mut queue: VecDeque<(usize, usize)> = VecDeque::new();
-
-                visited[y][x] = true;
-                queue.push_back((x, y));
-                component.push((x, y));
-
-                while let Some((cx, cy)) = queue.pop_front() {
-                    let neighbors = [
-                        (cx as i8 - 1, cy as i8),
-                        (cx as i8 + 1, cy as i8),
-                        (cx as i8, cy as i8 - 1),
-                        (cx as i8, cy as i8 + 1),
-                    ];
-
-                    for (nx, ny) in neighbors {
-                        if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8 {
-                            let (nx_usize, ny_usize) = (nx as usize, ny as usize);
-                            // ラインクリア対象の行はスキップ
-                            if lines_to_clear.contains(&ny_usize) {
-                                continue;
-                            }
-                            if !visited[ny_usize][nx_usize]
-                                && let Some(neighbor_color) = match board[ny_usize][nx_usize] {
-                                    Cell::Occupied(c) => Some(c),
-                                    Cell::Connected(c) => Some(c),
-                                    _ => None,
-                                }
-                                && neighbor_color == color
-                            {
-                                visited[ny_usize][nx_usize] = true;
-                                queue.push_back((nx_usize, ny_usize));
-                                component.push((nx_usize, ny_usize));
-                            }
-                        }
-                    }
-                }
-
-                if component.len() > 1 {
-                    // 2つ以上のブロックが繋がっている場合
-                    cells_to_connect.extend(component);
-                }
-            }
-        }
-    }
-
-    for (x, y) in cells_to_connect {
-        if let Cell::Occupied(color) = board[y][x] {
-            board[y][x] = Cell::Connected(color);
-        }
-    }
-}
-
-fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Point, u32)> {
-    let mut results = Vec::new();
-    let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
-
-    for y in (cleared_line_y + 1)..BOARD_HEIGHT {
-        for x in 0..BOARD_WIDTH {
-            // Cell::Occupied または Cell::Connected のセルを対象とする
-            if let Some(color) = match board[y][x] {
-                Cell::Occupied(c) => Some(c),
-                Cell::Connected(c) => Some(c),
-                _ => None,
-            } {
-                if visited[y][x] {
-                    continue;
-                }
-
-                let mut component = Vec::new();
-                let mut queue = VecDeque::new();
-
-                visited[y][x] = true;
-                queue.push_back((x, y));
-                component.push((x, y)); // 最初のセルもコンポーネントに追加
-
-                while let Some((qx, qy)) = queue.pop_front() {
-                    let neighbors = [
-                        (qx as i8 - 1, qy as i8),
-                        (qx as i8 + 1, qy as i8),
-                        (qx as i8, qy as i8 - 1),
-                        (qx as i8, qy as i8 + 1),
-                    ];
-
-                    for (nx, ny) in neighbors {
-                        if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8 {
-                            let (nx_usize, ny_usize) = (nx as usize, ny as usize);
-                            // Cell::Occupied または Cell::Connected のセルを対象とする
-                            if !visited[ny_usize][nx_usize]
-                                && let Some(neighbor_color) = match board[ny_usize][nx_usize] {
-                                    Cell::Occupied(c) => Some(c),
-                                    Cell::Connected(c) => Some(c),
-                                    _ => None,
-                                }
-                                && neighbor_color == color
-                            {
-                                visited[ny_usize][nx_usize] = true;
-                                queue.push_back((nx_usize, ny_usize));
-                                component.push((nx_usize, ny_usize)); // 隣接セルもコンポーネントに追加
-                            }
-                        }
-                    }
-                }
-
-                let component_size = component.len() as u32;
-                for &(px, py) in &component {
-                    results.push(((px, py), component_size));
-                }
-            }
-        }
-    }
-
-    results
-}
-
-fn handle_scoring(state: &mut GameState) {
-    if state.blocks_to_score.is_empty() {
-        return;
-    }
-
-    let mut total_score = 0;
-    for (_, component_size) in &state.blocks_to_score {
-        total_score += component_size * 10;
-    }
-
-    state.score += total_score;
-    state.blocks_to_score.clear();
 }
 
 fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
@@ -551,7 +355,7 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                             state.board[gray_line_y][x] = Cell::Solid;
                         }
                         state.current_board_height = state.current_board_height.saturating_sub(1);
-                        handle_scoring(state); // Score after a line settles
+                        board_logic::handle_scoring(state); // Score after a line settles
                         animations_finished = true;
                         // Do not push the animation back
                     } else {
@@ -819,7 +623,7 @@ mod tests {
         let red_block = (7, cleared_line_y + 1);
         board[red_block.1][red_block.0] = Cell::Occupied(Color::Red);
 
-        let mut results = count_connected_blocks(&board, cleared_line_y);
+        let mut results = board_logic::count_connected_blocks(&board, cleared_line_y);
         results.sort_by_key(|k| (k.0.1, k.0.0)); // Sort for consistent order
 
         let mut expected = vec![
@@ -893,11 +697,11 @@ mod tests {
         }
 
         // The `blocks_to_score` is populated by `clear_lines`
-        state.blocks_to_score = count_connected_blocks(&state.board, clear_line_y);
+        state.blocks_to_score = board_logic::count_connected_blocks(&state.board, clear_line_y);
         assert_eq!(state.blocks_to_score.len(), 4); // Sanity check
 
         // Manually call the scoring logic
-        handle_scoring(&mut state);
+        board_logic::handle_scoring(&mut state);
 
         // Each of the 4 blocks is in a component of size 4, so 4 * (4 * 10) = 160
         assert_eq!(state.score, 160);
@@ -1157,7 +961,7 @@ mod tests {
         board[BOARD_HEIGHT - 1][1] = Cell::Occupied(test_color);
 
         // 接続を試みる関数を呼び出す
-        find_and_connect_adjacent_blocks(&mut board, &[]);
+        board_logic::find_and_connect_adjacent_blocks(&mut board, &[]);
 
         // 新しく着地したブロックがConnectedになっていることをアサート
         assert_eq!(
