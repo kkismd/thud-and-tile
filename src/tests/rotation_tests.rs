@@ -27,10 +27,10 @@ fn test_t_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 0, Color::Cyan),
-            (0, 1, Color::Magenta),
-            (1, 1, Color::Yellow),
-            (2, 1, Color::Green),
+            (1, 0, colors[0]),
+            (0, 1, colors[1]),
+            (1, 1, colors[2]),
+            (2, 1, colors[3]),
         ],
         "T-Mino initial state (rot 0) is wrong",
     );
@@ -40,10 +40,10 @@ fn test_t_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 1, Color::Cyan),
-            (-1, 0, Color::Magenta),
-            (-1, 1, Color::Yellow),
-            (-1, 2, Color::Green),
+            (1, 0, colors[0]),
+            (1, 1, colors[1]),
+            (2, 1, colors[2]),
+            (1, 2, colors[3]),
         ],
         "T-Mino rotation 1 is wrong",
     );
@@ -53,10 +53,10 @@ fn test_t_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (-1, 0, Color::Cyan),
-            (0, -1, Color::Magenta),
-            (-1, -1, Color::Yellow),
-            (-2, -1, Color::Green),
+            (0, 1, colors[0]),
+            (1, 1, colors[1]),
+            (2, 1, colors[2]),
+            (1, 2, colors[3]),
         ],
         "T-Mino rotation 2 is wrong",
     );
@@ -66,10 +66,10 @@ fn test_t_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, -1, Color::Cyan),
-            (1, 0, Color::Magenta),
-            (1, -1, Color::Yellow),
-            (1, -2, Color::Green),
+            (1, 0, colors[0]),
+            (0, 1, colors[1]),
+            (1, 1, colors[2]),
+            (1, 2, colors[3]),
         ],
         "T-Mino rotation 3 is wrong",
     );
@@ -85,10 +85,10 @@ fn test_o_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Cyan),
-            (2, 1, Color::Magenta),
-            (1, 2, Color::Yellow),
-            (2, 2, Color::Green),
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "O-Mino initial state (rot 0) is wrong",
     );
@@ -98,10 +98,10 @@ fn test_o_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Yellow),  // Top-Left (was Bottom-Left)
-            (2, 1, Color::Cyan),    // Top-Right (was Top-Left)
-            (1, 2, Color::Green),   // Bottom-Left (was Bottom-Right)
-            (2, 2, Color::Magenta), // Bottom-Right (was Top-Right)
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "O-Mino rotation 1 is wrong",
     );
@@ -111,10 +111,10 @@ fn test_o_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Green),   // Top-Left (was Bottom-Left)
-            (2, 1, Color::Yellow),  // Top-Right (was Top-Left)
-            (1, 2, Color::Magenta), // Bottom-Left (was Bottom-Right)
-            (2, 2, Color::Cyan),    // Bottom-Right (was Top-Right)
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "O-Mino rotation 2 is wrong",
     );
@@ -124,10 +124,10 @@ fn test_o_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Magenta), // Top-Left (was Bottom-Left)
-            (2, 1, Color::Green),   // Top-Right (was Top-Left)
-            (1, 2, Color::Cyan),    // Bottom-Left (was Bottom-Right)
-            (2, 2, Color::Yellow),  // Bottom-Right (was Top-Right)
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "O-Mino rotation 3 is wrong",
     );
@@ -143,10 +143,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 0, Color::Cyan),
-            (1, 1, Color::Magenta),
-            (1, 2, Color::Yellow),
-            (1, 3, Color::Green),
+            (1, 0, colors[0]),
+            (1, 1, colors[1]),
+            (1, 2, colors[2]),
+            (1, 3, colors[3]),
         ],
         "I-Mino initial state (rot 0) is wrong",
     );
@@ -156,10 +156,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (2, 1, Color::Cyan),
-            (1, 1, Color::Magenta),
-            (0, 1, Color::Yellow),
-            (-1, 1, Color::Green),
+            (0, 2, colors[0]),
+            (1, 2, colors[1]),
+            (2, 2, colors[2]),
+            (3, 2, colors[3]),
         ],
         "I-Mino rotation 1 is wrong",
     );
@@ -169,10 +169,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 2, Color::Cyan),
-            (1, 1, Color::Magenta),
-            (1, 0, Color::Yellow),
-            (1, -1, Color::Green),
+            (2, 0, colors[0]),
+            (2, 1, colors[1]),
+            (2, 2, colors[2]),
+            (2, 3, colors[3]),
         ],
         "I-Mino rotation 2 is wrong",
     );
@@ -182,10 +182,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 1, Color::Cyan),
-            (1, 1, Color::Magenta),
-            (2, 1, Color::Yellow),
-            (3, 1, Color::Green),
+            (0, 1, colors[0]),
+            (1, 1, colors[1]),
+            (2, 1, colors[2]),
+            (3, 1, colors[3]),
         ],
         "I-Mino rotation 3 is wrong",
     );
@@ -201,10 +201,10 @@ fn test_l_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (2, 0, Color::Cyan),
-            (0, 1, Color::Magenta),
-            (1, 1, Color::Yellow),
-            (2, 1, Color::Green),
+            (2, 0, colors[0]),
+            (0, 1, colors[1]),
+            (1, 1, colors[2]),
+            (2, 1, colors[3]),
         ],
         "L-Mino initial state (rot 0) is wrong",
     );
@@ -214,10 +214,10 @@ fn test_l_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 2, Color::Cyan),
-            (-1, 0, Color::Magenta),
-            (-1, 1, Color::Yellow),
-            (-1, 2, Color::Green),
+            (1, 0, colors[0]),
+            (1, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "L-Mino rotation 1 is wrong",
     );
@@ -227,10 +227,10 @@ fn test_l_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (-2, 0, Color::Cyan),
-            (0, -1, Color::Magenta),
-            (-1, -1, Color::Yellow),
-            (-2, -1, Color::Green),
+            (0, 1, colors[0]),
+            (1, 1, colors[1]),
+            (2, 1, colors[2]),
+            (0, 2, colors[3]),
         ],
         "L-Mino rotation 2 is wrong",
     );
@@ -240,10 +240,10 @@ fn test_l_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, -2, Color::Cyan),
-            (1, 0, Color::Magenta),
-            (1, -1, Color::Yellow),
-            (1, -2, Color::Green),
+            (0, 0, colors[0]),
+            (1, 0, colors[1]),
+            (1, 1, colors[2]),
+            (1, 2, colors[3]),
         ],
         "L-Mino rotation 3 is wrong",
     );
@@ -259,10 +259,10 @@ fn test_j_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (0, 1, Color::Magenta),
-            (1, 1, Color::Yellow),
-            (2, 1, Color::Green),
+            (0, 0, colors[0]),
+            (0, 1, colors[1]),
+            (1, 1, colors[2]),
+            (2, 1, colors[3]),
         ],
         "J-Mino initial state (rot 0) is wrong",
     );
@@ -272,10 +272,10 @@ fn test_j_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (-1, 0, Color::Magenta),
-            (-1, 1, Color::Yellow),
-            (-1, 2, Color::Green),
+            (1, 0, colors[0]),
+            (2, 0, colors[1]),
+            (1, 1, colors[2]),
+            (1, 2, colors[3]),
         ],
         "J-Mino rotation 1 is wrong",
     );
@@ -285,10 +285,10 @@ fn test_j_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (0, -1, Color::Magenta),
-            (-1, -1, Color::Yellow),
-            (-2, -1, Color::Green),
+            (0, 1, colors[0]),
+            (1, 1, colors[1]),
+            (2, 1, colors[2]),
+            (2, 2, colors[3]),
         ],
         "J-Mino rotation 2 is wrong",
     );
@@ -298,10 +298,10 @@ fn test_j_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (1, 0, Color::Magenta),
-            (1, -1, Color::Yellow),
-            (1, -2, Color::Green),
+            (1, 0, colors[0]),
+            (1, 1, colors[1]),
+            (0, 2, colors[2]),
+            (1, 2, colors[3]),
         ],
         "J-Mino rotation 3 is wrong",
     );
@@ -317,10 +317,10 @@ fn test_s_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 0, Color::Cyan),
-            (2, 0, Color::Magenta),
-            (0, 1, Color::Yellow),
-            (1, 1, Color::Green),
+            (1, 0, colors[0]),
+            (2, 0, colors[1]),
+            (0, 1, colors[2]),
+            (1, 1, colors[3]),
         ],
         "S-Mino initial state (rot 0) is wrong",
     );
@@ -330,36 +330,36 @@ fn test_s_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 1, Color::Cyan),
-            (0, 2, Color::Magenta),
-            (-1, 0, Color::Yellow),
-            (-1, 1, Color::Green),
+            (1, 0, colors[0]),
+            (1, 1, colors[1]),
+            (2, 1, colors[2]),
+            (2, 2, colors[3]),
         ],
         "S-Mino rotation 1 is wrong",
     );
 
-    piece = piece.rotated(); // Rotate again
+    piece = piece.rotated();
     assert_piece_state(
         &piece,
         p,
         &[
-            (-1, 0, Color::Cyan),    // (0,1) -> (-1,0)
-            (-2, 0, Color::Magenta), // (0,2) -> (-2,0)
-            (0, -1, Color::Yellow),  // (-1,0) -> (0,-1)
-            (-1, -1, Color::Green),  // (-1,1) -> (-1,-1)
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (0, 2, colors[2]),
+            (1, 2, colors[3]),
         ],
         "S-Mino rotation 2 is wrong",
     );
 
-    piece = piece.rotated(); // Rotate again
+    piece = piece.rotated();
     assert_piece_state(
         &piece,
         p,
         &[
-            (0, -1, Color::Cyan),    // (-1,0) -> (0,-1)
-            (0, -2, Color::Magenta), // (-2,0) -> (0,-2)
-            (1, 0, Color::Yellow),   // (0,-1) -> (1,0)
-            (1, -1, Color::Green),   // (-1,-1) -> (1,-1)
+            (0, 0, colors[0]),
+            (0, 1, colors[1]),
+            (1, 1, colors[2]),
+            (1, 2, colors[3]),
         ],
         "S-Mino rotation 3 is wrong",
     );
@@ -375,10 +375,10 @@ fn test_z_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (1, 0, Color::Magenta),
-            (1, 1, Color::Yellow),
-            (2, 1, Color::Green),
+            (0, 0, colors[0]),
+            (1, 0, colors[1]),
+            (1, 1, colors[2]),
+            (2, 1, colors[3]),
         ],
         "Z-Mino initial state (rot 0) is wrong",
     );
@@ -388,10 +388,10 @@ fn test_z_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (0, 1, Color::Magenta),
-            (-1, 1, Color::Yellow),
-            (-1, 2, Color::Green),
+            (2, 0, colors[0]),
+            (1, 1, colors[1]),
+            (2, 1, colors[2]),
+            (1, 2, colors[3]),
         ],
         "Z-Mino rotation 1 is wrong",
     );
@@ -401,10 +401,10 @@ fn test_z_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (-1, 0, Color::Magenta),
-            (-1, -1, Color::Yellow),
-            (-2, -1, Color::Green),
+            (0, 1, colors[0]),
+            (1, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "Z-Mino rotation 2 is wrong",
     );
@@ -414,10 +414,10 @@ fn test_z_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (0, -1, Color::Magenta),
-            (1, -1, Color::Yellow),
-            (1, -2, Color::Green),
+            (1, 0, colors[0]),
+            (0, 1, colors[1]),
+            (1, 1, colors[2]),
+            (0, 2, colors[3]),
         ],
         "Z-Mino rotation 3 is wrong",
     );
@@ -433,10 +433,10 @@ fn test_o_mino_full_counter_clockwise_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Cyan),
-            (2, 1, Color::Magenta),
-            (1, 2, Color::Yellow),
-            (2, 2, Color::Green),
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "O-Mino initial state (rot 0) is wrong",
     );
@@ -446,10 +446,10 @@ fn test_o_mino_full_counter_clockwise_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Magenta), // Top-Left (was Top-Right)
-            (2, 1, Color::Green),   // Top-Right (was Bottom-Right)
-            (1, 2, Color::Cyan),    // Bottom-Left (was Top-Left)
-            (2, 2, Color::Yellow),  // Bottom-Right (was Bottom-Left)
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "O-Mino counter-clockwise rotation 1 is wrong",
     );
@@ -459,10 +459,10 @@ fn test_o_mino_full_counter_clockwise_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Green),   // Top-Left (was Bottom-Right)
-            (2, 1, Color::Yellow),  // Top-Right (was Bottom-Left)
-            (1, 2, Color::Magenta), // Bottom-Left (was Top-Right)
-            (2, 2, Color::Cyan),    // Bottom-Right (was Top-Left)
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "O-Mino counter-clockwise rotation 2 is wrong",
     );
@@ -472,10 +472,10 @@ fn test_o_mino_full_counter_clockwise_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 1, Color::Yellow),  // Top-Left (was Bottom-Left)
-            (2, 1, Color::Cyan),    // Top-Right (was Top-Left)
-            (1, 2, Color::Green),   // Bottom-Left (was Bottom-Right)
-            (2, 2, Color::Magenta), // Bottom-Right (was Top-Right)
+            (1, 1, colors[0]),
+            (2, 1, colors[1]),
+            (1, 2, colors[2]),
+            (2, 2, colors[3]),
         ],
         "O-Mino counter-clockwise rotation 3 is wrong",
     );

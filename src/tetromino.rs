@@ -143,99 +143,55 @@ impl Tetromino {
 
     pub fn rotated(&self) -> Self {
         let mut new_piece = self.clone();
-        if self._shape == TetrominoShape::O {
-            let old_colors: Vec<Color> = self.blocks.iter().map(|&(_, color)| color).collect();
-            let mut new_colors: Vec<Color> = vec![Color::Black; 4]; // Initialize with dummy colors
+        let next_rotation_state = (self.rotation_state + 1) % 4;
 
-            // Apply the specific clockwise color rotation for O-mino
-            new_colors[0] = old_colors[2]; // Top-Left gets Bottom-Left's color
-            new_colors[1] = old_colors[0]; // Top-Right gets Top-Left's color
-            new_colors[2] = old_colors[3]; // Bottom-Left gets Bottom-Right's color
-            new_colors[3] = old_colors[1]; // Bottom-Right gets Top-Right's color
+        let matrix = match self._shape {
+            TetrominoShape::I => &Self::SHAPES[0],
+            TetrominoShape::O => &Self::SHAPES[1],
+            TetrominoShape::T => &Self::SHAPES[2],
+            TetrominoShape::L => &Self::SHAPES[3],
+            TetrominoShape::J => &Self::SHAPES[4],
+            TetrominoShape::S => &Self::SHAPES[5],
+            TetrominoShape::Z => &Self::SHAPES[6],
+        };
 
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .enumerate()
-                .map(|(i, &((x, y), _))| ((x, y), new_colors[i]))
-                .collect();
-        } else if self._shape == TetrominoShape::I {
-            // I-mino specific rotation around the second block
-            let pivot_block_index = 1; // Second block is at index 1
-            let (pivot_x, pivot_y) = self.blocks[pivot_block_index].0;
+        new_piece.blocks = matrix[next_rotation_state as usize]
+            .iter()
+            .enumerate()
+            .map(|(i, &(block_x, block_y))| {
+                let original_color = self.blocks[i].1;
+                ((block_x, block_y), original_color)
+            })
+            .collect();
 
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .map(|&((block_x, block_y), color)| {
-                    // Translate block so pivot is at (0,0)
-                    let translated_x = block_x - pivot_x;
-                    let translated_y = block_y - pivot_y;
-
-                    // Rotate around (0,0)
-                    let rotated_x = -translated_y;
-                    let rotated_y = translated_x;
-
-                    // Translate back
-                    ((rotated_x + pivot_x, rotated_y + pivot_y), color)
-                })
-                .collect();
-        } else {
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .map(|&((x, y), color)| ((-y, x), color))
-                .collect();
-        }
+        new_piece.rotation_state = next_rotation_state;
         new_piece
     }
 
     pub fn rotated_counter_clockwise(&self) -> Self {
         let mut new_piece = self.clone();
-        if self._shape == TetrominoShape::O {
-            let old_colors: Vec<Color> = self.blocks.iter().map(|&(_, color)| color).collect();
-            let mut new_colors: Vec<Color> = vec![Color::Black; 4]; // Initialize with dummy colors
+        let next_rotation_state = (self.rotation_state + 3) % 4;
 
-            // Apply the specific counter-clockwise color rotation for O-mino
-            new_colors[0] = old_colors[1]; // Top-Left gets Top-Right's color
-            new_colors[1] = old_colors[3]; // Top-Right gets Bottom-Right's color
-            new_colors[2] = old_colors[0]; // Bottom-Left gets Top-Left's color
-            new_colors[3] = old_colors[2]; // Bottom-Right gets Bottom-Left's color
+        let matrix = match self._shape {
+            TetrominoShape::I => &Self::SHAPES[0],
+            TetrominoShape::O => &Self::SHAPES[1],
+            TetrominoShape::T => &Self::SHAPES[2],
+            TetrominoShape::L => &Self::SHAPES[3],
+            TetrominoShape::J => &Self::SHAPES[4],
+            TetrominoShape::S => &Self::SHAPES[5],
+            TetrominoShape::Z => &Self::SHAPES[6],
+        };
 
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .enumerate()
-                .map(|(i, &((x, y), _))| ((x, y), new_colors[i]))
-                .collect();
-        } else if self._shape == TetrominoShape::I {
-            // I-mino specific counter-clockwise rotation around the second block
-            let pivot_block_index = 1; // Second block is at index 1
-            let (pivot_x, pivot_y) = self.blocks[pivot_block_index].0;
+        new_piece.blocks = matrix[next_rotation_state as usize]
+            .iter()
+            .enumerate()
+            .map(|(i, &(block_x, block_y))| {
+                let original_color = self.blocks[i].1;
+                ((block_x, block_y), original_color)
+            })
+            .collect();
 
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .map(|&((block_x, block_y), color)| {
-                    // Translate block so pivot is at (0,0)
-                    let translated_x = block_x - pivot_x;
-                    let translated_y = block_y - pivot_y;
-
-                    // Rotate around (0,0) (counter-clockwise)
-                    let rotated_x = translated_y;
-                    let rotated_y = -translated_x;
-
-                    // Translate back
-                    ((rotated_x + pivot_x, rotated_y + pivot_y), color)
-                })
-                .collect();
-        } else {
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .map(|&((x, y), color)| ((y, -x), color))
-                .collect();
-        }
+        new_piece.rotation_state = next_rotation_state;
         new_piece
     }
 
