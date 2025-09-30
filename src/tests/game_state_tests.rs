@@ -21,6 +21,7 @@ fn test_line_clear_triggers_blink_animation() {
     let piece = Tetromino::from_shape(
         TetrominoShape::I,
         [Color::Red, Color::Red, Color::Red, Color::Red],
+        0,
     );
     state.current_piece = Some(piece);
 
@@ -207,7 +208,7 @@ fn test_solid_cell_is_collision() {
     let solid_pos = (4, 5);
     state.board[solid_pos.1][solid_pos.0] = Cell::Solid;
 
-    let mut piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red; 4]);
+    let mut piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red; 4], 0);
     // Position the piece to overlap with the solid cell
     piece.pos = (solid_pos.0 as i8 - 1, solid_pos.1 as i8 - 1);
 
@@ -260,6 +261,7 @@ fn test_lock_piece_ignores_solid_lines() {
     let piece = Tetromino::from_shape(
         TetrominoShape::I,
         [Color::Red, Color::Red, Color::Red, Color::Red],
+        0,
     );
     state.current_piece = Some(piece);
 
@@ -397,7 +399,7 @@ fn test_multiple_gray_lines_stack_and_reduce_board_height() {
     );
 
     // Position a test piece to overlap with the solid lines
-    let mut colliding_piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red; 4]);
+    let mut colliding_piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red; 4], 0);
     colliding_piece.pos = (0, (state.current_board_height as i8) - 1); // Place it on the top solid line
     assert!(
         !state.is_valid_position(&colliding_piece),

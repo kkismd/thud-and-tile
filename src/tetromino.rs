@@ -62,6 +62,7 @@ lazy_static! {
 pub struct Tetromino {
     _shape: TetrominoShape,
     pub pos: (i8, i8),
+    pub rotation_state: u8,
     blocks: Vec<((i8, i8), Color)>,
 }
 
@@ -79,7 +80,7 @@ impl Tetromino {
                 *COLOR_PALETTE.choose(&mut rng).unwrap(),
             ];
 
-            let tetromino = Self::from_shape(shape, colors);
+            let tetromino = Self::from_shape(shape, colors, 0);
 
             // Check for adjacency validity
             let blocks = &tetromino.blocks;
@@ -104,7 +105,7 @@ impl Tetromino {
         }
     }
 
-    pub fn from_shape(shape: TetrominoShape, colors: [Color; 4]) -> Self {
+    pub fn from_shape(shape: TetrominoShape, colors: [Color; 4], rotation_state: u8) -> Self {
         let matrix = match shape {
             TetrominoShape::I => &Self::SHAPES[0],
             TetrominoShape::O => &Self::SHAPES[1],
@@ -115,13 +116,14 @@ impl Tetromino {
             _ => &Self::SHAPES[6],
         };
         let mut blocks = Vec::new();
-        for (i, &(block_x, block_y)) in matrix[0].iter().enumerate() {
+        for (i, &(block_x, block_y)) in matrix[rotation_state as usize].iter().enumerate() {
             blocks.push(((block_x, block_y), colors[i]));
         }
 
         Tetromino {
             _shape: shape,
             pos: ((BOARD_WIDTH as i8) / 2 - 2, 0),
+            rotation_state,
             blocks,
         }
     }
@@ -237,7 +239,7 @@ impl Tetromino {
         new_piece
     }
 
-    const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
+    pub const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
         // I
         [
             [(1, 0), (1, 1), (1, 2), (1, 3)],

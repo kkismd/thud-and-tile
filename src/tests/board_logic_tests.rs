@@ -126,7 +126,7 @@ fn test_connected_blocks_count_after_lock_piece() {
 
     // Lock a dummy piece to trigger find_and_connect_adjacent_blocks
     // (This will be replaced by actual piece locking in Green phase)
-    let dummy_piece = Tetromino::from_shape(TetrominoShape::I, [test_color; 4]);
+    let dummy_piece = Tetromino::from_shape(TetrominoShape::I, [test_color; 4], 0);
     state.current_piece = Some(dummy_piece);
     state.lock_piece(&time_provider);
 
@@ -154,7 +154,7 @@ fn test_connected_blocks_count_after_lock_piece() {
     state.board[BOARD_HEIGHT - 1][0] = Cell::Occupied(square_color);
     state.board[BOARD_HEIGHT - 1][1] = Cell::Occupied(square_color);
 
-    let dummy_piece_2 = Tetromino::from_shape(TetrominoShape::O, [square_color; 4]);
+    let dummy_piece_2 = Tetromino::from_shape(TetrominoShape::O, [square_color; 4], 0);
     state.current_piece = Some(dummy_piece_2);
     state.lock_piece(&time_provider);
 
@@ -185,7 +185,7 @@ fn test_connected_blocks_count_after_lock_piece() {
     let isolated_color = Color::Blue;
     state.board[BOARD_HEIGHT - 1][5] = Cell::Occupied(isolated_color);
 
-    let dummy_piece_3 = Tetromino::from_shape(TetrominoShape::I, [isolated_color; 4]);
+    let dummy_piece_3 = Tetromino::from_shape(TetrominoShape::I, [isolated_color; 4], 0);
     state.current_piece = Some(dummy_piece_3);
     state.lock_piece(&time_provider);
 
