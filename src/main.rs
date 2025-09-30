@@ -192,6 +192,8 @@ impl GameState {
 
         board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear); // lines_to_clear を渡す
 
+        self.update_connected_block_counts();
+
         if !lines_to_clear.is_empty() {
             self.animation.push(Animation::LineBlink {
                 lines: lines_to_clear,
@@ -200,6 +202,15 @@ impl GameState {
             });
         } else {
             self.spawn_piece();
+        }
+    }
+
+    fn update_connected_block_counts(&mut self) {
+        let connected_counts = board_logic::count_connected_blocks(&self.board, 0);
+        for ((x, y), count) in connected_counts {
+            if let Cell::Connected { color, count: _ } = self.board[y][x] {
+                self.board[y][x] = Cell::Connected { color, count: count as u8 };
+            }
         }
     }
 
@@ -1066,7 +1077,7 @@ mod tests {
         let test_color = Color::Red;
 
         // 既存のConnectedブロックを配置
-        board[BOARD_HEIGHT - 1][0] = Cell::Connected(test_color);
+        board[BOARD_HEIGHT - 1][0] = Cell::Connected { color: test_color, count: 1 };
 
         // その隣に同じ色の新しく着地したOccupiedブロックを配置
         board[BOARD_HEIGHT - 1][1] = Cell::Occupied(test_color);
@@ -1077,9 +1088,88 @@ mod tests {
         // 新しく着地したブロックがConnectedになっていることをアサート
         assert_eq!(
             board[BOARD_HEIGHT - 1][1],
-            Cell::Connected(test_color),
+            Cell::Connected { color: test_color, count: 1 },
             "既存のConnectedブロックの隣に同じ色のブロックが着地した場合、新しく着地したブロックもConnectedになるべきです"
         );
+    }
+
+    #[test]
+    fn test_connected_blocks_count_after_lock_piece() {
+        let time_provider = MockTimeProvider::new();
+        let mut state = GameState::new();
+        state.mode = GameMode::Playing;
+
+        let test_color = Color::Red;
+
+        // Scenario 1: Two adjacent blocks
+        // Place two adjacent blocks at the bottom
+        state.board[BOARD_HEIGHT - 1][0] = Cell::Occupied(test_color);
+        state.board[BOARD_HEIGHT - 1][1] = Cell::Occupied(test_color);
+
+        // Lock a dummy piece to trigger find_and_connect_adjacent_blocks
+        // (This will be replaced by actual piece locking in Green phase)
+        let dummy_piece = Tetromino::from_shape(TetrominoShape::I, [test_color; 4]);
+        state.current_piece = Some(dummy_piece);
+        state.lock_piece(&time_provider);
+
+        // Assert that the two blocks are now Connected and have count 2
+        if let Cell::Connected { color, count } = state.board[BOARD_HEIGHT - 1][0] {
+            assert_eq!(color, test_color);
+            assert_eq!(count, 2, "Expected count 2 for adjacent blocks");
+        } else {
+            panic!("Block at [{}, {}] is not Connected", BOARD_HEIGHT - 1, 0);
+        }
+        if let Cell::Connected { color, count } = state.board[BOARD_HEIGHT - 1][1] {
+            assert_eq!(color, test_color);
+            assert_eq!(count, 2, "Expected count 2 for adjacent blocks");
+        } else {
+            panic!("Block at [{}, {}] is not Connected", BOARD_HEIGHT - 1, 1);
+        }
+
+        // Reset board for next scenario
+        state.board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+
+        // Scenario 2: Multiple connected blocks (e.g., 2x2 square)
+        let square_color = Color::Green;
+        state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(square_color);
+        state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(square_color);
+        state.board[BOARD_HEIGHT - 1][0] = Cell::Occupied(square_color);
+        state.board[BOARD_HEIGHT - 1][1] = Cell::Occupied(square_color);
+
+        let dummy_piece_2 = Tetromino::from_shape(TetrominoShape::O, [square_color; 4]);
+        state.current_piece = Some(dummy_piece_2);
+        state.lock_piece(&time_provider);
+
+        // Assert that all four blocks are Connected and have count 4
+        let positions = [(BOARD_HEIGHT - 2, 0), (BOARD_HEIGHT - 2, 1), (BOARD_HEIGHT - 1, 0), (BOARD_HEIGHT - 1, 1)];
+        for &(y, x) in &positions {
+            if let Cell::Connected { color, count } = state.board[y][x] {
+                assert_eq!(color, square_color);
+                assert_eq!(count, 4, "Expected count 4 for 2x2 square at [{}, {}]", y, x);
+            } else {
+                panic!("Block at [{}, {}] is not Connected", y, x);
+            }
+        }
+
+        // Reset board for next scenario
+        state.board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+
+        // Scenario 3: Single isolated block
+        let isolated_color = Color::Blue;
+        state.board[BOARD_HEIGHT - 1][5] = Cell::Occupied(isolated_color);
+
+        let dummy_piece_3 = Tetromino::from_shape(TetrominoShape::I, [isolated_color; 4]);
+        state.current_piece = Some(dummy_piece_3);
+        state.lock_piece(&time_provider);
+
+        // Assert that the isolated block is still Occupied or Connected with count 1 (if it was converted)
+        // Currently, find_and_connect_adjacent_blocks only converts if component.len() > 1
+        // So it should remain Occupied.
+        if let Cell::Occupied(color) = state.board[BOARD_HEIGHT - 1][5] {
+            assert_eq!(color, isolated_color);
+        } else {
+            panic!("Isolated block at [{}, {}] should be Occupied", BOARD_HEIGHT - 1, 5);
+        }
     }
 }
 

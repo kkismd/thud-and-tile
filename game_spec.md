@@ -125,14 +125,14 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 **サイクル 2: 連結数の盤面への反映**
 
 1.  **Red (テストの追加)**
-    *   **テストケース:** 2つの同色ブロックが隣接して着地した場合、`lock_piece`実行後、それらの`Cell::Connected`ブロックの`count`が`2`に設定されていることを確認するテスト。
-    *   **テストケース:** 複数の同色ブロックが連結して着地した場合、`lock_piece`実行後、それらの`Cell::Connected`ブロックの`count`が正しい連結数に設定されていることを確認するテスト。
-    *   **テストケース:** 連結していない単一のブロックが着地した場合、そのブロックの`count`が`0`または`1`のままであることを確認するテスト。
+    *   [x] **テストケース:** 2つの同色ブロックが隣接して着地した場合、`lock_piece`実行後、それらの`Cell::Connected`ブロックの`count`が`2`に設定されていることを確認するテスト。
+    *   [x] **テストケース:** 複数の同色ブロックが連結して着地した場合、`lock_piece`実行後、それらの`Cell::Connected`ブロックの`count`が正しい連結数に設定されていることを確認するテスト。
+    *   [x] **テストケース:** 連結していない単一のブロックが着地した場合、そのブロックの`count`が`0`または`1`のままであることを確認するテスト。
 2.  **Green (最小限の実装)**
-    *   `main.rs`の`GameState::lock_piece`内で、`board_logic::find_and_connect_adjacent_blocks`が呼び出された後、`board_logic::count_connected_blocks`を呼び出す。
-    *   `count_connected_blocks`の結果（`Vec<(Point, u32)>`）をイテレートし、対応する盤面上の`Cell::Connected`ブロックの`count`フィールドを更新する。
+    *   [x] `main.rs`の`GameState::lock_piece`内で、`board_logic::find_and_connect_adjacent_blocks`が呼び出された後、`board_logic::count_connected_blocks`を呼び出す。
+    *   [x] `count_connected_blocks`の結果（`Vec<(Point, u32)>`）をイテレートし、対応する盤面上の`Cell::Connected`ブロックの`count`フィールドを更新する。
 3.  **Refactor (コードの改善)**
-    *   連結数更新ロジックを`GameState`のプライベートメソッドとして抽出することを検討する。
+    *   [x] 連結数更新ロジックを`GameState`のプライベートメソッドとして抽出することを検討する。
 
 ---
 
