@@ -29,6 +29,7 @@ pub trait Renderer {
     fn clear_screen(&mut self) -> io::Result<()>;
     fn move_to(&mut self, x: u16, y: u16) -> io::Result<()>;
     fn set_foreground_color(&mut self, color: Color) -> io::Result<()>;
+    fn set_background_color(&mut self, color: Color) -> io::Result<()>; // Add this line
     fn print(&mut self, s: &str) -> io::Result<()>;
     fn reset_color(&mut self) -> io::Result<()>;
     fn flush(&mut self) -> io::Result<()>;
@@ -55,12 +56,15 @@ impl Renderer for CrosstermRenderer {
         execute!(self.stdout, MoveTo(x, y))
     }
 
-    fn set_foreground_color(&mut self, color: Color) -> io::Result<()> {
-        execute!(self.stdout, SetForegroundColor(color))
-    }
-
-    fn print(&mut self, s: &str) -> io::Result<()> {
-        execute!(self.stdout, Print(s))
+            fn set_foreground_color(&mut self, color: Color) -> io::Result<()> {
+                execute!(self.stdout, SetForegroundColor(color))
+            }
+    
+            fn set_background_color(&mut self, color: Color) -> io::Result<()> { // Add this method
+                execute!(self.stdout, crossterm::style::SetBackgroundColor(color))
+            }
+    
+            fn print(&mut self, s: &str) -> io::Result<()> {        execute!(self.stdout, Print(s))
     }
 
     fn reset_color(&mut self) -> io::Result<()> {
@@ -85,6 +89,7 @@ pub mod mock_renderer {
         ClearScreen,
         MoveTo(u16, u16),
         SetForegroundColor(Color),
+        SetBackgroundColor(Color), // Add this line
         Print(String),
         ResetColor,
         Flush,
@@ -117,6 +122,13 @@ pub mod mock_renderer {
             self.commands
                 .borrow_mut()
                 .push(RenderCommand::SetForegroundColor(color));
+            Ok(())
+        }
+
+        fn set_background_color(&mut self, color: Color) -> io::Result<()> { // Add this method
+            self.commands
+                .borrow_mut()
+                .push(RenderCommand::SetBackgroundColor(color));
             Ok(())
         }
 
@@ -165,7 +177,7 @@ mod tests {
             state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
         }
         // Place a connected block on the line to be cleared
-        state.board[connected_block_y][connected_block_x] = Cell::Connected(Color::Green);
+        state.board[connected_block_y][connected_block_x] = Cell::Connected { color: Color::Green, count: 1 };
 
         // Trigger a line blink animation
         state.animation.push(Animation::LineBlink {
@@ -233,14 +245,19 @@ mod tests {
                 }
             }
             if found_move_to_on
-                && matches!(command, RenderCommand::SetForegroundColor(Color::Green))
+                && matches!(command, RenderCommand::SetBackgroundColor(Color::Green))
             {
-                // Check for SetForegroundColor(Color::Green) followed by Print("##")
+                // Check for SetBackgroundColor(Color::Green) followed by SetForegroundColor(Color::Black) and Print(count)
                 let mut iter = commands_on.iter().skip_while(|&c| c != command).skip(1);
-                if let Some(RenderCommand::Print(s)) = iter.next() {
-                    if s == "##" {
-                        found_print_connected = true;
-                        break;
+                if let Some(RenderCommand::SetForegroundColor(fg_color)) = iter.next() {
+                    if *fg_color == Color::Black {
+                        if let Some(RenderCommand::Print(s)) = iter.next() {
+                            // The connected block in the test has count 1
+                            if s == "1" {
+                                found_print_connected = true;
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -251,7 +268,65 @@ mod tests {
         );
         assert!(
             found_print_connected,
-            "Connected block was not drawn as '##' during blink on state"
+            "Connected block was not drawn with count during blink on state"
+        );
+    }
+
+    #[test]
+    fn test_render_connected_block_with_count() {
+        let mut mock_renderer = mock_renderer::MockRenderer::new();
+        let mut state = GameState::new();
+        state.mode = crate::GameMode::Playing;
+
+        let test_color = Color::Red;
+        let test_count = 5;
+        let block_x = 3;
+        let block_y = 5;
+
+        // Set a connected block with a count
+        state.board[block_y][block_x] = Cell::Connected { color: test_color, count: test_count };
+
+        // Create a prev_state where the block was empty to force a redraw
+        let mut prev_state = state.clone();
+        prev_state.board[block_y][block_x] = Cell::Empty;
+
+        // Draw the state
+        draw(&mut mock_renderer, &prev_state, &state).unwrap();
+
+        let expected_x = (block_x as u16 * 2) + 1;
+        let expected_y = block_y as u16 + 1;
+
+        let commands = mock_renderer.commands.borrow();
+        let mut found_sequence = false;
+
+        // Look for the sequence: MoveTo, SetBackgroundColor, SetForegroundColor, Print(count), ResetColor
+        let mut iter = commands.iter().peekable();
+        while let Some(command) = iter.next() {
+            if let RenderCommand::MoveTo(x, y) = command {
+                if *x == expected_x && *y == expected_y {
+                    if let Some(RenderCommand::SetBackgroundColor(bg_color)) = iter.next() {
+                        if *bg_color == test_color {
+                            if let Some(RenderCommand::SetForegroundColor(fg_color)) = iter.next() {
+                                if *fg_color == Color::Black {
+                                    if let Some(RenderCommand::Print(s)) = iter.next() {
+                                        if s == &test_count.to_string() {
+                                            if let Some(RenderCommand::ResetColor) = iter.next() {
+                                                found_sequence = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        assert!(
+            found_sequence,
+            "Did not find the expected rendering sequence for connected block with count"
         );
     }
 }
@@ -403,9 +478,10 @@ pub fn draw<R: Renderer>(
                                     renderer.set_foreground_color(color)?;
                                     renderer.print("[]")?;
                                     renderer.reset_color()?;
-                                } else if let Cell::Connected { color, count: _ } = state.board[y][x] {
-                                    renderer.set_foreground_color(color)?;
-                                    renderer.print("##")?;
+                                } else if let Cell::Connected { color, count } = state.board[y][x] {
+                                    renderer.set_background_color(color)?;
+                                    renderer.set_foreground_color(Color::Black)?;
+                                    renderer.print(&count.to_string())?;
                                     renderer.reset_color()?;
                                 } else {
                                     renderer.print("  ")?;
@@ -447,9 +523,10 @@ pub fn draw<R: Renderer>(
                                 renderer.print("[]")?;
                                 renderer.reset_color()?;
                             }
-                            Cell::Connected { color, count: _ } => {
-                                renderer.set_foreground_color(color)?;
-                                renderer.print("##")?;
+                            Cell::Connected { color, count } => {
+                                renderer.set_background_color(color)?;
+                                renderer.set_foreground_color(Color::Black)?;
+                                renderer.print(&count.to_string())?;
                                 renderer.reset_color()?;
                             }
                         }
