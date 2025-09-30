@@ -118,9 +118,7 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
     *   [x] **完了:** `draw_connected_cell`ヘルパー関数を抽出し、重複する描画ロジックを置き換えました。既存のテストがパスすることを確認しました。
 
 **3. `main.rs` のテストコードの整理 (旧項目5)**
-    *   **理由:** テストコードの構造を改善し、`main.rs` の肥大化を防ぎます。本番コードの動作には影響しません。
-    *   **リファクタリング案:** 関連するテストを個別のテストモジュール（例: `tests/game_state_tests.rs`, `tests/board_logic_tests.rs` など）に分割し、`main.rs` のテストブロックからインポートするようにする。
-    *   **評価:** 危険性: 低。
+    *   [x] **完了:** `main.rs` のテストコードを `src/tests/board_logic_tests.rs`, `src/tests/game_state_tests.rs`, `src/tests/rotation_tests.rs` に分割しました。
 
 **4. `board_logic.rs` の `count_connected_blocks` 関数の改善 (旧項目1)**
     *   **理由:** `count_connected_blocks` のセマンティクスを明確にし、`GameState::update_connected_block_counts` からの呼び出しをより適切にします。新しい関数を追加する形なので、既存のロジックへの影響は限定的です。

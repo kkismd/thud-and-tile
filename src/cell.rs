@@ -28,7 +28,10 @@ mod tests {
 
     #[test]
     fn test_connected_cell_debug_output() {
-        let cell = Cell::Connected { color: Color::Red, count: 5 };
+        let cell = Cell::Connected {
+            color: Color::Red,
+            count: 5,
+        };
         // This test will fail initially because the default Debug output is different.
         // It will pass once a custom Debug impl is added.
         assert_eq!(format!("{:?}", cell), "Connected(Red, 5)");

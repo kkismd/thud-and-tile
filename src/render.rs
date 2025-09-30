@@ -56,15 +56,17 @@ impl Renderer for CrosstermRenderer {
         execute!(self.stdout, MoveTo(x, y))
     }
 
-            fn set_foreground_color(&mut self, color: Color) -> io::Result<()> {
-                execute!(self.stdout, SetForegroundColor(color))
-            }
-    
-            fn set_background_color(&mut self, color: Color) -> io::Result<()> { // Add this method
-                execute!(self.stdout, crossterm::style::SetBackgroundColor(color))
-            }
-    
-            fn print(&mut self, s: &str) -> io::Result<()> {        execute!(self.stdout, Print(s))
+    fn set_foreground_color(&mut self, color: Color) -> io::Result<()> {
+        execute!(self.stdout, SetForegroundColor(color))
+    }
+
+    fn set_background_color(&mut self, color: Color) -> io::Result<()> {
+        // Add this method
+        execute!(self.stdout, crossterm::style::SetBackgroundColor(color))
+    }
+
+    fn print(&mut self, s: &str) -> io::Result<()> {
+        execute!(self.stdout, Print(s))
     }
 
     fn reset_color(&mut self) -> io::Result<()> {
@@ -125,7 +127,8 @@ pub mod mock_renderer {
             Ok(())
         }
 
-        fn set_background_color(&mut self, color: Color) -> io::Result<()> { // Add this method
+        fn set_background_color(&mut self, color: Color) -> io::Result<()> {
+            // Add this method
             self.commands
                 .borrow_mut()
                 .push(RenderCommand::SetBackgroundColor(color));
@@ -177,7 +180,10 @@ mod tests {
             state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
         }
         // Place a connected block on the line to be cleared
-        state.board[connected_block_y][connected_block_x] = Cell::Connected { color: Color::Green, count: 1 };
+        state.board[connected_block_y][connected_block_x] = Cell::Connected {
+            color: Color::Green,
+            count: 1,
+        };
 
         // Trigger a line blink animation
         state.animation.push(Animation::LineBlink {
@@ -284,7 +290,10 @@ mod tests {
         let block_y = 5;
 
         // Set a connected block with a count
-        state.board[block_y][block_x] = Cell::Connected { color: test_color, count: test_count };
+        state.board[block_y][block_x] = Cell::Connected {
+            color: test_color,
+            count: test_count,
+        };
 
         // Create a prev_state where the block was empty to force a redraw
         let mut prev_state = state.clone();
@@ -297,7 +306,7 @@ mod tests {
         let expected_y = block_y as u16 + 1;
 
         let commands = mock_renderer.commands.borrow();
-        
+
         // Find the sequence of commands for the specific block
         let expected_commands_sequence = vec![
             RenderCommand::MoveTo(expected_x, expected_y),
@@ -317,7 +326,8 @@ mod tests {
 
         assert!(
             found_sequence,
-            "Did not find the expected rendering sequence for connected block with count. Commands: {:?}", commands
+            "Did not find the expected rendering sequence for connected block with count. Commands: {:?}",
+            commands
         );
     }
 }
@@ -485,7 +495,13 @@ pub fn draw<R: Renderer>(
                                     renderer.print("[]")?;
                                     renderer.reset_color()?;
                                 } else if let Cell::Connected { color, count } = state.board[y][x] {
-                                    draw_connected_cell(renderer, color, count, (x as u16 * 2) + 1, y as u16 + 1)?;
+                                    draw_connected_cell(
+                                        renderer,
+                                        color,
+                                        count,
+                                        (x as u16 * 2) + 1,
+                                        y as u16 + 1,
+                                    )?;
                                 } else {
                                     renderer.print("  ")?;
                                 }
@@ -527,7 +543,13 @@ pub fn draw<R: Renderer>(
                                 renderer.reset_color()?;
                             }
                             Cell::Connected { color, count } => {
-                                draw_connected_cell(renderer, color, count, (x as u16 * 2) + 1, y as u16 + 1)?;
+                                draw_connected_cell(
+                                    renderer,
+                                    color,
+                                    count,
+                                    (x as u16 * 2) + 1,
+                                    y as u16 + 1,
+                                )?;
                             }
                         }
                     }
