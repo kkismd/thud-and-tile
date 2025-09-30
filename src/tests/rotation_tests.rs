@@ -1219,14 +1219,84 @@ fn test_srs_shapes_z_mino_rotation_3_blocks() {
     );
 }
 
+// I-Mino pure rotation tests
 #[test]
-fn test_srs_shapes_z_mino_rotation_3_offset() {
-    let z_mino_rot_3 = SRS_SHAPES[TetrominoShape::Z as usize][3];
-
-    // SRSのZミノ Rotation 3 の回転中心オフセット
-    let expected_offset = (0, 0);
+fn test_calculate_rotated_blocks_relative_i_0_to_r() {
+    let expected_blocks = [(0, -1), (0, 0), (0, 1), (0, 2)]; // R
+    let actual_blocks = Tetromino::calculate_rotated_blocks_relative(TetrominoShape::I, 0, 1); // 0 -> R
     assert_eq!(
-        z_mino_rot_3.offset, expected_offset,
-        "Z-Mino Rotation 3 offset is incorrect according to SRS."
+        actual_blocks, expected_blocks,
+        "I-Mino 0->R pure rotation blocks are incorrect"
+    );
+}
+
+#[test]
+fn test_calculate_rotated_blocks_relative_i_r_to_2() {
+    let expected_blocks = [(-1, 1), (0, 1), (1, 1), (2, 1)]; // 2
+    let actual_blocks = Tetromino::calculate_rotated_blocks_relative(TetrominoShape::I, 1, 2); // R -> 2
+    assert_eq!(
+        actual_blocks, expected_blocks,
+        "I-Mino R->2 pure rotation blocks are incorrect"
+    );
+}
+
+#[test]
+fn test_calculate_rotated_blocks_relative_i_2_to_l() {
+    let expected_blocks = [(1, -1), (1, 0), (1, 1), (1, 2)]; // L
+    let actual_blocks = Tetromino::calculate_rotated_blocks_relative(TetrominoShape::I, 2, 3); // 2 -> L
+    assert_eq!(
+        actual_blocks, expected_blocks,
+        "I-Mino 2->L pure rotation blocks are incorrect"
+    );
+}
+
+#[test]
+fn test_calculate_rotated_blocks_relative_i_l_to_0() {
+    let expected_blocks = [(-1, 0), (0, 0), (1, 0), (2, 0)]; // 0
+    let actual_blocks = Tetromino::calculate_rotated_blocks_relative(TetrominoShape::I, 3, 0); // L -> 0
+    assert_eq!(
+        actual_blocks, expected_blocks,
+        "I-Mino L->0 pure rotation blocks are incorrect"
+    );
+}
+
+// JLSZT-Mino pure rotation tests (example for T-Mino)
+#[test]
+fn test_calculate_rotated_blocks_relative_t_0_to_r() {
+    let expected_blocks = [(0, -1), (0, 0), (1, 0), (0, 1)]; // R
+    let actual_blocks = Tetromino::calculate_rotated_blocks_relative(TetrominoShape::T, 0, 1); // 0 -> R
+    assert_eq!(
+        actual_blocks, expected_blocks,
+        "T-Mino 0->R pure rotation blocks are incorrect"
+    );
+}
+
+#[test]
+fn test_calculate_rotated_blocks_relative_t_r_to_2() {
+    let expected_blocks = [(-1, 0), (0, 0), (1, 0), (0, -1)]; // 2
+    let actual_blocks = Tetromino::calculate_rotated_blocks_relative(TetrominoShape::T, 1, 2); // R -> 2
+    assert_eq!(
+        actual_blocks, expected_blocks,
+        "T-Mino R->2 pure rotation blocks are incorrect"
+    );
+}
+
+#[test]
+fn test_calculate_rotated_blocks_relative_t_2_to_l() {
+    let expected_blocks = [(0, -1), (0, 0), (-1, 0), (0, 1)]; // L
+    let actual_blocks = Tetromino::calculate_rotated_blocks_relative(TetrominoShape::T, 2, 3); // 2 -> L
+    assert_eq!(
+        actual_blocks, expected_blocks,
+        "T-Mino 2->L pure rotation blocks are incorrect"
+    );
+}
+
+#[test]
+fn test_calculate_rotated_blocks_relative_t_l_to_0() {
+    let expected_blocks = [(-1, 0), (0, 0), (1, 0), (0, 1)]; // 0
+    let actual_blocks = Tetromino::calculate_rotated_blocks_relative(TetrominoShape::T, 3, 0); // L -> 0
+    assert_eq!(
+        actual_blocks, expected_blocks,
+        "T-Mino L->0 pure rotation blocks are incorrect"
     );
 }

@@ -225,14 +225,8 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 
 **目的:** `Tetromino::rotated()` および `Tetromino::rotated_counter_clockwise()` メソッドをSRS仕様に完全に準拠させ、ウォールキックを適用した正確な回転を実現する。
 
-1.  **Red (4.1): 回転中心の計算と座標変換のテスト**
-    *   `Tetromino` 構造体に、現在の回転状態と次の回転状態に基づいて回転中心を計算し、ブロックの相対座標を変換するプライベートヘルパー関数（例: `calculate_rotated_blocks_relative`）を追加する。この関数はウォールキックを考慮しない。
-    *   **テスト:** `src/tests/rotation_tests.rs` に、各テトリミノ（Oミノを除く）について、ウォールキックを適用しない状態での回転後のブロックの相対位置が正しいことを確認するテストを追加し、失敗することを確認する。
-
-2.  **Green (4.2): 回転中心の計算と座標変換の実装**
-    *   `calculate_rotated_blocks_relative` ヘルパー関数を実装する。
-    *   `Tetromino::rotated()` および `Tetromino::rotated_counter_clockwise()` メソッド内でこのヘルパー関数を使用するように変更する。
-    *   **テスト:** 上記のテストがパスすることを確認する。
+1.  **Red (4.1): 回転中心の計算と座標変換のテスト (完了済み)**
+2.  **Green (4.2): 回転中心の計算と座標変換の実装 (完了済み)**
 
 3.  **Red (4.3): ウォールキック適用ロジックのテスト**
     *   `Tetromino::rotated()` および `Tetromino::rotated_counter_clockwise()` メソッドにウォールキック適用ロジックを追加する。

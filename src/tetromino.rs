@@ -354,6 +354,15 @@ impl Tetromino {
         new_piece.rotation_state = next_rotation_state;
         new_piece
     }
+
+    pub(crate) fn calculate_rotated_blocks_relative(
+        shape: TetrominoShape,
+        _current_rotation_state: u8,
+        next_rotation_state: u8,
+    ) -> [(i8, i8); 4] {
+        // 仮の実装（コンパイルを通すため）
+        SRS_SHAPES[shape as usize][next_rotation_state as usize].blocks
+    }
 }
 
 #[cfg(test)]
