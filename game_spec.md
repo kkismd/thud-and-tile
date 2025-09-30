@@ -290,3 +290,24 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 *   [x] TDD計画: フェーズ1 Refactor (1.3) - `Tetromino::SHAPES`の定義がSRSの回転状態と一致しているか確認し、必要であれば修正する。特に、Iミノの回転中心が正しく設定されているか確認する。
 *   [x] TDD計画: フェーズ2 Red (2.1) - SRS対応のためのデータ構造の導入と `SHAPES` の再定義 (Iミノ Rotation 0, 1 のテスト追加)
 *   [x] TDD計画: フェーズ2 Green (2.2) - SRS対応のためのデータ構造の導入と `SHAPES` の再定義 (Iミノ Rotation 0, 1 のデータ修正)
+*   [x] TDD計画: フェーズ2 Green (2.2.2.12) - `SRS_SHAPES` のOミノのRotation 3のデータをSRSの仕様に基づいて修正し、テストがパスするようにする。
+*   [x] TDD計画: フェーズ2 Green (2.2.2.14) - `SRS_SHAPES` のTミノのRotation 0のデータをSRSの仕様に基づいて修正し、テストがパスするようにする。
+*   [x] TDD計画: フェーズ2 Green (2.2.2.16) - Tミノ Rotation 1 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.18) - Tミノ Rotation 2 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.20) - Tミノ Rotation 3 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.22) - Lミノ Rotation 0 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.24) - Lミノ Rotation 1 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.26) - Lミノ Rotation 2 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.28) - Lミノ Rotation 3 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.30) - Jミノ Rotation 0 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.32) - Jミノ Rotation 1 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.34) - Jミノ Rotation 2 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.36) - Jミノ Rotation 3 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.38) - Sミノ Rotation 0 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.40) - Sミノ Rotation 1 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.42) - Sミノ Rotation 2 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.44) - Sミノ Rotation 3 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.46) - Zミノ Rotation 0 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.48) - Zミノ Rotation 1 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.50) - Zミノ Rotation 2 のデータを修正
+*   [x] TDD計画: フェーズ2 Green (2.2.2.52) - Zミノ Rotation 3 のデータを修正
