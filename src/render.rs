@@ -84,7 +84,7 @@ pub mod mock_renderer {
     use std::io;
     use std::rc::Rc;
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub enum RenderCommand {
         ClearScreen,
         MoveTo(u16, u16),
@@ -297,36 +297,27 @@ mod tests {
         let expected_y = block_y as u16 + 1;
 
         let commands = mock_renderer.commands.borrow();
-        let mut found_sequence = false;
+        
+        // Find the sequence of commands for the specific block
+        let expected_commands_sequence = vec![
+            RenderCommand::MoveTo(expected_x, expected_y),
+            RenderCommand::SetBackgroundColor(test_color),
+            RenderCommand::SetForegroundColor(Color::Black),
+            RenderCommand::Print(test_count.to_string()),
+            RenderCommand::ResetColor,
+        ];
 
-        // Look for the sequence: MoveTo, SetBackgroundColor, SetForegroundColor, Print(count), ResetColor
-        let mut iter = commands.iter().peekable();
-        while let Some(command) = iter.next() {
-            if let RenderCommand::MoveTo(x, y) = command {
-                if *x == expected_x && *y == expected_y {
-                    if let Some(RenderCommand::SetBackgroundColor(bg_color)) = iter.next() {
-                        if *bg_color == test_color {
-                            if let Some(RenderCommand::SetForegroundColor(fg_color)) = iter.next() {
-                                if *fg_color == Color::Black {
-                                    if let Some(RenderCommand::Print(s)) = iter.next() {
-                                        if s == &test_count.to_string() {
-                                            if let Some(RenderCommand::ResetColor) = iter.next() {
-                                                found_sequence = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+        let mut found_sequence = false;
+        for window in commands.windows(expected_commands_sequence.len()) {
+            if window.to_vec() == expected_commands_sequence {
+                found_sequence = true;
+                break;
             }
         }
 
         assert!(
             found_sequence,
-            "Did not find the expected rendering sequence for connected block with count"
+            "Did not find the expected rendering sequence for connected block with count. Commands: {:?}", commands
         );
     }
 }
@@ -356,6 +347,21 @@ pub fn draw_title_screen<R: Renderer>(renderer: &mut R) -> io::Result<()> {
     renderer.print(quit_msg)?;
     renderer.reset_color()?;
     renderer.flush()
+}
+
+fn draw_connected_cell<R: Renderer>(
+    renderer: &mut R,
+    color: Color,
+    count: u8,
+    x: u16,
+    y: u16,
+) -> io::Result<()> {
+    renderer.move_to(x, y)?;
+    renderer.set_background_color(color)?;
+    renderer.set_foreground_color(Color::Black)?;
+    renderer.print(&count.to_string())?;
+    renderer.reset_color()?;
+    Ok(())
 }
 
 pub fn draw<R: Renderer>(
@@ -479,10 +485,7 @@ pub fn draw<R: Renderer>(
                                     renderer.print("[]")?;
                                     renderer.reset_color()?;
                                 } else if let Cell::Connected { color, count } = state.board[y][x] {
-                                    renderer.set_background_color(color)?;
-                                    renderer.set_foreground_color(Color::Black)?;
-                                    renderer.print(&count.to_string())?;
-                                    renderer.reset_color()?;
+                                    draw_connected_cell(renderer, color, count, (x as u16 * 2) + 1, y as u16 + 1)?;
                                 } else {
                                     renderer.print("  ")?;
                                 }
@@ -524,10 +527,7 @@ pub fn draw<R: Renderer>(
                                 renderer.reset_color()?;
                             }
                             Cell::Connected { color, count } => {
-                                renderer.set_background_color(color)?;
-                                renderer.set_foreground_color(Color::Black)?;
-                                renderer.print(&count.to_string())?;
-                                renderer.reset_color()?;
+                                draw_connected_cell(renderer, color, count, (x as u16 * 2) + 1, y as u16 + 1)?;
                             }
                         }
                     }
