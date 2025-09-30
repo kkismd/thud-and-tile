@@ -66,6 +66,204 @@ pub struct Tetromino {
     blocks: Vec<((i8, i8), Color)>,
 }
 
+pub const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
+        // I
+        [
+            [(1, 0), (1, 1), (1, 2), (1, 3)],
+            [(0, 2), (1, 2), (2, 2), (3, 2)],
+            [(2, 0), (2, 1), (2, 2), (2, 3)],
+            [(0, 1), (1, 1), (2, 1), (3, 1)],
+        ],
+        // O
+        [
+            [(1, 1), (2, 1), (1, 2), (2, 2)],
+            [(1, 1), (2, 1), (1, 2), (2, 2)],
+            [(1, 1), (2, 1), (1, 2), (2, 2)],
+            [(1, 1), (2, 1), (1, 2), (2, 2)],
+        ],
+        // T
+        [
+            [(1, 0), (0, 1), (1, 1), (2, 1)],
+            [(1, 0), (1, 1), (2, 1), (1, 2)],
+            [(0, 1), (1, 1), (2, 1), (1, 2)],
+            [(1, 0), (0, 1), (1, 1), (1, 2)],
+        ],
+        // L
+        [
+            [(2, 0), (0, 1), (1, 1), (2, 1)],
+            [(1, 0), (1, 1), (1, 2), (2, 2)],
+            [(0, 1), (1, 1), (2, 1), (0, 2)],
+            [(0, 0), (1, 0), (1, 1), (1, 2)],
+        ],
+        // J
+        [
+            [(0, 0), (0, 1), (1, 1), (2, 1)],
+            [(1, 0), (2, 0), (1, 1), (1, 2)],
+            [(0, 1), (1, 1), (2, 1), (2, 2)],
+            [(1, 0), (1, 1), (0, 2), (1, 2)],
+        ],
+        // S
+        [
+            [(1, 0), (2, 0), (0, 1), (1, 1)],
+            [(1, 0), (1, 1), (2, 1), (2, 2)],
+            [(1, 1), (2, 1), (0, 2), (1, 2)],
+            [(0, 0), (0, 1), (1, 1), (1, 2)],
+        ],
+        // Z
+        [
+            [(0, 0), (1, 0), (1, 1), (2, 1)],
+            [(2, 0), (1, 1), (2, 1), (1, 2)],
+            [(0, 1), (1, 1), (1, 2), (2, 2)],
+            [(1, 0), (0, 1), (1, 1), (0, 2)],
+        ],
+    ];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SrsRotationData {
+    pub blocks: [(i8, i8); 4],
+    pub offset: (i8, i8),
+}
+
+pub const SRS_SHAPES: [[SrsRotationData; 4]; 7] = [
+    // I
+    [
+        // Rotation 0
+        SrsRotationData {
+            blocks: [(-1, 0), (0, 0), (1, 0), (2, 0)],
+            offset: (0, 0),
+        },
+        // Rotation 1
+        SrsRotationData {
+            blocks: [(0, -1), (0, 0), (0, 1), (0, 2)],
+            offset: (0, 0),
+        },
+        // Rotation 2
+        SrsRotationData {
+            blocks: [(-1, 1), (0, 1), (1, 1), (2, 1)],
+            offset: (0, 0),
+        },
+        // Rotation 3
+        SrsRotationData {
+            blocks: [(1, -1), (1, 0), (1, 1), (1, 2)],
+            offset: (0, 0),
+        },
+    ],
+    // O
+    [
+        SrsRotationData {
+            blocks: [(0, 0), (1, 0), (0, 1), (1, 1)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (1, 0), (0, 1), (1, 1)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (1, 0), (0, 1), (1, 1)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (1, 0), (0, 1), (1, 1)],
+            offset: (0, 0),
+        },
+    ],
+    // T
+    [
+        SrsRotationData {
+            blocks: [(-1, 0), (0, 0), (1, 0), (0, 1)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+    ],
+    // L (仮)
+    [
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+    ],
+    // J (仮)
+    [
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+    ],
+    // S (仮)
+    [
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+    ],
+    // Z (仮)
+    [
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+        SrsRotationData {
+            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            offset: (0, 0),
+        },
+    ],
+];
+
 impl Tetromino {
     pub fn new_random() -> Self {
         let shape = TETROMINO_BAG.lock().unwrap().next();
@@ -107,16 +305,16 @@ impl Tetromino {
 
     pub fn from_shape(shape: TetrominoShape, colors: [Color; 4], rotation_state: u8) -> Self {
         let matrix = match shape {
-            TetrominoShape::I => &Self::SHAPES[0],
-            TetrominoShape::O => &Self::SHAPES[1],
-            TetrominoShape::T => &Self::SHAPES[2],
-            TetrominoShape::L => &Self::SHAPES[3],
-            TetrominoShape::J => &Self::SHAPES[4],
-            TetrominoShape::S => &Self::SHAPES[5],
-            _ => &Self::SHAPES[6],
+            TetrominoShape::I => &SRS_SHAPES[0],
+            TetrominoShape::O => &SRS_SHAPES[1],
+            TetrominoShape::T => &SRS_SHAPES[2],
+            TetrominoShape::L => &SRS_SHAPES[3],
+            TetrominoShape::J => &SRS_SHAPES[4],
+            TetrominoShape::S => &SRS_SHAPES[5],
+            _ => &SRS_SHAPES[6],
         };
         let mut blocks = Vec::new();
-        for (i, &(block_x, block_y)) in matrix[rotation_state as usize].iter().enumerate() {
+        for (i, &(block_x, block_y)) in matrix[rotation_state as usize].blocks.iter().enumerate() {
             blocks.push(((block_x, block_y), colors[i]));
         }
 

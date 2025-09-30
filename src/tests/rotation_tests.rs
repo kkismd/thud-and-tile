@@ -1,5 +1,6 @@
 use super::*;
 use crate::tetromino::TetrominoShape;
+use crate::tetromino::{SRS_SHAPES, SrsRotationData};
 use std::collections::HashMap;
 
 fn assert_piece_state(
@@ -521,7 +522,10 @@ fn test_new_random_initializes_rotation_state_to_zero() {
     // Assuming rotation_state will be a public field for testing purposes,
     // or a getter method will be added. For now, we'll assume direct access
     // or that the test will fail and we'll adjust.
-    assert_eq!(piece.rotation_state, 0, "new_random should initialize rotation_state to 0");
+    assert_eq!(
+        piece.rotation_state, 0,
+        "new_random should initialize rotation_state to 0"
+    );
 }
 
 #[test]
@@ -548,6 +552,225 @@ fn test_from_shape_uses_specified_rotation_state() {
         &piece,
         piece.pos, // Use the piece's actual position
         &expected_blocks_with_colors,
-        &format!("from_shape with rotation_state {} for I-mino is incorrect", rotation_state),
+        &format!(
+            "from_shape with rotation_state {} for I-mino is incorrect",
+            rotation_state
+        ),
+    );
+}
+
+#[test]
+fn test_srs_shapes_i_mino_rotation_0_blocks() {
+    let i_mino_rot_0 = SRS_SHAPES[TetrominoShape::I as usize][0];
+
+    // SRSのIミノ Rotation 0 のブロック相対座標
+    let expected_blocks = [(-1, 0), (0, 0), (1, 0), (2, 0)];
+    assert_eq!(
+        i_mino_rot_0.blocks, expected_blocks,
+        "I-Mino Rotation 0 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_i_mino_rotation_0_offset() {
+    let i_mino_rot_0 = SRS_SHAPES[TetrominoShape::I as usize][0];
+
+    // SRSのIミノ Rotation 0 の回転中心オフセット (ここでは (0,0) を想定)
+    let expected_offset = (0, 0);
+    assert_eq!(
+        i_mino_rot_0.offset, expected_offset,
+        "I-Mino Rotation 0 offset is incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_i_mino_rotation_1_blocks() {
+    let i_mino_rot_1 = SRS_SHAPES[TetrominoShape::I as usize][1];
+
+    // SRSのIミノ Rotation 1 のブロック相対座標
+    let expected_blocks = [(0, -1), (0, 0), (0, 1), (0, 2)];
+    assert_eq!(
+        i_mino_rot_1.blocks, expected_blocks,
+        "I-Mino Rotation 1 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_i_mino_rotation_1_offset() {
+    let i_mino_rot_1 = SRS_SHAPES[TetrominoShape::I as usize][1];
+
+    // SRSのIミノ Rotation 1 の回転中心オフセット (ここでは (0,0) を想定)
+    let expected_offset = (0, 0);
+    assert_eq!(
+        i_mino_rot_1.offset, expected_offset,
+        "I-Mino Rotation 1 offset is incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_i_mino_rotation_2_blocks() {
+    let i_mino_rot_2 = SRS_SHAPES[TetrominoShape::I as usize][2];
+
+    // SRSのIミノ Rotation 2 のブロック相対座標
+    let expected_blocks = [(-1, 1), (0, 1), (1, 1), (2, 1)];
+    assert_eq!(
+        i_mino_rot_2.blocks, expected_blocks,
+        "I-Mino Rotation 2 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_i_mino_rotation_2_offset() {
+    let i_mino_rot_2 = SRS_SHAPES[TetrominoShape::I as usize][2];
+
+    // SRSのIミノ Rotation 2 の回転中心オフセット (ここでは (0,0) を想定)
+    let expected_offset = (0, 0);
+    assert_eq!(
+        i_mino_rot_2.offset, expected_offset,
+        "I-Mino Rotation 2 offset is incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_i_mino_rotation_3_blocks() {
+    let i_mino_rot_3 = SRS_SHAPES[TetrominoShape::I as usize][3];
+
+    // SRSのIミノ Rotation 3 のブロック相対座標
+    let expected_blocks = [(1, -1), (1, 0), (1, 1), (1, 2)];
+    assert_eq!(
+        i_mino_rot_3.blocks, expected_blocks,
+        "I-Mino Rotation 3 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_i_mino_rotation_3_offset() {
+    let i_mino_rot_3 = SRS_SHAPES[TetrominoShape::I as usize][3];
+
+    // SRSのIミノ Rotation 3 の回転中心オフセット (ここでは (0,0) を想定)
+    let expected_offset = (0, 0);
+    assert_eq!(
+        i_mino_rot_3.offset, expected_offset,
+        "I-Mino Rotation 3 offset is incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_o_mino_rotation_0_blocks() {
+    let o_mino_rot_0 = SRS_SHAPES[TetrominoShape::O as usize][0];
+
+    // SRSのOミノ Rotation 0 のブロック相対座標
+    let expected_blocks = [(0, 0), (1, 0), (0, 1), (1, 1)];
+    assert_eq!(
+        o_mino_rot_0.blocks, expected_blocks,
+        "O-Mino Rotation 0 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_o_mino_rotation_0_offset() {
+    let o_mino_rot_0 = SRS_SHAPES[TetrominoShape::O as usize][0];
+
+    // SRSのOミノ Rotation 0 の回転中心オフセット (ここでは (0,0) を想定)
+    let expected_offset = (0, 0);
+    assert_eq!(
+        o_mino_rot_0.offset, expected_offset,
+        "O-Mino Rotation 0 offset is incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_o_mino_rotation_1_blocks() {
+    let o_mino_rot_1 = SRS_SHAPES[TetrominoShape::O as usize][1];
+
+    // SRSのOミノ Rotation 1 のブロック相対座標
+    let expected_blocks = [(0, 0), (1, 0), (0, 1), (1, 1)];
+    assert_eq!(
+        o_mino_rot_1.blocks, expected_blocks,
+        "O-Mino Rotation 1 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_o_mino_rotation_1_offset() {
+    let o_mino_rot_1 = SRS_SHAPES[TetrominoShape::O as usize][1];
+
+    // SRSのOミノ Rotation 1 の回転中心オフセット (ここでは (0,0) を想定)
+    let expected_offset = (0, 0);
+    assert_eq!(
+        o_mino_rot_1.offset, expected_offset,
+        "O-Mino Rotation 1 offset is incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_o_mino_rotation_2_blocks() {
+    let o_mino_rot_2 = SRS_SHAPES[TetrominoShape::O as usize][2];
+
+    // SRSのOミノ Rotation 2 のブロック相対座標
+    let expected_blocks = [(0, 0), (1, 0), (0, 1), (1, 1)];
+    assert_eq!(
+        o_mino_rot_2.blocks, expected_blocks,
+        "O-Mino Rotation 2 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_o_mino_rotation_2_offset() {
+    let o_mino_rot_2 = SRS_SHAPES[TetrominoShape::O as usize][2];
+
+    // SRSのOミノ Rotation 2 の回転中心オフセット (ここでは (0,0) を想定)
+    let expected_offset = (0, 0);
+    assert_eq!(
+        o_mino_rot_2.offset, expected_offset,
+        "O-Mino Rotation 2 offset is incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_o_mino_rotation_3_blocks() {
+    let o_mino_rot_3 = SRS_SHAPES[TetrominoShape::O as usize][3];
+
+    // SRSのOミノ Rotation 3 のブロック相対座標
+    let expected_blocks = [(0, 0), (1, 0), (0, 1), (1, 1)];
+    assert_eq!(
+        o_mino_rot_3.blocks, expected_blocks,
+        "O-Mino Rotation 3 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_o_mino_rotation_3_offset() {
+    let o_mino_rot_3 = SRS_SHAPES[TetrominoShape::O as usize][3];
+
+    // SRSのOミノ Rotation 3 の回転中心オフセット (ここでは (0,0) を想定)
+    let expected_offset = (0, 0);
+    assert_eq!(
+        o_mino_rot_3.offset, expected_offset,
+        "O-Mino Rotation 3 offset is incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_t_mino_rotation_0_blocks() {
+    let t_mino_rot_0 = SRS_SHAPES[TetrominoShape::T as usize][0];
+
+    // SRSのTミノ Rotation 0 のブロック相対座標
+    let expected_blocks = [(-1, 0), (0, 0), (1, 0), (0, 1)];
+    assert_eq!(
+        t_mino_rot_0.blocks, expected_blocks,
+        "T-Mino Rotation 0 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_t_mino_rotation_0_offset() {
+    let t_mino_rot_0 = SRS_SHAPES[TetrominoShape::T as usize][0];
+
+    // SRSのTミノ Rotation 0 の回転中心オフセット
+    let expected_offset = (0, 0);
+    assert_eq!(
+        t_mino_rot_0.offset, expected_offset,
+        "T-Mino Rotation 0 offset is incorrect according to SRS."
     );
 }
