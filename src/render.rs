@@ -259,7 +259,7 @@ mod tests {
                     if *fg_color == Color::Black {
                         if let Some(RenderCommand::Print(s)) = iter.next() {
                             // The connected block in the test has count 1
-                            if s == "1" {
+                            if s == " 1" {
                                 found_print_connected = true;
                                 break;
                             }
@@ -312,7 +312,7 @@ mod tests {
             RenderCommand::MoveTo(expected_x, expected_y),
             RenderCommand::SetBackgroundColor(test_color),
             RenderCommand::SetForegroundColor(Color::Black),
-            RenderCommand::Print(test_count.to_string()),
+            RenderCommand::Print(format!("{:>2}", test_count)),
             RenderCommand::ResetColor,
         ];
 
@@ -369,7 +369,7 @@ fn draw_connected_cell<R: Renderer>(
     renderer.move_to(x, y)?;
     renderer.set_background_color(color)?;
     renderer.set_foreground_color(Color::Black)?;
-    renderer.print(&count.to_string())?;
+    renderer.print(&format!("{:>2}", count))?;
     renderer.reset_color()?;
     Ok(())
 }
