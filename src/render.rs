@@ -403,7 +403,7 @@ pub fn draw<R: Renderer>(
                                     renderer.set_foreground_color(color)?;
                                     renderer.print("[]")?;
                                     renderer.reset_color()?;
-                                } else if let Cell::Connected(color) = state.board[y][x] {
+                                } else if let Cell::Connected { color, count: _ } = state.board[y][x] {
                                     renderer.set_foreground_color(color)?;
                                     renderer.print("##")?;
                                     renderer.reset_color()?;
@@ -447,7 +447,7 @@ pub fn draw<R: Renderer>(
                                 renderer.print("[]")?;
                                 renderer.reset_color()?;
                             }
-                            Cell::Connected(color) => {
+                            Cell::Connected { color, count: _ } => {
                                 renderer.set_foreground_color(color)?;
                                 renderer.print("##")?;
                                 renderer.reset_color()?;

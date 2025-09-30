@@ -183,7 +183,7 @@ impl GameState {
             .enumerate()
             .filter(|(_, row)| {
                 row.iter().all(|&cell| {
-                    matches!(cell, Cell::Occupied(_)) || matches!(cell, Cell::Connected(_))
+                    matches!(cell, Cell::Occupied(_)) || matches!(cell, Cell::Connected { color: _, count: _ })
                 })
             })
             .map(|(y, _)| y)

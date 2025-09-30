@@ -5,7 +5,7 @@ pub enum Cell {
     Empty,
     Occupied(Color),
     Solid,
-    Connected(Color),
+    Connected { color: Color, count: u8 },
 }
 
 pub type Board = Vec<Vec<Cell>>;

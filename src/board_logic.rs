@@ -45,7 +45,7 @@ pub fn find_and_connect_adjacent_blocks(board: &mut Board, lines_to_clear: &[usi
                             if !visited[ny_usize][nx_usize]
                                 && let Some(neighbor_color) = match board[ny_usize][nx_usize] {
                                     Cell::Occupied(c) => Some(c),
-                                    Cell::Connected(c) => Some(c),
+                                    Cell::Connected { color: c, count: _ } => Some(c),
                                     _ => None,
                                 }
                                 && neighbor_color == color
@@ -67,7 +67,7 @@ pub fn find_and_connect_adjacent_blocks(board: &mut Board, lines_to_clear: &[usi
 
     for (x, y) in cells_to_connect {
         if let Cell::Occupied(color) = board[y][x] {
-            board[y][x] = Cell::Connected(color);
+            board[y][x] = Cell::Connected { color, count: 1 };
         }
     }
 }
@@ -80,7 +80,7 @@ pub fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Poin
         for x in 0..BOARD_WIDTH {
             if let Some(color) = match board[y][x] {
                 Cell::Occupied(c) => Some(c),
-                Cell::Connected(c) => Some(c),
+                Cell::Connected { color: c, count: _ } => Some(c),
                 _ => None,
             } {
                 if visited[y][x] {
@@ -108,7 +108,7 @@ pub fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Poin
                             if !visited[ny_usize][nx_usize]
                                 && let Some(neighbor_color) = match board[ny_usize][nx_usize] {
                                     Cell::Occupied(c) => Some(c),
-                                    Cell::Connected(c) => Some(c),
+                                    Cell::Connected { color: c, count: _ } => Some(c),
                                     _ => None,
                                 }
                                 && neighbor_color == color
@@ -153,7 +153,7 @@ pub fn remove_isolated_blocks(state: &mut GameState, cleared_line_y: usize) {
         for x in 0..BOARD_WIDTH {
             if let Some(color) = match state.board[y][x] {
                 Cell::Occupied(c) => Some(c),
-                Cell::Connected(c) => Some(c),
+                Cell::Connected { color: c, count: _ } => Some(c),
                 _ => None,
             } {
                 let mut is_isolated = true;
@@ -171,7 +171,7 @@ pub fn remove_isolated_blocks(state: &mut GameState, cleared_line_y: usize) {
                         && ny < BOARD_HEIGHT as i8
                         && let Some(neighbor_color) = match state.board[ny as usize][nx as usize] {
                             Cell::Occupied(c) => Some(c),
-                            Cell::Connected(c) => Some(c),
+                            Cell::Connected { color: c, count: _ } => Some(c),
                             _ => None,
                         }
                         && neighbor_color == color

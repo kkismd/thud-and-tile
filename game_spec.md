@@ -112,13 +112,13 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
 **サイクル 1: `Cell::Connected` variantの更新**
 
 1.  **Red (テストの追加)**
-    *   **テストケース:** `Cell::Connected(Color)`が`Cell::Connected { color: Color, count: u8 }`に変更されたことを確認するテスト。（コンパイルエラーが発生することを確認し、修正後にパスすることを確認）
-    *   **テストケース:** `Cell::Connected { color: Color, count: u8 }`のデフォルトの`count`が適切に設定されることを確認するテスト（例: `0`または`1`）。
+    *   [x] **テストケース:** `Cell::Connected(Color)`が`Cell::Connected { color: Color, count: u8 }`に変更されたことを確認するテスト。（コンパイルエラーが発生することを確認し、修正後にパスすることを確認）
+    *   [x] **テストケース:** `Cell::Connected { color: Color, count: u8 }`のデフォルトの`count`が適切に設定されることを確認するテスト（例: `0`または`1`）。
 2.  **Green (最小限の実装)**
-    *   `src/cell.rs`の`Cell` enumを`Cell::Connected { color: Color, count: u8 }`に変更する。
-    *   この変更によって発生するコンパイルエラーを修正する（主に`board_logic.rs`と`main.rs`で`Cell::Connected`が使用されている箇所）。初期の`count`は`0`または`1`とする。
+    *   [x] `src/cell.rs`の`Cell` enumを`Cell::Connected { color: Color, count: u8 }`に変更する。
+    *   [x] この変更によって発生するコンパイルエラーを修正する（主に`board_logic.rs`と`main.rs`で`Cell::Connected`が使用されている箇所）。初期の`count`は`0`または`1`とする。
 3.  **Refactor (コードの改善)**
-    *   `Cell::Connected`の初期化やアクセス方法を整理する。
+    *   [x] `Cell::Connected`の初期化やアクセス方法を整理する。
 
 ---
 
