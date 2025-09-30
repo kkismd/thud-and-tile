@@ -175,39 +175,41 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
             *   [x] Red (2.2.2.21): Lミノ Rotation 0 のテストを追加
             *   [x] Green (2.2.2.22): Lミノ Rotation 0 のデータを修正
             *   [ ] Red (2.2.2.23): Lミノ Rotation 1 のテストを追加
-            *   [ ] Green (2.2.2.24): Lミノ Rotation 1 のデータを修正
+            *   [x] Green (2.2.2.24): Lミノ Rotation 1 のデータを修正
             *   [ ] Red (2.2.2.25): Lミノ Rotation 2 のテストを追加
-            *   [ ] Green (2.2.2.26): Lミノ Rotation 2 のデータを修正
+            *   [x] Green (2.2.2.26): Lミノ Rotation 2 のデータを修正
             *   [ ] Red (2.2.2.27): Lミノ Rotation 3 のテストを追加
-            *   [ ] Green (2.2.2.28): Lミノ Rotation 3 のデータを修正
+            *   [x] Green (2.2.2.28): Lミノ Rotation 3 のデータを修正
         *   **Jミノ**
             *   [ ] Red (2.2.2.29): Jミノ Rotation 0 のテストを追加
-            *   [ ] Green (2.2.2.30): Jミノ Rotation 0 のデータを修正
+            *   [x] Green (2.2.2.30): Jミノ Rotation 0 のデータを修正
             *   [ ] Red (2.2.2.31): Jミノ Rotation 1 のテストを追加
-            *   [ ] Green (2.2.2.32): Jミノ Rotation 1 のデータを修正
+            *   [x] Green (2.2.2.32): Jミノ Rotation 1 のデータを修正
             *   [ ] Red (2.2.2.33): Jミノ Rotation 2 のテストを追加
-            *   [ ] Green (2.2.2.34): Jミノ Rotation 2 のデータを修正
+            *   [x] Green (2.2.2.34): Jミノ Rotation 2 のデータを修正
             *   [ ] Red (2.2.2.35): Jミノ Rotation 3 のテストを追加
-            *   [ ] Green (2.2.2.36): Jミノ Rotation 3 のデータを修正
+            *   [x] Green (2.2.2.36): Jミノ Rotation 3 のデータを修正
         *   **Sミノ**
             *   [ ] Red (2.2.2.37): Sミノ Rotation 0 のテストを追加
-            *   [ ] Green (2.2.2.38): Sミノ Rotation 0 のデータを修正
+            *   [x] Green (2.2.2.38): Sミノ Rotation 0 のデータを修正
             *   [ ] Red (2.2.2.39): Sミノ Rotation 1 のテストを追加
-            *   [ ] Green (2.2.2.40): Sミノ Rotation 1 のデータを修正
+            *   [x] Green (2.2.2.40): Sミノ Rotation 1 のデータを修正
             *   [ ] Red (2.2.2.41): Sミノ Rotation 2 のテストを追加
-            *   [ ] Green (2.2.2.42): Sミノ Rotation 2 のデータを修正
+            *   [x] Green (2.2.2.42): Sミノ Rotation 2 のデータを修正
             *   [ ] Red (2.2.2.43): Sミノ Rotation 3 のテストを追加
-            *   [ ] Green (2.2.2.44): Sミノ Rotation 3 のデータを修正
+            *   [x] Green (2.2.2.44): Sミノ Rotation 3 のデータを修正
         *   **Zミノ**
             *   [ ] Red (2.2.2.45): Zミノ Rotation 0 のテストを追加
-            *   [ ] Green (2.2.2.46): Zミノ Rotation 0 のデータを修正
+            *   [x] Green (2.2.2.46): Zミノ Rotation 0 のデータを修正
             *   [ ] Red (2.2.2.47): Zミノ Rotation 1 のテストを追加
-            *   [ ] Green (2.2.2.48): Zミノ Rotation 1 のデータを修正
+            *   [x] Green (2.2.2.48): Zミノ Rotation 1 のデータを修正
             *   [ ] Red (2.2.2.49): Zミノ Rotation 2 のテストを追加
-            *   [ ] Green (2.2.2.50): Zミノ Rotation 2 のデータを修正
+            *   [x] Green (2.2.2.50): Zミノ Rotation 2 のデータを修正
             *   [ ] Red (2.2.2.51): Zミノ Rotation 3 のテストを追加
-            *   [ ] Green (2.2.2.52): Zミノ Rotation 3 のデータを修正
+            *   [x] Green (2.2.2.52): Zミノ Rotation 3 のデータを修正
 3.  **Refactor (2.3):** コードの可読性を向上させる。特に、新しいデータ構造の命名と利用方法が明確であることを確認する。
+    *   [x] `Tetromino::rotated()` および `Tetromino::rotated_counter_clockwise()` が `SRS_SHAPES` を使用するように更新。
+    *   [x] 未使用の `SHAPES` 定数を削除。
 
 **フェーズ3: SRSウォールキックデータの定義**
 
