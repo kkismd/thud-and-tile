@@ -846,3 +846,27 @@ fn test_srs_shapes_t_mino_rotation_3_offset() {
         "T-Mino Rotation 3 offset is incorrect according to SRS."
     );
 }
+
+#[test]
+fn test_srs_shapes_l_mino_rotation_0_blocks() {
+    let l_mino_rot_0 = SRS_SHAPES[TetrominoShape::L as usize][0];
+
+    // SRSのLミノ Rotation 0 のブロック相対座標
+    let expected_blocks = [(-1, 0), (0, 0), (1, 0), (1, 1)];
+    assert_eq!(
+        l_mino_rot_0.blocks, expected_blocks,
+        "L-Mino Rotation 0 blocks are incorrect according to SRS."
+    );
+}
+
+#[test]
+fn test_srs_shapes_l_mino_rotation_0_offset() {
+    let l_mino_rot_0 = SRS_SHAPES[TetrominoShape::L as usize][0];
+
+    // SRSのLミノ Rotation 0 の回転中心オフセット
+    let expected_offset = (0, 0);
+    assert_eq!(
+        l_mino_rot_0.offset, expected_offset,
+        "L-Mino Rotation 0 offset is incorrect according to SRS."
+    );
+}

@@ -172,8 +172,8 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
             *   [x] Red (2.2.2.19): Tミノ Rotation 3 のテストを追加
             *   [x] Green (2.2.2.20): Tミノ Rotation 3 のデータを修正
         *   **Lミノ**
-            *   [ ] Red (2.2.2.21): Lミノ Rotation 0 のテストを追加
-            *   [ ] Green (2.2.2.22): Lミノ Rotation 0 のデータを修正
+            *   [x] Red (2.2.2.21): Lミノ Rotation 0 のテストを追加
+            *   [x] Green (2.2.2.22): Lミノ Rotation 0 のデータを修正
             *   [ ] Red (2.2.2.23): Lミノ Rotation 1 のテストを追加
             *   [ ] Green (2.2.2.24): Lミノ Rotation 1 のデータを修正
             *   [ ] Red (2.2.2.25): Lミノ Rotation 2 のテストを追加

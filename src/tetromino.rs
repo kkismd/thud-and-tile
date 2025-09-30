@@ -186,10 +186,10 @@ pub const SRS_SHAPES: [[SrsRotationData; 4]; 7] = [
             offset: (0, 0),
         },
     ],
-    // L (仮)
+    // L
     [
         SrsRotationData {
-            blocks: [(0, 0), (0, 0), (0, 0), (0, 0)],
+            blocks: [(-1, 0), (0, 0), (1, 0), (1, 1)],
             offset: (0, 0),
         },
         SrsRotationData {
