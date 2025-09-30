@@ -82,6 +82,7 @@ mod tetromino;
 use tetromino::Tetromino;
 
 mod board_logic;
+mod srs;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GameMode {

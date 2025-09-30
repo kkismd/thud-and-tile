@@ -66,8 +66,6 @@ pub struct Tetromino {
     blocks: Vec<((i8, i8), Color)>,
 }
 
-
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SrsRotationData {
     pub blocks: [(i8, i8); 4],
@@ -315,7 +313,8 @@ impl Tetromino {
             TetrominoShape::Z => &SRS_SHAPES[6],
         };
 
-        new_piece.blocks = matrix[next_rotation_state as usize].blocks
+        new_piece.blocks = matrix[next_rotation_state as usize]
+            .blocks
             .iter()
             .enumerate()
             .map(|(i, &(block_x, block_y))| {
@@ -342,7 +341,8 @@ impl Tetromino {
             TetrominoShape::Z => &SRS_SHAPES[6],
         };
 
-        new_piece.blocks = matrix[next_rotation_state as usize].blocks
+        new_piece.blocks = matrix[next_rotation_state as usize]
+            .blocks
             .iter()
             .enumerate()
             .map(|(i, &(block_x, block_y))| {
@@ -354,8 +354,6 @@ impl Tetromino {
         new_piece.rotation_state = next_rotation_state;
         new_piece
     }
-
-
 }
 
 #[cfg(test)]
