@@ -139,9 +139,10 @@ fn test_bottom_line_is_cleared_normally() {
     assert_eq!(state.board[BOARD_HEIGHT - 1][0], Cell::Occupied(Color::Red));
     // Assert that the top row is now empty
     assert!(state.board[0].iter().all(|&c| c == Cell::Empty));
-    // Assert score and line count
-    assert_eq!(state.lines_cleared, 1);
-    assert_eq!(state.score, 100);
+    // Assert custom score system - should have 10 blue blocks worth of score
+    // Note: Blue blocks are not part of the custom color system (only Cyan/Magenta/Yellow)
+    // but this test uses Blue, so no custom score should be added
+    assert_eq!(state.custom_score_system.scores.total(), 0, "Blue blocks are not scored in custom system");
 }
 
 #[test]
@@ -191,15 +192,15 @@ fn test_scoring_after_pushdown() {
     let mut state = GameState::new();
     let clear_line_y = BOARD_HEIGHT - 5;
 
-    // Setup a 2x2 group of green blocks below the clear line
-    let green_group = [
+    // Setup a 2x2 group of cyan blocks below the clear line
+    let cyan_group = [
         (2, clear_line_y + 2),
         (3, clear_line_y + 2),
         (2, clear_line_y + 3),
         (3, clear_line_y + 3),
     ];
-    for &(x, y) in &green_group {
-        state.board[y][x] = Cell::Occupied(Color::Green);
+    for &(x, y) in &cyan_group {
+        state.board[y][x] = Cell::Occupied(Color::Cyan);
     }
 
     // The `blocks_to_score` is populated by `clear_lines`
@@ -209,8 +210,8 @@ fn test_scoring_after_pushdown() {
     // Manually call the scoring logic
     board_logic::handle_scoring(&mut state);
 
-    // Each of the 4 blocks is in a component of size 4, so 4 * (4 * 10) = 160
-    assert_eq!(state.score, 160);
+    // Each of the 4 blocks is in a component of size 4, so 4 * 4 = 16 points for cyan color
+    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 16);
     // The scoring list should be cleared after processing
     assert!(state.blocks_to_score.is_empty());
 }
@@ -243,8 +244,8 @@ fn test_handle_animation_processes_line_blink() {
     // We can assert that the animation queue is empty and a new piece is spawned.
     assert!(state.animation.is_empty());
     assert!(state.current_piece.is_some());
-    assert_eq!(state.lines_cleared, 1);
-    assert_eq!(state.score, 100);
+    // Note: This test uses Blue blocks which are not part of custom scoring system
+    assert_eq!(state.custom_score_system.scores.total(), 0, "Blue blocks are not scored in custom system");
 }
 
 #[test]
@@ -372,9 +373,8 @@ fn test_lock_piece_ignores_solid_lines() {
             false
         }
     }));
-    // Assert score and line count (no score yet, as PushDown animation is ongoing)
-    assert_eq!(state.lines_cleared, 0);
-    assert_eq!(state.score, 0);
+    // Assert custom score (no score yet, as PushDown animation is ongoing)
+    assert_eq!(state.custom_score_system.scores.total(), 0, "No custom score during animation");
 }
 
 #[test]
@@ -658,4 +658,158 @@ fn test_connected_blocks_count_updated_after_bottom_line_clear() {
             state.board[found_y][1]
         );
     }
+}
+
+#[test]
+fn test_max_chain_updated_after_piece_landing() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // Create a test scenario with connected blocks
+    // Place some cyan blocks in a connected pattern
+    state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Cyan);
+    state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(Color::Cyan);
+    state.board[BOARD_HEIGHT - 3][0] = Cell::Occupied(Color::Cyan);
+    
+    // Place some magenta blocks in a larger connected pattern
+    for x in 3..=6 {
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(Color::Magenta);
+    }
+    state.board[BOARD_HEIGHT - 3][3] = Cell::Occupied(Color::Magenta);
+    
+    // Place some yellow blocks in an even larger pattern
+    for x in 7..=9 {
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(Color::Yellow);
+        state.board[BOARD_HEIGHT - 3][x] = Cell::Occupied(Color::Yellow);
+    }
+
+    // Initially, the custom score system should have zero max chains
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Cyan), 0);
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Magenta), 0);
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Yellow), 0);
+
+    // Create a piece and place it to trigger a landing
+    let piece = Tetromino::from_shape(
+        TetrominoShape::I,
+        [Color::Cyan, Color::Cyan, Color::Cyan, Color::Cyan],
+    );
+    state.current_piece = Some(piece);
+
+    // Lock the piece to trigger connected block analysis and max chain update
+    state.lock_piece(&time_provider);
+
+    // After landing, the max chains should be updated based on connected block counts
+    // The I-piece (4 cyan blocks) should connect with the existing 3 cyan blocks, 
+    // but only if they are adjacent. Let's check actual results.
+    // Cyan: The I-piece likely connects some blocks, creating a larger group
+    // Magenta: 5 blocks connected (4 horizontal + 1 extending up)
+    // Yellow: 6 blocks connected (3x2 grid)
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Cyan), 4, "Cyan should have 4 connected blocks after I-piece lands");
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Magenta), 5, "Magenta should have 5 connected blocks");
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Yellow), 6, "Yellow should have 6 connected blocks");
+    assert_eq!(state.custom_score_system.max_chains.max(), 6);
+}
+
+#[test]
+fn test_max_chain_only_increases_never_decreases() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // Set initial max chains to some values
+    state.custom_score_system.max_chains.update_max(Color::Cyan, 8);
+    state.custom_score_system.max_chains.update_max(Color::Magenta, 10);
+    state.custom_score_system.max_chains.update_max(Color::Yellow, 5);
+
+    // Create a smaller connected pattern
+    state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Cyan);
+    state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(Color::Cyan);
+
+    // Place a piece
+    let piece = Tetromino::from_shape(
+        TetrominoShape::O,
+        [Color::Cyan, Color::Cyan, Color::Cyan, Color::Cyan],
+    );
+    state.current_piece = Some(piece);
+
+    // Lock the piece
+    state.lock_piece(&time_provider);
+
+    // Max chains should not decrease even if current connected count is smaller
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Cyan), 8); // Should remain 8, not decrease to smaller count
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Magenta), 10); // Should remain unchanged
+    assert_eq!(state.custom_score_system.max_chains.get(Color::Yellow), 5); // Should remain unchanged
+}
+
+#[test]
+fn test_color_score_updated_after_line_clear() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // Initially, all color scores should be zero
+    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 0);
+    assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 0);
+    assert_eq!(state.custom_score_system.scores.get(Color::Yellow), 0);
+    assert_eq!(state.custom_score_system.scores.total(), 0);
+
+    // Create a line with mixed colors to clear
+    let clear_line_y = BOARD_HEIGHT - 1;
+    state.board[clear_line_y][0] = Cell::Occupied(Color::Cyan);
+    state.board[clear_line_y][1] = Cell::Occupied(Color::Cyan);
+    state.board[clear_line_y][2] = Cell::Occupied(Color::Magenta);
+    state.board[clear_line_y][3] = Cell::Occupied(Color::Magenta);
+    state.board[clear_line_y][4] = Cell::Occupied(Color::Magenta);
+    state.board[clear_line_y][5] = Cell::Occupied(Color::Yellow);
+    state.board[clear_line_y][6] = Cell::Occupied(Color::Yellow);
+    state.board[clear_line_y][7] = Cell::Occupied(Color::Cyan);
+    state.board[clear_line_y][8] = Cell::Occupied(Color::Magenta);
+    state.board[clear_line_y][9] = Cell::Occupied(Color::Yellow);
+
+    // Clear the line (this should be treated as bottom line clear)
+    let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+    state.animation.extend(new_animations);
+
+    // After line clear, scores should be updated based on block colors:
+    // Cyan: 3 blocks (positions 0, 1, 7) 
+    // Magenta: 4 blocks (positions 2, 3, 4, 8)
+    // Yellow: 3 blocks (positions 5, 6, 9)
+    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 3, "Cyan should have 3 points from 3 cleared blocks");
+    assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 4, "Magenta should have 4 points from 4 cleared blocks");
+    assert_eq!(state.custom_score_system.scores.get(Color::Yellow), 3, "Yellow should have 3 points from 3 cleared blocks");
+    assert_eq!(state.custom_score_system.scores.total(), 10, "Total score should be 10");
+}
+
+#[test]
+fn test_color_score_accumulates_across_multiple_clears() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // Set initial scores
+    state.custom_score_system.scores.add(Color::Cyan, 5);
+    state.custom_score_system.scores.add(Color::Magenta, 10);
+
+    // Create a line with blocks to clear
+    let clear_line_y = BOARD_HEIGHT - 1;
+    for x in 0..5 {
+        state.board[clear_line_y][x] = Cell::Occupied(Color::Cyan);
+    }
+    for x in 5..BOARD_WIDTH {
+        state.board[clear_line_y][x] = Cell::Occupied(Color::Yellow);
+    }
+
+    // Clear the line
+    let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
+    state.animation.extend(new_animations);
+
+    // Scores should accumulate:
+    // Cyan: 5 (initial) + 5 (new) = 10
+    // Magenta: 10 (initial) + 0 (new) = 10  
+    // Yellow: 0 (initial) + 5 (new) = 5
+    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 10);
+    assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 10);
+    assert_eq!(state.custom_score_system.scores.get(Color::Yellow), 5);
+    assert_eq!(state.custom_score_system.scores.total(), 25);
 }

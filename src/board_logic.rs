@@ -137,12 +137,18 @@ pub fn handle_scoring(state: &mut GameState) {
         return;
     }
 
-    let mut total_score = 0;
-    for (_, component_size) in &state.blocks_to_score {
-        total_score += component_size * 10;
+    // Add scores to custom score system based on color of blocks at each position
+    for (point, component_size) in &state.blocks_to_score {
+        if let Some(color) = match state.board[point.1][point.0] {
+            Cell::Occupied(c) => Some(c),
+            Cell::Connected { color: c, count: _ } => Some(c),
+            _ => None,
+        } {
+            // Add score for each block in the connected component
+            state.custom_score_system.scores.add(color, *component_size);
+        }
     }
 
-    state.score += total_score;
     state.blocks_to_score.clear();
 }
 
