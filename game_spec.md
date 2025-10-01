@@ -49,7 +49,7 @@ Rust言語と`crossterm`ライブラリを使用して開発された、ター�
         2. MAX-CHAIN(CYAN), MAX-CHAIN(MAGENTA), MAX-CHAIN(YELLOW)
     3. SCOREはブロックの消去によって加算される整数値で、ライン消去のたびに加算される
     4. MAX-CHAINは同色ブロックの連結数のゲームプレイ中での最大値で、ミノが着地するたびにに更新される
-    5. 画面上での表示は下記のようになる。SCOREは合計値、MAX-CHAINは最大値がまとめとして使われる。
+    5. 画面上での表示は下記のようになる。SCOREの1行目は合計値、MAX-CHAINの1行目は最大値を表示する
 ```
 SCORE:    1120
   CYAN:    200
