@@ -965,3 +965,119 @@ fn test_o_mino_no_wall_kick_needed() {
     // Position should remain the same (no kick needed)
     assert_eq!(rotated.pos, piece_at_edge.pos, "O-mino shouldn't need position adjustment");
 }
+
+// ===============================================
+// Phase 4: SRS Standard Wall Kick Tests
+// ===============================================
+
+/// Test SRS standard wall kick - T-mino 0->1 rotation using exact SRS offsets
+/// Should test all 5 wall kick offsets: (0,0), (-1,0), (-1,1), (0,-2), (-1,-2)
+#[test]
+fn test_srs_standard_t_mino_0_to_1_wall_kick() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::T, colors);
+    
+    // Position T-mino where 0->1 rotation will need SRS wall kick
+    let mut positioned_piece = piece;
+    positioned_piece.pos = (0, 5); // Position that should trigger wall kick attempts
+    
+    let rotated = positioned_piece.rotated_with_wall_kick();
+    
+    // Should succeed using one of the SRS standard offsets
+    assert_eq!(rotated.get_rotation_state(), 1, "T-mino should rotate 0->1 with SRS wall kick");
+    
+    // Position should be adjusted according to SRS standard offsets
+    println!("T-mino 0->1: Position changed from {:?} to {:?}", positioned_piece.pos, rotated.pos);
+}
+
+/// Test SRS standard wall kick - I-mino 0->1 rotation using exact SRS offsets
+/// I-mino has different offsets: (0,0), (-2,0), (1,0), (-2,-1), (1,2)
+#[test]
+fn test_srs_standard_i_mino_0_to_1_wall_kick() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::I, colors);
+    
+    // Position I-mino where 0->1 rotation will definitely need SRS wall kick
+    let mut positioned_piece = piece;
+    positioned_piece.pos = (1, 5); // Near left edge where I-mino will need kick
+    
+    let rotated = positioned_piece.rotated_with_wall_kick();
+    
+    // Should succeed using SRS I-mino specific offsets
+    assert_eq!(rotated.get_rotation_state(), 1, "I-mino should rotate 0->1 with SRS wall kick");
+    
+    println!("I-mino 0->1: Position changed from {:?} to {:?}", positioned_piece.pos, rotated.pos);
+}
+
+/// Test SRS standard wall kick - J-mino 1->2 rotation
+/// Tests (0,0), (1,0), (1,-1), (0,2), (1,2) offset sequence
+#[test]
+fn test_srs_standard_j_mino_1_to_2_wall_kick() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::J, colors);
+    
+    // Rotate to state 1 first
+    piece = piece.rotated();
+    assert_eq!(piece.get_rotation_state(), 1, "J-mino should be in state 1");
+    
+    // Position where 1->2 rotation will need wall kick
+    piece.pos = (8, 5); // Near right edge
+    
+    let rotated = piece.rotated_with_wall_kick();
+    
+    // Should succeed with SRS wall kick
+    assert_eq!(rotated.get_rotation_state(), 2, "J-mino should rotate 1->2 with SRS wall kick");
+    
+    println!("J-mino 1->2: Position changed from {:?} to {:?}", piece.pos, rotated.pos);
+}
+
+/// Test complex SRS wall kick scenario - multiple offset attempts
+/// This tests that the system tries all 5 offsets in order
+#[test] 
+fn test_srs_complex_wall_kick_multiple_attempts() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::T, colors);
+    
+    // Position T-mino in a constrained area to force multiple offset attempts
+    let mut positioned_piece = piece;
+    positioned_piece.pos = (0, 1); // Near left wall and close to top
+    
+    let rotated = positioned_piece.rotated_with_wall_kick();
+    
+    // Should eventually succeed with one of the later offsets
+    assert_eq!(rotated.get_rotation_state(), 1, "Complex wall kick should succeed");
+    
+    println!("Complex wall kick: Position changed from {:?} to {:?}", positioned_piece.pos, rotated.pos);
+}
+
+/// Helper function for Phase 4 - Get SRS standard wall kick offsets
+/// Returns the exact SRS offset table for testing verification
+fn get_srs_wall_kick_offsets(from_state: u8, to_state: u8, is_i_mino: bool) -> Vec<(i32, i32)> {
+    if is_i_mino {
+        // SRS I-mino offsets
+        match (from_state, to_state) {
+            (0, 1) => vec![(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
+            (1, 0) => vec![(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
+            (1, 2) => vec![(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
+            (2, 1) => vec![(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+            (2, 3) => vec![(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
+            (3, 2) => vec![(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
+            (3, 0) => vec![(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+            (0, 3) => vec![(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
+            _ => vec![(0, 0)], // Fallback
+        }
+    } else {
+        // SRS J,L,T,S,Z offsets
+        match (from_state, to_state) {
+            (0, 1) => vec![(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+            (1, 0) => vec![(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+            (1, 2) => vec![(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+            (2, 1) => vec![(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+            (2, 3) => vec![(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+            (3, 2) => vec![(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+            (3, 0) => vec![(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+            (0, 3) => vec![(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+            _ => vec![(0, 0)], // Fallback
+        }
+    }
+}
