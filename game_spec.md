@@ -184,11 +184,9 @@ MAX-CHAIN: 5
     *   [x] **Refactor:** (必要であればコードの可読性や構造を改善)
 
 *   **ステップ 2.4: より小さい連結数での `max_chain` 更新なしテスト**
-    *   **Red:**
+    *   **Green:**
         *   `src/tests/game_state_tests.rs` に `test_max_chain_not_updated_on_smaller_chain` を追加する。
         *   既存の `max_chain` よりも小さい連結数を持つテトリミノを配置し、`lock_piece()` を呼び出した後、`max_chain` が更新されないことをアサートする。
-        *   このテストが失敗することを確認する。
-    *   **Green:**
         *   `CustomScore` の `update_max_chain` メソッドが、新しい連結数が既存の `max_chain` よりも小さい場合には `max_chain` を更新しないことを確認する（ステップ2.3のGreenで既に実装されているはず）。
         *   テストがパスすることを確認する。
     *   **Refactor:** (必要であればコードの可読性や構造を改善)
