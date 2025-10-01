@@ -1,6 +1,14 @@
 use super::*;
 
 #[test]
+fn test_max_chain_initial_state() {
+    let state = GameState::new();
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Cyan).unwrap(), 0);
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Magenta).unwrap(), 0);
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Yellow).unwrap(), 0);
+}
+
+#[test]
 fn test_game_starts_in_title_mode() {
     let state = GameState::new();
     assert_eq!(state.mode, GameMode::Title);

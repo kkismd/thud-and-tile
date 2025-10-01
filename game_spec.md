@@ -146,13 +146,13 @@ MAX-CHAIN: 5
 
 **ステップ 2: MAX-CHAINの更新ロジックの実装**
 
-*   **ステップ 2.1: `CustomScore` の初期状態のテスト**
-    *   **Red:**
+*   [x] **ステップ 2.1: `CustomScore` の初期状態のテスト**
+    *   [x] **Red:**
         *   `src/tests/game_state_tests.rs` に `test_max_chain_initial_state` を追加する。
         *   `GameState` を初期化し、`CustomScore` の `max_chain` が各色で0であることをアサートする。
         *   このテストがパスすることを確認する（ステップ1で既に初期化ロジックが実装されているため、このテストはGreenになるはずですが、念のため確認）。
-    *   **Green:** (テストがパスすることを確認)
-    *   **Refactor:** (必要であればコードの可読性や構造を改善)
+    *   [x] **Green:** (テストがパスすることを確認)
+    *   [x] **Refactor:** (必要であればコードの可読性や構造を改善)
 
 *   **ステップ 2.2: 最初のテトリミノ着地時の `max_chain` 更新テスト**
     *   **Red:**
