@@ -385,6 +385,11 @@ fn handle_push_down_animation(
                 }
                 state.current_board_height = state.current_board_height.saturating_sub(1);
                 board_logic::handle_scoring(state); // Score after a line settles
+
+                // Update connected block counts after animation completion (Bug fix)
+                // This ensures that after line clear animations complete, the connected blocks
+                // are properly recounted to reflect any changes in connectivity
+                state.update_connected_block_counts();
                 finished = true;
                 // Do not push the animation back
             } else {
@@ -548,5 +553,3 @@ fn main() -> io::Result<()> {
 
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-use tests::*;
