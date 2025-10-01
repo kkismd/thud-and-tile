@@ -114,7 +114,7 @@ MAX-CHAIN: 5
 
 ### 改善点リスト
 
-*   得点システムが現在ScoreとLinesの2つの数値を管理表示しているが、カスタムルールのセクションに書いた得点システムと表示を実装したい
+*   得点システムが現在ScoreとLinesの2つの数値を管理表示しているが、カスタムルールの得点システムを実装したい
 
 ---
 
@@ -122,3 +122,61 @@ MAX-CHAIN: 5
 
 #### 得点システムのカスタマイズ
 
+**目標:** カスタムルールに沿った得点システムを実装し、表示する。
+
+**ステップ 1: 新しい得点管理構造体の導入と `GameState` の変更**
+
+*   **Red:**
+    *   `GameState` から `score` と `lines_cleared` を削除し、新しい `CustomScore` 構造体を導入する。
+    *   `CustomScore` は、`crossterm::style::Color` ごとの `score` と `max_chain` を保持する。
+        *   `CustomScore` 構造体は `src/main.rs` に定義する。
+        *   `CustomScore` は `HashMap<Color, u32>` で `score` と `max_chain` を保持する。
+        *   `CustomScore` の初期化では、シアン、マゼンタ、イエローの3色に対して `score` と `max_chain` を0で初期化する。
+    *   `GameState::new()` で `CustomScore` を初期化する。
+    *   `GameState::update_score()` を削除する。
+    *   `GameState::handle_input()` 内のスコア加算部分を削除する。
+    *   これらの変更により、既存のテストが失敗することを確認する。
+*   **Green:**
+    *   `GameState` と `CustomScore` の定義を修正し、コンパイルエラーを解消する。
+    *   `GameState::new()` で `CustomScore` を正しく初期化する。
+    *   `GameState::update_score()` を削除する。
+    *   `GameState::handle_input()` 内のスコア加算部分を削除する。
+    *   既存のテストが再びパスすることを確認する（スコア関連のテストはまだ修正しない）。
+*   **Refactor:**
+    *   コードの可読性や構造を改善する。
+
+**ステップ 2: MAX-CHAINの更新ロジックの実装**
+
+*   **Red:**
+    *   `GameState::lock_piece()` 内で、`board_logic::count_connected_blocks` を呼び出し、盤面全体を対象として連結数を取得する。
+    *   取得した連結数から、色ごとの `max_chain` を更新するロジックを `GameState` または `CustomScore` に追加する。
+    *   このロジックを検証する新しいテストケースを作成し、失敗することを確認する。
+*   **Green:**
+    *   `GameState::lock_piece()` 内で `max_chain` を更新するロジックを実装する。
+    *   テストがパスすることを確認する。
+*   **Refactor:**
+    *   コードの可読性や構造を改善する。
+
+**ステップ 3: カスタムスコア計算ロジックの実装**
+
+*   **Red:**
+    *   `board_logic::handle_scoring(state: &mut GameState)` を修正し、`state.blocks_to_score` を利用して色別のスコアを加算するロジックを実装する。
+    *   `state.board` を参照して `Point` から `Cell` の色を取得し、`CustomScore` の該当する色にスコアを加算する。
+    *   このロジックを検証する新しいテストケースを作成し、失敗することを確認する。
+*   **Green:**
+    *   `board_logic::handle_scoring` を修正し、色別のスコア加算ロジックを実装する。
+    *   テストがパスすることを確認する。
+*   **Refactor:**
+    *   コードの可読性や構造を改善する。
+
+**ステップ 4: `render` モジュールの変更**
+
+*   **Red:**
+    *   `src/render.rs` を修正し、現在のスコア表示部分を、新しい `CustomScore` 構造体から情報を取得して表示するロジックに変更する。
+    *   カスタムルールの表示形式 (`SCORE` と `MAX-CHAIN` の合計値と色別内訳) に合わせて表示する。
+    *   この変更により、表示が正しくないことを確認する（手動テストまたはスナップショットテストがあればそれを利用）。
+*   **Green:**
+    *   `src/render.rs` を修正し、`CustomScore` の情報を正しく表示するようにする。
+    *   表示が正しく行われることを確認する。
+*   **Refactor:**
+    *   コードの可読性や構造を改善する。
