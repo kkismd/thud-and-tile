@@ -142,7 +142,11 @@ fn test_bottom_line_is_cleared_normally() {
     // Assert custom score system - should have 10 blue blocks worth of score
     // Note: Blue blocks are not part of the custom color system (only Cyan/Magenta/Yellow)
     // but this test uses Blue, so no custom score should be added
-    assert_eq!(state.custom_score_system.scores.total(), 0, "Blue blocks are not scored in custom system");
+    assert_eq!(
+        state.custom_score_system.scores.total(),
+        0,
+        "Blue blocks are not scored in custom system"
+    );
 }
 
 #[test]
@@ -245,7 +249,11 @@ fn test_handle_animation_processes_line_blink() {
     assert!(state.animation.is_empty());
     assert!(state.current_piece.is_some());
     // Note: This test uses Blue blocks which are not part of custom scoring system
-    assert_eq!(state.custom_score_system.scores.total(), 0, "Blue blocks are not scored in custom system");
+    assert_eq!(
+        state.custom_score_system.scores.total(),
+        0,
+        "Blue blocks are not scored in custom system"
+    );
 }
 
 #[test]
@@ -374,7 +382,11 @@ fn test_lock_piece_ignores_solid_lines() {
         }
     }));
     // Assert custom score (no score yet, as PushDown animation is ongoing)
-    assert_eq!(state.custom_score_system.scores.total(), 0, "No custom score during animation");
+    assert_eq!(
+        state.custom_score_system.scores.total(),
+        0,
+        "No custom score during animation"
+    );
 }
 
 #[test]
@@ -671,13 +683,13 @@ fn test_max_chain_updated_after_piece_landing() {
     state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Cyan);
     state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(Color::Cyan);
     state.board[BOARD_HEIGHT - 3][0] = Cell::Occupied(Color::Cyan);
-    
+
     // Place some magenta blocks in a larger connected pattern
     for x in 3..=6 {
         state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(Color::Magenta);
     }
     state.board[BOARD_HEIGHT - 3][3] = Cell::Occupied(Color::Magenta);
-    
+
     // Place some yellow blocks in an even larger pattern
     for x in 7..=9 {
         state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(Color::Yellow);
@@ -700,14 +712,26 @@ fn test_max_chain_updated_after_piece_landing() {
     state.lock_piece(&time_provider);
 
     // After landing, the max chains should be updated based on connected block counts
-    // The I-piece (4 cyan blocks) should connect with the existing 3 cyan blocks, 
+    // The I-piece (4 cyan blocks) should connect with the existing 3 cyan blocks,
     // but only if they are adjacent. Let's check actual results.
     // Cyan: The I-piece likely connects some blocks, creating a larger group
     // Magenta: 5 blocks connected (4 horizontal + 1 extending up)
     // Yellow: 6 blocks connected (3x2 grid)
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Cyan), 4, "Cyan should have 4 connected blocks after I-piece lands");
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Magenta), 5, "Magenta should have 5 connected blocks");
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Yellow), 6, "Yellow should have 6 connected blocks");
+    assert_eq!(
+        state.custom_score_system.max_chains.get(Color::Cyan),
+        4,
+        "Cyan should have 4 connected blocks after I-piece lands"
+    );
+    assert_eq!(
+        state.custom_score_system.max_chains.get(Color::Magenta),
+        5,
+        "Magenta should have 5 connected blocks"
+    );
+    assert_eq!(
+        state.custom_score_system.max_chains.get(Color::Yellow),
+        6,
+        "Yellow should have 6 connected blocks"
+    );
     assert_eq!(state.custom_score_system.max_chains.max(), 6);
 }
 
@@ -718,9 +742,18 @@ fn test_max_chain_only_increases_never_decreases() {
     state.mode = GameMode::Playing;
 
     // Set initial max chains to some values
-    state.custom_score_system.max_chains.update_max(Color::Cyan, 8);
-    state.custom_score_system.max_chains.update_max(Color::Magenta, 10);
-    state.custom_score_system.max_chains.update_max(Color::Yellow, 5);
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Cyan, 8);
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Magenta, 10);
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Yellow, 5);
 
     // Create a smaller connected pattern
     state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Cyan);
@@ -772,13 +805,29 @@ fn test_color_score_updated_after_line_clear() {
     state.animation.extend(new_animations);
 
     // After line clear, scores should be updated based on block colors:
-    // Cyan: 3 blocks (positions 0, 1, 7) 
+    // Cyan: 3 blocks (positions 0, 1, 7)
     // Magenta: 4 blocks (positions 2, 3, 4, 8)
     // Yellow: 3 blocks (positions 5, 6, 9)
-    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 3, "Cyan should have 3 points from 3 cleared blocks");
-    assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 4, "Magenta should have 4 points from 4 cleared blocks");
-    assert_eq!(state.custom_score_system.scores.get(Color::Yellow), 3, "Yellow should have 3 points from 3 cleared blocks");
-    assert_eq!(state.custom_score_system.scores.total(), 10, "Total score should be 10");
+    assert_eq!(
+        state.custom_score_system.scores.get(Color::Cyan),
+        3,
+        "Cyan should have 3 points from 3 cleared blocks"
+    );
+    assert_eq!(
+        state.custom_score_system.scores.get(Color::Magenta),
+        4,
+        "Magenta should have 4 points from 4 cleared blocks"
+    );
+    assert_eq!(
+        state.custom_score_system.scores.get(Color::Yellow),
+        3,
+        "Yellow should have 3 points from 3 cleared blocks"
+    );
+    assert_eq!(
+        state.custom_score_system.scores.total(),
+        10,
+        "Total score should be 10"
+    );
 }
 
 #[test]
@@ -806,7 +855,7 @@ fn test_color_score_accumulates_across_multiple_clears() {
 
     // Scores should accumulate:
     // Cyan: 5 (initial) + 5 (new) = 10
-    // Magenta: 10 (initial) + 0 (new) = 10  
+    // Magenta: 10 (initial) + 0 (new) = 10
     // Yellow: 0 (initial) + 5 (new) = 5
     assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 10);
     assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 10);

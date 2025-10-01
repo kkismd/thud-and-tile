@@ -514,3 +514,152 @@ fn test_rotation_at_spawn_height_is_invalid_due_to_top_collision() {
         "Rotated T-mino at spawn height should now be valid after removing top collision check"
     );
 }
+
+// =============================================================================
+// SRS Phase 1: Rotation State Management Tests
+// =============================================================================
+
+#[test]
+fn test_tetromino_initial_rotation_state() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::T, colors);
+    assert_eq!(
+        piece.get_rotation_state(),
+        0,
+        "Initial rotation state should be 0"
+    );
+}
+
+#[test]
+fn test_clockwise_rotation_state_cycle() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::T, colors);
+
+    // Initial state
+    assert_eq!(piece.get_rotation_state(), 0, "Initial state should be 0");
+
+    // First rotation: 0 -> 1
+    piece = piece.rotated();
+    assert_eq!(
+        piece.get_rotation_state(),
+        1,
+        "After first rotation should be 1"
+    );
+
+    // Second rotation: 1 -> 2
+    piece = piece.rotated();
+    assert_eq!(
+        piece.get_rotation_state(),
+        2,
+        "After second rotation should be 2"
+    );
+
+    // Third rotation: 2 -> 3
+    piece = piece.rotated();
+    assert_eq!(
+        piece.get_rotation_state(),
+        3,
+        "After third rotation should be 3"
+    );
+
+    // Fourth rotation: 3 -> 0 (cycle back)
+    piece = piece.rotated();
+    assert_eq!(
+        piece.get_rotation_state(),
+        0,
+        "After fourth rotation should cycle back to 0"
+    );
+}
+
+#[test]
+fn test_counter_clockwise_rotation_state_cycle() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::T, colors);
+
+    // Initial state
+    assert_eq!(piece.get_rotation_state(), 0, "Initial state should be 0");
+
+    // First counter-clockwise rotation: 0 -> 3
+    piece = piece.rotated_counter_clockwise();
+    assert_eq!(
+        piece.get_rotation_state(),
+        3,
+        "After first counter-clockwise rotation should be 3"
+    );
+
+    // Second counter-clockwise rotation: 3 -> 2
+    piece = piece.rotated_counter_clockwise();
+    assert_eq!(
+        piece.get_rotation_state(),
+        2,
+        "After second counter-clockwise rotation should be 2"
+    );
+
+    // Third counter-clockwise rotation: 2 -> 1
+    piece = piece.rotated_counter_clockwise();
+    assert_eq!(
+        piece.get_rotation_state(),
+        1,
+        "After third counter-clockwise rotation should be 1"
+    );
+
+    // Fourth counter-clockwise rotation: 1 -> 0 (cycle back)
+    piece = piece.rotated_counter_clockwise();
+    assert_eq!(
+        piece.get_rotation_state(),
+        0,
+        "After fourth counter-clockwise rotation should cycle back to 0"
+    );
+}
+
+#[test]
+fn test_all_tetromino_shapes_initial_rotation_state() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let shapes = [
+        TetrominoShape::I,
+        TetrominoShape::O,
+        TetrominoShape::T,
+        TetrominoShape::L,
+        TetrominoShape::J,
+        TetrominoShape::S,
+        TetrominoShape::Z,
+    ];
+
+    for shape in shapes.iter() {
+        let piece = Tetromino::from_shape(*shape, colors);
+        assert_eq!(
+            piece.get_rotation_state(),
+            0,
+            "Initial rotation state should be 0 for {:?}",
+            shape
+        );
+    }
+}
+
+#[test]
+fn test_mixed_rotation_operations() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::L, colors);
+
+    assert_eq!(piece.get_rotation_state(), 0);
+
+    // Clockwise twice: 0 -> 1 -> 2
+    piece = piece.rotated();
+    piece = piece.rotated();
+    assert_eq!(piece.get_rotation_state(), 2);
+
+    // Counter-clockwise once: 2 -> 1
+    piece = piece.rotated_counter_clockwise();
+    assert_eq!(piece.get_rotation_state(), 1);
+
+    // Clockwise three times: 1 -> 2 -> 3 -> 0
+    piece = piece.rotated();
+    piece = piece.rotated();
+    piece = piece.rotated();
+    assert_eq!(piece.get_rotation_state(), 0);
+
+    // Counter-clockwise twice: 0 -> 3 -> 2
+    piece = piece.rotated_counter_clockwise();
+    piece = piece.rotated_counter_clockwise();
+    assert_eq!(piece.get_rotation_state(), 2);
+}

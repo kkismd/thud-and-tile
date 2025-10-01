@@ -231,7 +231,9 @@ impl GameState {
         for y in 0..self.current_board_height {
             for x in 0..BOARD_WIDTH {
                 if let Cell::Connected { color, count } = self.board[y][x] {
-                    self.custom_score_system.max_chains.update_max(color, count as u32);
+                    self.custom_score_system
+                        .max_chains
+                        .update_max(color, count as u32);
                 }
             }
         }
@@ -346,7 +348,7 @@ impl GameState {
             let num_cleared = bottom_lines_cleared.len();
             let mut sorted_lines = bottom_lines_cleared.to_vec();
             sorted_lines.sort_by(|a, b| b.cmp(a));
-            
+
             // Count colors before clearing lines for custom scoring
             for &line_y in &sorted_lines {
                 for x in 0..BOARD_WIDTH {
@@ -357,7 +359,7 @@ impl GameState {
                     }
                 }
             }
-            
+
             for &line_y in &sorted_lines {
                 self.board.remove(line_y);
             }

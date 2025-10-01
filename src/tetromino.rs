@@ -63,6 +63,7 @@ pub struct Tetromino {
     _shape: TetrominoShape,
     pub pos: (i8, i8),
     blocks: Vec<((i8, i8), Color)>,
+    rotation_state: u8, // SRS rotation state: 0, 1, 2, 3
 }
 
 impl Tetromino {
@@ -123,6 +124,7 @@ impl Tetromino {
             _shape: shape,
             pos: ((BOARD_WIDTH as i8) / 2 - 2, 0),
             blocks,
+            rotation_state: 0, // Initial rotation state
         }
     }
 
@@ -131,6 +133,12 @@ impl Tetromino {
             let pos = (self.pos.0 + block_x, self.pos.1 + block_y);
             (pos, color)
         })
+    }
+
+    /// Gets the current rotation state (0, 1, 2, 3).
+    /// This method is primarily used for testing SRS compliance.
+    pub fn get_rotation_state(&self) -> u8 {
+        self.rotation_state
     }
 
     pub fn moved(&self, dx: i8, dy: i8) -> Self {
@@ -185,6 +193,10 @@ impl Tetromino {
                 .map(|&((x, y), color)| ((-y, x), color))
                 .collect();
         }
+
+        // Update rotation state: clockwise (0 -> 1 -> 2 -> 3 -> 0)
+        new_piece.rotation_state = (self.rotation_state + 1) % 4;
+
         new_piece
     }
 
@@ -234,6 +246,10 @@ impl Tetromino {
                 .map(|&((x, y), color)| ((y, -x), color))
                 .collect();
         }
+
+        // Update rotation state: counter-clockwise (0 -> 3 -> 2 -> 1 -> 0)
+        new_piece.rotation_state = (self.rotation_state + 3) % 4; // +3 is equivalent to -1 in modulo 4
+
         new_piece
     }
 

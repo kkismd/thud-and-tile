@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn test_color_max_chains_update() {
         let mut max_chains = ColorMaxChains::new();
-        
+
         // 初回設定
         max_chains.update_max(Color::Cyan, 3);
         max_chains.update_max(Color::Magenta, 5);
