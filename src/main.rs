@@ -83,7 +83,7 @@ use tetromino::Tetromino;
 
 mod board_logic;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 enum GameMode {
     Title,
     Playing,
@@ -92,6 +92,28 @@ enum GameMode {
 
 use crate::render::Animation; // Use Animation from render module
 
+// CustomScore 構造体の定義
+#[derive(Clone, Debug, PartialEq)]
+struct CustomScore {
+    scores: std::collections::HashMap<Color, u32>,
+    max_chains: std::collections::HashMap<Color, u32>,
+}
+
+impl CustomScore {
+    fn new() -> Self {
+        let mut scores = std::collections::HashMap::new();
+        let mut max_chains = std::collections::HashMap::new();
+        // シアン、マゼンタ、イエローの3色を初期化
+        scores.insert(Color::Cyan, 0);
+        scores.insert(Color::Magenta, 0);
+        scores.insert(Color::Yellow, 0);
+        max_chains.insert(Color::Cyan, 0);
+        max_chains.insert(Color::Magenta, 0);
+        max_chains.insert(Color::Yellow, 0);
+        Self { scores, max_chains }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct GameState {
     mode: GameMode,
@@ -99,8 +121,7 @@ struct GameState {
     current_piece: Option<Tetromino>,
     next_piece: Option<Tetromino>,
     animation: Vec<Animation>,
-    score: u32,
-    lines_cleared: u32,
+    custom_score: CustomScore, // scoreとlines_clearedを置き換え
     fall_speed: Duration,
     blocks_to_score: Vec<(Point, u32)>,
     current_board_height: usize,
@@ -114,8 +135,7 @@ impl GameState {
             current_piece: None,
             next_piece: Some(Tetromino::new_random()), // next_pieceを初期化
             animation: Vec::new(),
-            score: 0,
-            lines_cleared: 0,
+            custom_score: CustomScore::new(), // CustomScoreを初期化
             fall_speed: FALL_SPEED_START,
             blocks_to_score: Vec::new(),
             current_board_height: BOARD_HEIGHT,
@@ -218,21 +238,6 @@ impl GameState {
         }
     }
 
-    fn update_score(&mut self, lines: u32) {
-        let points = match lines {
-            1 => 100,
-            2 => 300,
-            3 => 500,
-            4 => 800,
-            _ => 0,
-        };
-        self.score += points;
-        self.lines_cleared += lines;
-        if self.lines_cleared > 0 && self.lines_cleared % 10 == 0 {
-            self.fall_speed = self.fall_speed.saturating_sub(Duration::from_millis(50));
-        }
-    }
-
     fn clear_lines(&mut self, lines: &[usize], time_provider: &dyn TimeProvider) -> Vec<Animation> {
         let mut new_animations = Vec::new();
         let mut bottom_lines_cleared = Vec::new();
@@ -257,7 +262,7 @@ impl GameState {
             for _ in 0..num_cleared {
                 self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
             }
-            self.update_score(num_cleared as u32);
+
             // No animation for standard clear, just spawn new piece
             self.spawn_piece();
         }
@@ -305,7 +310,6 @@ impl GameState {
                     // Hard Drop
                     while self.is_valid_position(&piece.moved(0, 1)) {
                         piece = piece.moved(0, 1);
-                        self.score += 2;
                     }
                 } else {
                     // Clockwise Rotation
@@ -319,7 +323,6 @@ impl GameState {
             KeyCode::Char(' ') => {
                 // Soft Drop
                 piece = piece.moved(0, 1);
-                self.score += 1;
             }
             _ => return,
         }

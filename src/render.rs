@@ -581,15 +581,15 @@ pub fn draw<R: Renderer>(
             }
 
             let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
-            if prev_state.score != state.score {
-                renderer.set_foreground_color(Color::White)?;
-                renderer.move_to(ui_x, 2)?;
-                renderer.print(format!("Score: {:<6}", state.score).as_str())?;
-            }
-            if prev_state.lines_cleared != state.lines_cleared {
-                renderer.move_to(ui_x, 3)?;
-                renderer.print(format!("Lines: {:<6}", state.lines_cleared).as_str())?;
-            }
+            // if prev_state.score != state.score {
+            //     renderer.set_foreground_color(Color::White)?;
+            //     renderer.move_to(ui_x, 2)?;
+            //     renderer.print(format!("Score: {:<6}", state.score).as_str())?;
+            // }
+            // if prev_state.lines_cleared != state.lines_cleared {
+            //     renderer.move_to(ui_x, 3)?;
+            //     renderer.print(format!("Lines: {:<6}", state.lines_cleared).as_str())?;
+            // }
 
             // NEXTミノの描画
             // 以前のNEXTミノをクリア

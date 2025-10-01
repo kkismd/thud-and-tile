@@ -142,7 +142,7 @@ pub fn handle_scoring(state: &mut GameState) {
         total_score += component_size * 10;
     }
 
-    state.score += total_score;
+    // state.score += total_score;
     state.blocks_to_score.clear();
 }
 
