@@ -19,6 +19,7 @@ impl ColorScores {
     }
 
     /// 指定された色のスコアを取得
+    #[allow(dead_code)]
     pub fn get(&self, color: Color) -> u32 {
         match color {
             Color::Cyan => self.cyan,

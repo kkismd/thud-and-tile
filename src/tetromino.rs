@@ -23,6 +23,7 @@ pub enum TetrominoShape {
 
 /// SRS offset table for J, L, T, S, Z tetrominoes
 /// Index corresponds to transition: [0->1, 1->0, 1->2, 2->1, 2->3, 3->2, 3->0, 0->3]
+#[allow(dead_code)]
 const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
     // 0->1 transition
     [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
@@ -44,6 +45,7 @@ const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
 
 /// SRS offset table for I tetromino
 /// Index corresponds to transition: [0->1, 1->0, 1->2, 2->1, 2->3, 3->2, 3->0, 0->3]
+#[allow(dead_code)]
 const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
     // 0->1 transition
     [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
@@ -65,6 +67,7 @@ const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
 
 /// Convert rotation state transition to offset table index
 /// Phase 4 Refactor: Optimized lookup function
+#[allow(dead_code)]
 const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
     match (from_state, to_state) {
         (0, 1) => 0,
@@ -198,12 +201,14 @@ impl Tetromino {
 
     /// Gets the colors of the blocks in order
     /// Used for testing color consistency during rotations
+    #[allow(dead_code)]
     pub fn get_colors(&self) -> Vec<Color> {
         self.blocks.iter().map(|(_, color)| *color).collect()
     }
 
     /// Gets the current rotation state (0, 1, 2, 3).
     /// This method is primarily used for testing SRS compliance.
+    #[allow(dead_code)]
     pub fn get_rotation_state(&self) -> u8 {
         self.rotation_state
     }
@@ -211,6 +216,7 @@ impl Tetromino {
     /// Rotates the tetromino with wall kick functionality
     /// Attempts normal rotation first, then tries SRS standard wall kick offsets
     /// Phase 4: Complete SRS standard wall kick implementation
+    #[allow(dead_code)]
     pub fn rotated_with_wall_kick(&self) -> Self {
         let original_state = self.get_rotation_state();
         let target_state = (original_state + 1) % 4;
@@ -237,6 +243,7 @@ impl Tetromino {
 
     /// Get SRS standard wall kick offsets for a rotation transition
     /// Phase 4 Refactor: Optimized with static table lookup
+    #[allow(dead_code)]
     fn get_srs_wall_kick_offsets(&self, from_state: u8, to_state: u8) -> &'static [[i8; 2]; 5] {
         let index = get_transition_index(from_state, to_state);
 
@@ -253,6 +260,7 @@ impl Tetromino {
 
     /// Check if a piece position is valid (basic bounds checking)
     /// In full game would also check board collision
+    #[allow(dead_code)]
     fn is_position_valid(&self, piece: &Self) -> bool {
         const BOARD_WIDTH: i8 = 10;
         const BOARD_HEIGHT: i8 = 20;

@@ -9,7 +9,7 @@ fn test_game_starts_in_title_mode() {
 #[test]
 fn test_new_score_calculation_system() {
     // Test the new scoring formula: block_count × MAX-CHAIN × 10 points
-    let mut time_provider = MockTimeProvider::new();
+    let time_provider = MockTimeProvider::new();
     let mut state = GameState::new();
     state.mode = GameMode::Playing;
 
@@ -266,35 +266,6 @@ fn test_non_bottom_clear_triggers_pushdown() {
         anim,
         Animation::PushDown { gray_line_y, .. } if *gray_line_y == clear_line_y
     )));
-}
-
-#[test]
-fn test_scoring_after_pushdown() {
-    let mut state = GameState::new();
-    let clear_line_y = BOARD_HEIGHT - 5;
-
-    // Setup a 2x2 group of cyan blocks below the clear line
-    let cyan_group = [
-        (2, clear_line_y + 2),
-        (3, clear_line_y + 2),
-        (2, clear_line_y + 3),
-        (3, clear_line_y + 3),
-    ];
-    for &(x, y) in &cyan_group {
-        state.board[y][x] = Cell::Occupied(Color::Cyan);
-    }
-
-    // The `blocks_to_score` is populated by `clear_lines`
-    state.blocks_to_score = board_logic::count_connected_blocks(&state.board, clear_line_y);
-    assert_eq!(state.blocks_to_score.len(), 4); // Sanity check
-
-    // Manually call the scoring logic
-    board_logic::handle_scoring(&mut state);
-
-    // Each of the 4 blocks is in a component of size 4, so 4 * 4 = 16 points for cyan color
-    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 16);
-    // The scoring list should be cleared after processing
-    assert!(state.blocks_to_score.is_empty());
 }
 
 #[test]

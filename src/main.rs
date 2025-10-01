@@ -79,8 +79,6 @@ use cell::{Board, Cell};
 mod scoring;
 use scoring::CustomScoreSystem;
 
-type Point = (usize, usize);
-
 mod tetromino;
 use tetromino::Tetromino;
 
@@ -102,10 +100,8 @@ struct GameState {
     current_piece: Option<Tetromino>,
     next_piece: Option<Tetromino>,
     animation: Vec<Animation>,
-    score: u32,
     lines_cleared: u32,
     fall_speed: Duration,
-    blocks_to_score: Vec<(Point, u32)>,
     current_board_height: usize,
     custom_score_system: CustomScoreSystem,
 }
@@ -118,10 +114,8 @@ impl GameState {
             current_piece: None,
             next_piece: Some(Tetromino::new_random()), // next_pieceを初期化
             animation: Vec::new(),
-            score: 0,
             lines_cleared: 0,
             fall_speed: FALL_SPEED_START,
-            blocks_to_score: Vec::new(),
             current_board_height: BOARD_HEIGHT,
             custom_score_system: CustomScoreSystem::new(),
         }
@@ -377,10 +371,25 @@ impl GameState {
             // 1. Remove isolated blocks below the cleared line.
             board_logic::remove_isolated_blocks(self, y);
 
-            // 2. Count connected blocks for scoring (Step 4)
-            // This will be handled by handle_animation when PushDown finishes
-            let connected_blocks = board_logic::count_connected_blocks(&self.board, y);
-            self.blocks_to_score.extend(connected_blocks);
+            // 2. Count colors before clearing lines for custom scoring
+            // Use new scoring formula: block_count × MAX-CHAIN × 10 points
+            for x in 0..BOARD_WIDTH {
+                match self.board[y][x] {
+                    Cell::Occupied(color) => {
+                        // Occupied blocks have count=1
+                        let points = self.custom_score_system.max_chains.get(color) * 10;
+                        self.custom_score_system.scores.add(color, points);
+                    }
+                    Cell::Connected { color, count } => {
+                        // Connected blocks use their actual count value
+                        let points = (count as u32)
+                            * self.custom_score_system.max_chains.get(color)
+                            * 10;
+                        self.custom_score_system.scores.add(color, points);
+                    }
+                    _ => {} // Empty cells and other types are ignored
+                }
+            }
 
             // 3. Turn the cleared line to gray (Step 5)
             for x in 0..BOARD_WIDTH {
@@ -492,7 +501,7 @@ fn handle_push_down_animation(
                     state.board[gray_line_y][x] = Cell::Solid;
                 }
                 state.current_board_height = state.current_board_height.saturating_sub(1);
-                board_logic::handle_scoring(state); // Score after a line settles
+                // Note: Scoring now handled immediately when lines are cleared, not after animation
 
                 // Update connected block counts after animation completion (Bug fix)
                 // This ensures that after line clear animations complete, the connected blocks
