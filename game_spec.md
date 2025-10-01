@@ -146,23 +146,62 @@ MAX-CHAIN: 5
 
 **ステップ 2: MAX-CHAINの更新ロジックの実装**
 
-*   **Red:**
-    *   `src/tests/game_state_tests.rs` に新しいテストケース `test_max_chain_updates_on_piece_lock` を追加する。
-    *   このテストケースでは、以下のシナリオを検証する。
-        1.  `GameState` を初期化し、`CustomScore` の `max_chain` が各色で0であることを確認する。
-        2.  特定のテトリミノを盤面に配置し、`GameState::lock_piece()` を呼び出す。
-        3.  `lock_piece` 実行後、盤面上の連結ブロックの数を手動で計算し、`CustomScore` の `max_chain` がその値に更新されていることをアサートする。
-        4.  さらに、より大きな連結数を持つテトリミノを配置し、`lock_piece()` を呼び出した後、`max_chain` がさらに大きい値に更新されていることをアサートする。
-        5.  既存の `max_chain` よりも小さい連結数を持つテトリミノを配置し、`lock_piece()` を呼び出した後、`max_chain` が更新されないことをアサートする。
-    *   このテストが失敗することを確認する（`GameState::lock_piece()` に `max_chain` 更新ロジックがまだないため）。
-*   **Green:**
-    *   `GameState::lock_piece()` 内で、`board_logic::count_connected_blocks` を呼び出し、盤面全体を対象として連結数を取得する。
-    *   取得した連結数から、色ごとの `max_chain` を更新するロジックを `GameState` または `CustomScore` に追加する。
-        *   具体的には、`CustomScore` に `update_max_chain(&mut self, color: Color, count: u32)` のようなメソッドを追加し、`GameState::lock_piece()` からこれを呼び出すことを検討する。
-    *   テストがパスすることを確認する。
-*   **Refactor:**
-    *   `CustomScore` の `update_max_chain` メソッドの引数や戻り値の型、可視性などを最適化する。
-    *   `GameState::lock_piece()` 内の `max_chain` 更新ロジックが簡潔で読みやすいことを確認する。
+*   **ステップ 2.1: `CustomScore` の初期状態のテスト**
+    *   **Red:**
+        *   `src/tests/game_state_tests.rs` に `test_max_chain_initial_state` を追加する。
+        *   `GameState` を初期化し、`CustomScore` の `max_chain` が各色で0であることをアサートする。
+        *   このテストがパスすることを確認する（ステップ1で既に初期化ロジックが実装されているため、このテストはGreenになるはずですが、念のため確認）。
+    *   **Green:** (テストがパスすることを確認)
+    *   **Refactor:** (必要であればコードの可読性や構造を改善)
+
+*   **ステップ 2.2: 最初のテトリミノ着地時の `max_chain` 更新テスト**
+    *   **Red:**
+        *   `src/tests/game_state_tests.rs` に `test_max_chain_updates_on_first_lock` を追加する。
+        *   **テストヘルパー関数 `setup_game_state_with_fixed_blocks` を導入する。**
+            *   **目的:** テストに必要な `GameState` のインスタンスを、特定のブロックが配置された状態で初期化し、返す。
+            *   **引数:** `blocks_to_place: &[(Point, Color)]` (盤面に固定するブロックの位置と色のリスト)
+            *   **戻り値:** `GameState`
+            *   **機能:** 新しい `GameState` インスタンスを作成し、引数で指定された `blocks_to_place` に従って盤面 (`state.board`) にブロックを配置し、設定された `GameState` インスタンスを返す。
+        *   このヘルパー関数を使用して `GameState` を初期化し、特定のテトリミノを盤面に配置し、`GameState::lock_piece()` を呼び出す。
+        *   `lock_piece` 実行後、盤面上の連結ブロックの数を手動で計算し、`CustomScore` の `max_chain` がその値に更新されていることをアサートする。
+        *   このテストが失敗することを確認する。
+    *   **Green:**
+        *   `GameState::lock_piece()` 内で、`board_logic::count_connected_blocks` を呼び出し、盤面全体を対象として連結数を取得する。
+        *   取得した連結数から、色ごとの `max_chain` を更新するロジックを `GameState` または `CustomScore` に追加する。
+        *   テストがパスすることを確認する。
+    *   **Refactor:**
+        *   `CustomScore` に `update_max_chain(&mut self, color: Color, count: u32)` のようなメソッドを追加し、`GameState::lock_piece()` からこれを呼び出すようにリファクタリングする。
+        *   `GameState::lock_piece()` 内の `max_chain` 更新ロジックが簡潔で読みやすいことを確認する。
+
+*   **ステップ 2.3: より大きな連結数での `max_chain` 更新テスト**
+    *   **Red:**
+        *   `src/tests/game_state_tests.rs` に `test_max_chain_updates_on_larger_chain` を追加する。
+        *   既存の `max_chain` よりも大きな連結数を持つテトリミノを配置し、`lock_piece()` を呼び出した後、`max_chain` がさらに大きい値に更新されていることをアサートする。
+        *   このテストが失敗することを確認する。
+    *   **Green:**
+        *   `CustomScore` の `update_max_chain` メソッドが、新しい連結数が既存の `max_chain` よりも大きい場合にのみ更新するように修正する。
+        *   テストがパスすることを確認する。
+    *   **Refactor:** (必要であればコードの可読性や構造を改善)
+
+*   **ステップ 2.4: より小さい連結数での `max_chain` 更新なしテスト**
+    *   **Red:**
+        *   `src/tests/game_state_tests.rs` に `test_max_chain_not_updated_on_smaller_chain` を追加する。
+        *   既存の `max_chain` よりも小さい連結数を持つテトリミノを配置し、`lock_piece()` を呼び出した後、`max_chain` が更新されないことをアサートする。
+        *   このテストが失敗することを確認する。
+    *   **Green:**
+        *   `CustomScore` の `update_max_chain` メソッドが、新しい連結数が既存の `max_chain` よりも小さい場合には `max_chain` を更新しないことを確認する（ステップ2.3のGreenで既に実装されているはず）。
+        *   テストがパスすることを確認する。
+    *   **Refactor:** (必要であればコードの可読性や構造を改善)
+
+*   **ステップ 2.5: 複数の色での `max_chain` 更新テスト**
+    *   **Red:**
+        *   `src/tests/game_state_tests.rs` に `test_max_chain_updates_for_multiple_colors` を追加する。
+        *   複数の色を持つブロックが着地した際に、それぞれの色について `max_chain` が正しく更新されていることをアサートする。
+        *   このテストが失敗することを確認する。
+    *   **Green:**
+        *   `GameState::lock_piece()` 内で、`board_logic::count_connected_blocks` の結果を適切に処理し、複数の色について `CustomScore` の `max_chain` を更新するロジックを実装する。
+        *   テストがパスすることを確認する。
+    *   **Refactor:** (必要であればコードの可読性や構造を改善)
 
 **ステップ 3: カスタムスコア計算ロジックの実装**
 
