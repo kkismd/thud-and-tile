@@ -415,22 +415,34 @@ pub fn draw<R: Renderer>(
                 let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
                 renderer.set_foreground_color(Color::White)?;
                 renderer.move_to(ui_x, 2)?;
-                renderer.print("Score: 0     ")?;
+                renderer.print("SCORE:    0     ")?;
                 renderer.move_to(ui_x, 3)?;
-                renderer.print("Lines: 0     ")?;
+                renderer.print("  CYAN:    0     ")?;
+                renderer.move_to(ui_x, 4)?;
+                renderer.print("  MAGENTA: 0     ")?;
                 renderer.move_to(ui_x, 5)?;
-                renderer.print("Controls:")?;
-                renderer.move_to(ui_x, 6)?;
-                renderer.print("←/→: Move")?;
+                renderer.print("  YELLOW:  0     ")?;
                 renderer.move_to(ui_x, 7)?;
-                renderer.print("↓: Rotate Clockwise")?;
+                renderer.print("MAX-CHAIN: 0     ")?;
                 renderer.move_to(ui_x, 8)?;
-                renderer.print("↑: Rotate Counter-Clockwise")?;
+                renderer.print("  CYAN:    0     ")?;
                 renderer.move_to(ui_x, 9)?;
-                renderer.print("Space: Soft Drop")?;
+                renderer.print("  MAGENTA: 0     ")?;
                 renderer.move_to(ui_x, 10)?;
+                renderer.print("  YELLOW:  0     ")?;
+                renderer.move_to(ui_x, 12)?;
+                renderer.print("Controls:")?;
+                renderer.move_to(ui_x, 13)?;
+                renderer.print("←/→: Move")?;
+                renderer.move_to(ui_x, 14)?;
+                renderer.print("↓: Rotate Clockwise")?;
+                renderer.move_to(ui_x, 15)?;
+                renderer.print("↑: Rotate Counter-Clockwise")?;
+                renderer.move_to(ui_x, 16)?;
+                renderer.print("Space: Soft Drop")?;
+                renderer.move_to(ui_x, 17)?;
                 renderer.print("Shift + ↓: Hard Drop")?;
-                renderer.move_to(ui_x, 11)?;
+                renderer.move_to(ui_x, 18)?;
                 renderer.print("q: Quit")?;
             }
 
@@ -581,14 +593,34 @@ pub fn draw<R: Renderer>(
             }
 
             let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
-            if prev_state.score != state.score {
+            
+            // Display custom score system instead of simple score/lines
+            if prev_state.custom_score_system != state.custom_score_system {
                 renderer.set_foreground_color(Color::White)?;
+                
+                // Display total score
                 renderer.move_to(ui_x, 2)?;
-                renderer.print(format!("Score: {:<6}", state.score).as_str())?;
-            }
-            if prev_state.lines_cleared != state.lines_cleared {
+                renderer.print(format!("SCORE:    {:<6}", state.custom_score_system.scores.total()).as_str())?;
+                
+                // Display color breakdown
                 renderer.move_to(ui_x, 3)?;
-                renderer.print(format!("Lines: {:<6}", state.lines_cleared).as_str())?;
+                renderer.print(format!("  CYAN:    {:<6}", state.custom_score_system.scores.cyan).as_str())?;
+                renderer.move_to(ui_x, 4)?;
+                renderer.print(format!("  MAGENTA: {:<6}", state.custom_score_system.scores.magenta).as_str())?;
+                renderer.move_to(ui_x, 5)?;
+                renderer.print(format!("  YELLOW:  {:<6}", state.custom_score_system.scores.yellow).as_str())?;
+                
+                // Display max chain
+                renderer.move_to(ui_x, 7)?;
+                renderer.print(format!("MAX-CHAIN: {:<6}", state.custom_score_system.max_chains.max()).as_str())?;
+                renderer.move_to(ui_x, 8)?;
+                renderer.print(format!("  CYAN:    {:<6}", state.custom_score_system.max_chains.cyan).as_str())?;
+                renderer.move_to(ui_x, 9)?;
+                renderer.print(format!("  MAGENTA: {:<6}", state.custom_score_system.max_chains.magenta).as_str())?;
+                renderer.move_to(ui_x, 10)?;
+                renderer.print(format!("  YELLOW:  {:<6}", state.custom_score_system.max_chains.yellow).as_str())?;
+                
+                renderer.reset_color()?;
             }
 
             // NEXTミノの描画
@@ -598,7 +630,7 @@ pub fn draw<R: Renderer>(
             {
                 // NEXTミノが変更された場合
                 let next_piece_offset_x = ui_x;
-                let next_piece_offset_y = 15;
+                let next_piece_offset_y = 21; // Adjusted to avoid overlap with new UI
                 for ((x, y), _) in prev_next_piece.iter_blocks() {
                     let draw_x = next_piece_offset_x + (x as u16 * 2);
                     let draw_y = next_piece_offset_y + y as u16;
@@ -609,10 +641,10 @@ pub fn draw<R: Renderer>(
 
             if let Some(next_piece) = &state.next_piece {
                 renderer.set_foreground_color(Color::White)?;
-                renderer.move_to(ui_x, 13)?;
+                renderer.move_to(ui_x, 19)?;
                 renderer.print("NEXT:")?; // "NEXT:" ラベル
                 let next_piece_offset_x = ui_x;
-                let next_piece_offset_y = 15; // "NEXT:" の下あたりに描画
+                let next_piece_offset_y = 21; // "NEXT:" の下あたりに描画
 
                 for ((x, y), color) in next_piece.iter_blocks() {
                     // ミノの座標を調整してUI領域に描画

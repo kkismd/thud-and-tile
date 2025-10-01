@@ -76,6 +76,9 @@ impl TimeProvider for MockTimeProvider {
 mod cell;
 use cell::{Board, Cell};
 
+mod scoring;
+use scoring::CustomScoreSystem;
+
 type Point = (usize, usize);
 
 mod tetromino;
@@ -104,6 +107,7 @@ struct GameState {
     fall_speed: Duration,
     blocks_to_score: Vec<(Point, u32)>,
     current_board_height: usize,
+    custom_score_system: CustomScoreSystem,
 }
 
 impl GameState {
@@ -119,6 +123,7 @@ impl GameState {
             fall_speed: FALL_SPEED_START,
             blocks_to_score: Vec::new(),
             current_board_height: BOARD_HEIGHT,
+            custom_score_system: CustomScoreSystem::new(),
         }
     }
 
@@ -195,6 +200,9 @@ impl GameState {
 
         self.update_connected_block_counts();
 
+        // Update MAX-CHAIN based on current connected block counts
+        self.update_max_chains();
+
         if !lines_to_clear.is_empty() {
             self.animation.push(Animation::LineBlink {
                 lines: lines_to_clear,
@@ -214,6 +222,17 @@ impl GameState {
                     color,
                     count: count as u8,
                 };
+            }
+        }
+    }
+
+    fn update_max_chains(&mut self) {
+        // Scan the entire board to find the maximum connected block count for each color
+        for y in 0..self.current_board_height {
+            for x in 0..BOARD_WIDTH {
+                if let Cell::Connected { color, count } = self.board[y][x] {
+                    self.custom_score_system.max_chains.update_max(color, count as u32);
+                }
             }
         }
     }
@@ -293,6 +312,7 @@ impl GameState {
         }
     }
 
+    #[deprecated(note = "Use custom_score_system for color-based scoring instead")]
     fn update_score(&mut self, lines: u32) {
         let points = match lines {
             1 => 100,
@@ -326,13 +346,25 @@ impl GameState {
             let num_cleared = bottom_lines_cleared.len();
             let mut sorted_lines = bottom_lines_cleared.to_vec();
             sorted_lines.sort_by(|a, b| b.cmp(a));
+            
+            // Count colors before clearing lines for custom scoring
+            for &line_y in &sorted_lines {
+                for x in 0..BOARD_WIDTH {
+                    if let Cell::Occupied(color) = self.board[line_y][x] {
+                        self.custom_score_system.scores.add(color, 1);
+                    } else if let Cell::Connected { color, count: _ } = self.board[line_y][x] {
+                        self.custom_score_system.scores.add(color, 1);
+                    }
+                }
+            }
+            
             for &line_y in &sorted_lines {
                 self.board.remove(line_y);
             }
             for _ in 0..num_cleared {
                 self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
             }
-            self.update_score(num_cleared as u32);
+            // Note: Traditional score tracking removed in favor of custom color-based scoring
 
             // Update connected block counts after bottom line clear
             // This ensures connected blocks are properly recounted even for standard clears
