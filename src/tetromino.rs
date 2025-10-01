@@ -141,6 +141,67 @@ impl Tetromino {
         self.rotation_state
     }
 
+    /// Rotates the tetromino with wall kick functionality
+    /// Attempts normal rotation first, then tries wall kick offsets if needed
+    /// Phase 3: Basic wall kick implementation
+    pub fn rotated_with_wall_kick(&self) -> Self {
+        // First attempt: normal rotation
+        let mut new_piece = self.rotated();
+        
+        // Check if wall kick is needed based on piece position
+        // Basic wall kick: if piece is too close to edges, adjust position
+        let needs_wall_kick = self.needs_wall_kick_adjustment(&new_piece);
+        
+        if needs_wall_kick {
+            // Apply basic wall kick offset
+            let kick_offset = self.get_basic_wall_kick_offset(&new_piece);
+            new_piece.pos = (new_piece.pos.0 + kick_offset.0, new_piece.pos.1 + kick_offset.1);
+        }
+        
+        new_piece
+    }
+    
+    /// Check if wall kick adjustment is needed for the rotated piece
+    /// Basic implementation: check if piece blocks would be out of bounds
+    fn needs_wall_kick_adjustment(&self, rotated_piece: &Self) -> bool {
+        // Simple boundary check - assume board width is around 10
+        const BOARD_WIDTH: i8 = 10;
+        
+        for ((block_x, _), _) in rotated_piece.iter_blocks() {
+            if block_x < 0 || block_x >= BOARD_WIDTH {
+                return true;
+            }
+        }
+        false
+    }
+    
+    /// Get basic wall kick offset to adjust piece position
+    fn get_basic_wall_kick_offset(&self, rotated_piece: &Self) -> (i8, i8) {
+        const BOARD_WIDTH: i8 = 10;
+        
+        // Find the leftmost and rightmost blocks
+        let mut min_x = i8::MAX;
+        let mut max_x = i8::MIN;
+        
+        for ((block_x, _), _) in rotated_piece.iter_blocks() {
+            min_x = min_x.min(block_x);
+            max_x = max_x.max(block_x);
+        }
+        
+        // Calculate needed adjustment
+        let mut offset_x = 0;
+        
+        if min_x < 0 {
+            // Too far left, kick right
+            offset_x = -min_x;
+        } else if max_x >= BOARD_WIDTH {
+            // Too far right, kick left
+            offset_x = BOARD_WIDTH - 1 - max_x;
+        }
+        
+        (offset_x, 0) // Only horizontal kicks for now
+    }
+
     pub fn moved(&self, dx: i8, dy: i8) -> Self {
         let mut new_piece = self.clone();
         new_piece.pos = (self.pos.0 + dx, self.pos.1 + dy);

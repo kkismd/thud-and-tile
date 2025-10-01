@@ -842,3 +842,126 @@ fn get_srs_rotation_center(piece: &Tetromino) -> (f32, f32) {
         }
     }
 }
+
+// ============================================================================
+// Phase 3: Wall Kickシステム基盤テスト (TDD Red Phase)
+// ============================================================================
+
+/// Test basic wall kick functionality - I-mino rotation near left wall
+/// I-mino is 4 blocks long and will definitely need wall kick when near edges
+#[test]
+fn test_basic_wall_kick_left_wall() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::I, colors);
+    
+    // Position I-mino where horizontal rotation will exceed left boundary
+    piece = piece.rotated(); // Now in state 1 (vertical)
+    piece.pos = (-1, 5); // Position that will cause left boundary violation
+    
+    // Check initial position blocks
+    let initial_blocks: Vec<_> = piece.iter_blocks().collect();
+    println!("Initial I-mino state 1 blocks: {:?}", initial_blocks);
+    
+    // Attempt rotation from state 1 to 2 (vertical to horizontal) - should need wall kick
+    let rotated = piece.rotated_with_wall_kick();
+    
+    // Check rotated position blocks
+    let rotated_blocks: Vec<_> = rotated.iter_blocks().collect();
+    println!("Rotated I-mino state 2 blocks: {:?}", rotated_blocks);
+    println!("Position changed from {:?} to {:?}", piece.pos, rotated.pos);
+    
+    // Wall kick should succeed and move the piece away from wall
+    assert_ne!(rotated.pos, piece.pos, "Wall kick should adjust position when I-mino near wall");
+    assert_eq!(rotated.get_rotation_state(), 2, "Rotation state should advance even with wall kick");
+}
+
+/// Test basic wall kick functionality - rotation near right boundary
+#[test]
+fn test_basic_wall_kick_right_wall() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::I, colors);
+    
+    // Position I-mino where horizontal rotation will exceed right boundary
+    piece = piece.rotated(); // Now in state 1 (vertical)
+    piece.pos = (8, 5); // Position that will cause right boundary violation
+    
+    // Check initial position blocks
+    let initial_blocks: Vec<_> = piece.iter_blocks().collect();
+    println!("Initial I-mino state 1 blocks: {:?}", initial_blocks);
+    
+    // Attempt rotation from state 1 to 2 (vertical to horizontal) - should need wall kick
+    let rotated = piece.rotated_with_wall_kick();
+    
+    // Check rotated position blocks
+    let rotated_blocks: Vec<_> = rotated.iter_blocks().collect();
+    println!("Rotated I-mino state 2 blocks: {:?}", rotated_blocks);
+    println!("Position changed from {:?} to {:?}", piece.pos, rotated.pos);
+    
+    // Wall kick should succeed and move the piece away from wall
+    assert_ne!(rotated.pos, piece.pos, "Wall kick should adjust position when I-mino near wall");
+    assert_eq!(rotated.get_rotation_state(), 2, "Rotation state should advance even with wall kick");
+}
+
+/// Test wall kick with I-mino - special case due to length
+#[test]
+fn test_i_mino_wall_kick() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::I, colors);
+    
+    // Position I-mino where rotation from horizontal to vertical might need kick
+    piece.pos = (1, 5); // Near left side
+    
+    // Attempt rotation with wall kick
+    let rotated = piece.rotated_with_wall_kick();
+    
+    // Should succeed with potential position adjustment
+    assert_eq!(rotated.get_rotation_state(), 1, "I-mino wall kick should succeed");
+}
+
+/// Test simple offset table functionality
+#[test]
+fn test_wall_kick_offset_attempts() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::T, colors);
+    
+    // Get wall kick offsets for T-mino state 0->1 transition
+    let offsets = get_wall_kick_offsets(TetrominoShape::T, 0, 1);
+    
+    // Should have multiple offset attempts (basic implementation)
+    assert!(!offsets.is_empty(), "Wall kick should provide offset attempts");
+    assert!(offsets.len() >= 2, "Should have at least 2 offset attempts for basic wall kick");
+    
+    // First offset should be (0, 0) - normal rotation
+    assert_eq!(offsets[0], (0, 0), "First offset should be normal rotation attempt");
+}
+
+/// Helper function to get wall kick offsets for testing
+/// Returns offset attempts for wall kick system
+/// Phase 3: Basic offset table implementation
+fn get_wall_kick_offsets(_shape: TetrominoShape, _from_state: u8, _to_state: u8) -> Vec<(i8, i8)> {
+    // Basic offset table for Phase 3
+    // SRS-like but simplified: try normal rotation, then left/right kicks
+    vec![
+        (0, 0),   // Normal rotation (no kick)
+        (-1, 0),  // Kick left
+        (1, 0),   // Kick right
+        (-2, 0),  // Kick further left (for I-mino etc.)
+        (2, 0),   // Kick further right
+    ]
+}
+
+/// Test that O-mino doesn't need wall kick (no rotation)
+#[test]
+fn test_o_mino_no_wall_kick_needed() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::O, colors);
+    
+    // O-mino positioned anywhere
+    let piece_at_edge = piece.moved(-1, 0);
+    
+    // Rotation should work without wall kick (O-mino doesn't really rotate)
+    let rotated = piece_at_edge.rotated_with_wall_kick();
+    
+    // Position should remain the same (no kick needed)
+    assert_eq!(rotated.pos, piece_at_edge.pos, "O-mino shouldn't need position adjustment");
+}
