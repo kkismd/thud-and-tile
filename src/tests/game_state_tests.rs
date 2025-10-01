@@ -1,4 +1,22 @@
 use super::*;
+use crossterm::style::Color;
+
+// テストヘルパー関数
+fn setup_game_state_with_fixed_blocks(
+    blocks_to_place: &[(Point, Color)],
+) -> GameState {
+    let mut state = GameState::new();
+    // 初期化時にcurrent_pieceとnext_pieceが生成されるので、テストの邪魔にならないようにクリア
+    state.current_piece = None;
+    state.next_piece = None;
+
+    for &((x, y), color) in blocks_to_place {
+        if y < BOARD_HEIGHT && x < BOARD_WIDTH {
+            state.board[y][x] = Cell::Occupied(color);
+        }
+    }
+    state
+}
 
 #[test]
 fn test_max_chain_initial_state() {
@@ -420,3 +438,27 @@ fn test_multiple_gray_lines_stack_and_reduce_board_height() {
         "Piece should not be valid on solid lines"
     );
 }
+
+#[test]
+fn test_max_chain_updates_on_first_lock() {
+    let mut state = setup_game_state_with_fixed_blocks(&[]); // 空の盤面で初期化
+    state.mode = GameMode::Playing; // ゲームモードをPlayingに設定
+
+    // シアンのIテトリミノを生成し、current_pieceに設定
+    let piece = Tetromino::from_shape(
+        TetrominoShape::I,
+        [Color::Cyan, Color::Cyan, Color::Cyan, Color::Cyan],
+    );
+    state.current_piece = Some(piece);
+
+    // テトリミノを着地させる
+    let time_provider = MockTimeProvider::new(); // MockTimeProviderを使用
+    state.lock_piece(&time_provider);
+
+    // 期待されるmax_chainの値をアサート
+    // Iテトリミノは4つのブロックで構成され、これらは連結しているとみなされる
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Cyan).unwrap(), 4);
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Magenta).unwrap(), 0);
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Yellow).unwrap(), 0);
+}
+

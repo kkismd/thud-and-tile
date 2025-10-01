@@ -155,7 +155,7 @@ MAX-CHAIN: 5
     *   [x] **Refactor:** (必要であればコードの可読性や構造を改善)
 
 *   **ステップ 2.2: 最初のテトリミノ着地時の `max_chain` 更新テスト**
-    *   **Red:**
+    *   [x] **Red:**
         *   `src/tests/game_state_tests.rs` に `test_max_chain_updates_on_first_lock` を追加する。
         *   **テストヘルパー関数 `setup_game_state_with_fixed_blocks` を導入する。**
             *   **目的:** テストに必要な `GameState` のインスタンスを、特定のブロックが配置された状態で初期化し、返す。
