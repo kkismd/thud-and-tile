@@ -142,64 +142,83 @@ impl Tetromino {
     }
 
     /// Rotates the tetromino with wall kick functionality
-    /// Attempts normal rotation first, then tries wall kick offsets if needed
-    /// Phase 3: Basic wall kick implementation
+    /// Attempts normal rotation first, then tries SRS standard wall kick offsets
+    /// Phase 4: Complete SRS standard wall kick implementation
     pub fn rotated_with_wall_kick(&self) -> Self {
-        // First attempt: normal rotation
-        let mut new_piece = self.rotated();
+        let original_state = self.get_rotation_state();
+        let target_state = (original_state + 1) % 4;
         
-        // Check if wall kick is needed based on piece position
-        // Basic wall kick: if piece is too close to edges, adjust position
-        let needs_wall_kick = self.needs_wall_kick_adjustment(&new_piece);
+        // Get SRS wall kick offset table for this transition
+        let offsets = self.get_srs_wall_kick_offsets(original_state, target_state);
         
-        if needs_wall_kick {
-            // Apply basic wall kick offset
-            let kick_offset = self.get_basic_wall_kick_offset(&new_piece);
-            new_piece.pos = (new_piece.pos.0 + kick_offset.0, new_piece.pos.1 + kick_offset.1);
-        }
-        
-        new_piece
-    }
-    
-    /// Check if wall kick adjustment is needed for the rotated piece
-    /// Basic implementation: check if piece blocks would be out of bounds
-    fn needs_wall_kick_adjustment(&self, rotated_piece: &Self) -> bool {
-        // Simple boundary check - assume board width is around 10
-        const BOARD_WIDTH: i8 = 10;
-        
-        for ((block_x, _), _) in rotated_piece.iter_blocks() {
-            if block_x < 0 || block_x >= BOARD_WIDTH {
-                return true;
+        // Try each offset in order until one works or all fail
+        for offset in offsets {
+            let mut candidate_piece = self.rotated();
+            candidate_piece.pos = (
+                candidate_piece.pos.0 + offset.0 as i8,
+                candidate_piece.pos.1 + offset.1 as i8
+            );
+            
+            // For now, check basic bounds (in full game would check board collision)
+            if self.is_position_valid(&candidate_piece) {
+                return candidate_piece;
             }
         }
-        false
+        // If all offsets fail, return normal rotation (in real game might fail)
+        self.rotated()
     }
     
-    /// Get basic wall kick offset to adjust piece position
-    fn get_basic_wall_kick_offset(&self, rotated_piece: &Self) -> (i8, i8) {
+    /// Get SRS standard wall kick offsets for a rotation transition
+    /// Returns Vec<(x_offset, y_offset)> in try order
+    fn get_srs_wall_kick_offsets(&self, from_state: u8, to_state: u8) -> Vec<(i32, i32)> {
+        match self.shape {
+            TetrominoShape::I => {
+                // SRS I-mino specific offsets
+                match (from_state, to_state) {
+                    (0, 1) => vec![(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
+                    (1, 0) => vec![(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
+                    (1, 2) => vec![(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
+                    (2, 1) => vec![(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+                    (2, 3) => vec![(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
+                    (3, 2) => vec![(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
+                    (3, 0) => vec![(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+                    (0, 3) => vec![(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
+                    _ => vec![(0, 0)], // Fallback
+                }
+            }
+            TetrominoShape::O => {
+                // O-mino doesn't need wall kicks (rotates in place)
+                vec![(0, 0)]
+            }
+            _ => {
+                // SRS J,L,T,S,Z offsets (all use same table)
+                match (from_state, to_state) {
+                    (0, 1) => vec![(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+                    (1, 0) => vec![(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+                    (1, 2) => vec![(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+                    (2, 1) => vec![(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+                    (2, 3) => vec![(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+                    (3, 2) => vec![(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+                    (3, 0) => vec![(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+                    (0, 3) => vec![(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+                    _ => vec![(0, 0)], // Fallback
+                }
+            }
+        }
+    }
+    
+    /// Check if a piece position is valid (basic bounds checking)
+    /// In full game would also check board collision
+    fn is_position_valid(&self, piece: &Self) -> bool {
         const BOARD_WIDTH: i8 = 10;
+        const BOARD_HEIGHT: i8 = 20;
         
-        // Find the leftmost and rightmost blocks
-        let mut min_x = i8::MAX;
-        let mut max_x = i8::MIN;
-        
-        for ((block_x, _), _) in rotated_piece.iter_blocks() {
-            min_x = min_x.min(block_x);
-            max_x = max_x.max(block_x);
+        for ((block_x, block_y), _) in piece.iter_blocks() {
+            if block_x < 0 || block_x >= BOARD_WIDTH || block_y < 0 || block_y >= BOARD_HEIGHT {
+                return false;
+            }
         }
-        
-        // Calculate needed adjustment
-        let mut offset_x = 0;
-        
-        if min_x < 0 {
-            // Too far left, kick right
-            offset_x = -min_x;
-        } else if max_x >= BOARD_WIDTH {
-            // Too far right, kick left
-            offset_x = BOARD_WIDTH - 1 - max_x;
-        }
-        
-        (offset_x, 0) // Only horizontal kicks for now
+        true
     }
 
     pub fn moved(&self, dx: i8, dy: i8) -> Self {
