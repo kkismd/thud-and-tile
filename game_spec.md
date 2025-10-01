@@ -169,7 +169,7 @@ MAX-CHAIN: 5
         *   `GameState::lock_piece()` 内で、`board_logic::count_connected_blocks` を呼び出し、盤面全体を対象として連結数を取得する。
         *   取得した連結数から、色ごとの `max_chain` を更新するロジックを `GameState` または `CustomScore` に追加する。
         *   テストがパスすることを確認する。
-    *   **Refactor:**
+    *   [x] **Refactor:**
         *   `CustomScore` に `update_max_chain(&mut self, color: Color, count: u32)` のようなメソッドを追加し、`GameState::lock_piece()` からこれを呼び出すようにリファクタリングする。
         *   `GameState::lock_piece()` 内の `max_chain` 更新ロジックが簡潔で読みやすいことを確認する。
 
