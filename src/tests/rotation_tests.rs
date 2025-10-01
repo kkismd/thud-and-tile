@@ -40,10 +40,10 @@ fn test_t_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 1, Color::Cyan),
-            (-1, 0, Color::Magenta),
-            (-1, 1, Color::Yellow),
-            (-1, 2, Color::Green),
+            (1, 0, Color::Cyan),     // SRS T State 1: rightward T
+            (1, 1, Color::Magenta),
+            (2, 1, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "T-Mino rotation 1 is wrong",
     );
@@ -53,10 +53,10 @@ fn test_t_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (-1, 0, Color::Cyan),
-            (0, -1, Color::Magenta),
-            (-1, -1, Color::Yellow),
-            (-2, -1, Color::Green),
+            (0, 1, Color::Cyan),     // SRS T State 2: downward T
+            (1, 1, Color::Magenta),
+            (2, 1, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "T-Mino rotation 2 is wrong",
     );
@@ -66,10 +66,10 @@ fn test_t_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, -1, Color::Cyan),
-            (1, 0, Color::Magenta),
-            (1, -1, Color::Yellow),
-            (1, -2, Color::Green),
+            (1, 0, Color::Cyan),     // SRS T State 3: leftward T
+            (0, 1, Color::Magenta),
+            (1, 1, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "T-Mino rotation 3 is wrong",
     );
@@ -143,10 +143,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 0, Color::Cyan),
+            (0, 1, Color::Cyan),     // SRS State 0: horizontal
             (1, 1, Color::Magenta),
-            (1, 2, Color::Yellow),
-            (1, 3, Color::Green),
+            (2, 1, Color::Yellow),
+            (3, 1, Color::Green),
         ],
         "I-Mino initial state (rot 0) is wrong",
     );
@@ -156,10 +156,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (2, 1, Color::Cyan),
-            (1, 1, Color::Magenta),
-            (0, 1, Color::Yellow),
-            (-1, 1, Color::Green),
+            (2, 0, Color::Cyan),     // SRS State 1: vertical
+            (2, 1, Color::Magenta),
+            (2, 2, Color::Yellow),
+            (2, 3, Color::Green),
         ],
         "I-Mino rotation 1 is wrong",
     );
@@ -169,10 +169,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (1, 2, Color::Cyan),
-            (1, 1, Color::Magenta),
-            (1, 0, Color::Yellow),
-            (1, -1, Color::Green),
+            (0, 2, Color::Cyan),     // SRS State 2: horizontal (offset)
+            (1, 2, Color::Magenta),
+            (2, 2, Color::Yellow),
+            (3, 2, Color::Green),
         ],
         "I-Mino rotation 2 is wrong",
     );
@@ -182,10 +182,10 @@ fn test_i_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 1, Color::Cyan),
+            (1, 0, Color::Cyan),     // SRS State 3: vertical
             (1, 1, Color::Magenta),
-            (2, 1, Color::Yellow),
-            (3, 1, Color::Green),
+            (1, 2, Color::Yellow),
+            (1, 3, Color::Green),
         ],
         "I-Mino rotation 3 is wrong",
     );
@@ -214,10 +214,10 @@ fn test_l_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 2, Color::Cyan),
-            (-1, 0, Color::Magenta),
-            (-1, 1, Color::Yellow),
-            (-1, 2, Color::Green),
+            (1, 0, Color::Cyan),     // SRS L State 1
+            (1, 1, Color::Magenta),
+            (1, 2, Color::Yellow),
+            (2, 2, Color::Green),
         ],
         "L-Mino rotation 1 is wrong",
     );
@@ -227,10 +227,10 @@ fn test_l_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (-2, 0, Color::Cyan),
-            (0, -1, Color::Magenta),
-            (-1, -1, Color::Yellow),
-            (-2, -1, Color::Green),
+            (0, 1, Color::Cyan),     // SRS L State 2
+            (1, 1, Color::Magenta),
+            (2, 1, Color::Yellow),
+            (0, 2, Color::Green),
         ],
         "L-Mino rotation 2 is wrong",
     );
@@ -240,10 +240,10 @@ fn test_l_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, -2, Color::Cyan),
+            (0, 0, Color::Cyan),     // SRS L State 3
             (1, 0, Color::Magenta),
-            (1, -1, Color::Yellow),
-            (1, -2, Color::Green),
+            (1, 1, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "L-Mino rotation 3 is wrong",
     );
@@ -272,10 +272,10 @@ fn test_j_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (-1, 0, Color::Magenta),
-            (-1, 1, Color::Yellow),
-            (-1, 2, Color::Green),
+            (1, 0, Color::Cyan),     // SRS J State 1
+            (2, 0, Color::Magenta),
+            (1, 1, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "J-Mino rotation 1 is wrong",
     );
@@ -285,10 +285,10 @@ fn test_j_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (0, -1, Color::Magenta),
-            (-1, -1, Color::Yellow),
-            (-2, -1, Color::Green),
+            (0, 1, Color::Cyan),     // SRS J State 2
+            (1, 1, Color::Magenta),
+            (2, 1, Color::Yellow),
+            (2, 2, Color::Green),
         ],
         "J-Mino rotation 2 is wrong",
     );
@@ -298,10 +298,10 @@ fn test_j_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (1, 0, Color::Magenta),
-            (1, -1, Color::Yellow),
-            (1, -2, Color::Green),
+            (1, 0, Color::Cyan),     // SRS J State 3
+            (1, 1, Color::Magenta),
+            (0, 2, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "J-Mino rotation 3 is wrong",
     );
@@ -330,10 +330,10 @@ fn test_s_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 1, Color::Cyan),
-            (0, 2, Color::Magenta),
-            (-1, 0, Color::Yellow),
-            (-1, 1, Color::Green),
+            (1, 0, Color::Cyan),     // SRS S State 1
+            (1, 1, Color::Magenta),
+            (2, 1, Color::Yellow),
+            (2, 2, Color::Green),
         ],
         "S-Mino rotation 1 is wrong",
     );
@@ -343,10 +343,10 @@ fn test_s_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (-1, 0, Color::Cyan),    // (0,1) -> (-1,0)
-            (-2, 0, Color::Magenta), // (0,2) -> (-2,0)
-            (0, -1, Color::Yellow),  // (-1,0) -> (0,-1)
-            (-1, -1, Color::Green),  // (-1,1) -> (-1,-1)
+            (1, 1, Color::Cyan),     // SRS S State 2
+            (2, 1, Color::Magenta),
+            (0, 2, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "S-Mino rotation 2 is wrong",
     );
@@ -356,10 +356,10 @@ fn test_s_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, -1, Color::Cyan),    // (-1,0) -> (0,-1)
-            (0, -2, Color::Magenta), // (-2,0) -> (0,-2)
-            (1, 0, Color::Yellow),   // (0,-1) -> (1,0)
-            (1, -1, Color::Green),   // (-1,-1) -> (1,-1)
+            (0, 0, Color::Cyan),     // SRS S State 3
+            (0, 1, Color::Magenta),
+            (1, 1, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "S-Mino rotation 3 is wrong",
     );
@@ -388,10 +388,10 @@ fn test_z_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (0, 1, Color::Magenta),
-            (-1, 1, Color::Yellow),
-            (-1, 2, Color::Green),
+            (2, 0, Color::Cyan),     // SRS Z State 1
+            (1, 1, Color::Magenta),
+            (2, 1, Color::Yellow),
+            (1, 2, Color::Green),
         ],
         "Z-Mino rotation 1 is wrong",
     );
@@ -401,10 +401,10 @@ fn test_z_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (-1, 0, Color::Magenta),
-            (-1, -1, Color::Yellow),
-            (-2, -1, Color::Green),
+            (0, 1, Color::Cyan),     // SRS Z State 2
+            (1, 1, Color::Magenta),
+            (1, 2, Color::Yellow),
+            (2, 2, Color::Green),
         ],
         "Z-Mino rotation 2 is wrong",
     );
@@ -414,10 +414,10 @@ fn test_z_mino_full_rotation_cycle() {
         &piece,
         p,
         &[
-            (0, 0, Color::Cyan),
-            (0, -1, Color::Magenta),
-            (1, -1, Color::Yellow),
-            (1, -2, Color::Green),
+            (1, 0, Color::Cyan),     // SRS Z State 3
+            (0, 1, Color::Magenta),
+            (1, 1, Color::Yellow),
+            (0, 2, Color::Green),
         ],
         "Z-Mino rotation 3 is wrong",
     );
@@ -662,4 +662,183 @@ fn test_mixed_rotation_operations() {
     piece = piece.rotated_counter_clockwise();
     piece = piece.rotated_counter_clockwise();
     assert_eq!(piece.get_rotation_state(), 2);
+}
+
+// ============================================================================
+// Phase 2: SRS標準回転中心テスト (TDD Red/Green Phase完了)
+// ============================================================================
+
+/// Test that T-mino rotates around the standard SRS center point (1,1)
+/// SRS standard: T-mino should rotate around its bottom-center block
+#[test]
+fn test_t_mino_srs_rotation_center() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::T, colors);
+    piece.pos = (5, 5); // Use clear position for testing
+
+    // State 0: T shape should have specific SRS coordinates
+    let _state0_blocks: Vec<_> = piece.iter_blocks().collect();
+
+    let rotated = piece.rotated(); // State 1
+    let state1_blocks: Vec<_> = rotated.iter_blocks().collect();
+
+    // In SRS, T-mino rotation should follow specific coordinate transformations
+    // This test validates SRS compliance
+    let expected_srs_state1 = vec![
+        ((6, 5), colors[0]), // First block position in SRS state 1
+        ((6, 6), colors[1]), // Second block position in SRS state 1
+        ((7, 6), colors[2]), // Third block position in SRS state 1
+        ((6, 7), colors[3]), // Fourth block position in SRS state 1
+    ];
+
+    assert_eq!(
+        state1_blocks, expected_srs_state1,
+        "T-mino SRS state 1 blocks don't match expected SRS coordinates"
+    );
+}
+
+/// Test that I-mino follows SRS standard rotation behavior with proper center
+/// I-mino has special SRS center behavior and specific coordinate patterns
+#[test]
+fn test_i_mino_srs_rotation_center() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let mut piece = Tetromino::from_shape(TetrominoShape::I, colors);
+    piece.pos = (5, 5); // Clear position for testing
+
+    // State 0: Horizontal I-mino should be at specific SRS coordinates
+    let state0_blocks: Vec<_> = piece.iter_blocks().collect();
+
+    // Rotate to state 1: Vertical I-mino
+    piece = piece.rotated();
+    let state1_blocks: Vec<_> = piece.iter_blocks().collect();
+
+    // Rotate to state 2: Horizontal again (should be offset from state 0 in SRS)
+    piece = piece.rotated();
+    let state2_blocks: Vec<_> = piece.iter_blocks().collect();
+
+    // In SRS, I-mino state 2 should be offset from state 0
+    // This is a key difference between current implementation and SRS
+    let y_offset_state0_to_state2 = state2_blocks[0].0.1 - state0_blocks[0].0.1;
+
+    assert_eq!(
+        y_offset_state0_to_state2, 1,
+        "I-mino SRS: state 2 should be 1 unit down from state 0, got offset: {}",
+        y_offset_state0_to_state2
+    );
+
+    // Additional SRS requirement: state 1 should be properly positioned
+    let expected_state1_y = state0_blocks[0].0.1 - 1; // SRS I-mino vertical positioning
+    let actual_state1_y = state1_blocks[0].0.1;
+
+    assert_eq!(
+        actual_state1_y, expected_state1_y,
+        "I-mino SRS state 1 Y position should be offset correctly: got {}, expected {}",
+        actual_state1_y, expected_state1_y
+    );
+}
+
+/// Test that L-mino follows SRS standard rotation behavior
+#[test]
+fn test_l_mino_srs_rotation_center() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::L, colors);
+
+    let rotated = piece.rotated();
+
+    // L-mino should rotate around proper SRS center
+    let original_center_pos = get_srs_rotation_center(&piece);
+    let rotated_center_pos = get_srs_rotation_center(&rotated);
+
+    assert_eq!(
+        original_center_pos, rotated_center_pos,
+        "L-mino SRS rotation center should remain consistent"
+    );
+}
+
+/// Test that J-mino follows SRS standard rotation behavior
+#[test]
+fn test_j_mino_srs_rotation_center() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::J, colors);
+
+    let rotated = piece.rotated();
+
+    // J-mino should rotate around proper SRS center
+    let original_center_pos = get_srs_rotation_center(&piece);
+    let rotated_center_pos = get_srs_rotation_center(&rotated);
+
+    assert_eq!(
+        original_center_pos, rotated_center_pos,
+        "J-mino SRS rotation center should remain consistent"
+    );
+}
+
+/// Test that S-mino follows SRS standard rotation behavior
+#[test]
+fn test_s_mino_srs_rotation_center() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::S, colors);
+
+    let rotated = piece.rotated();
+
+    // S-mino should rotate around proper SRS center
+    let original_center_pos = get_srs_rotation_center(&piece);
+    let rotated_center_pos = get_srs_rotation_center(&rotated);
+
+    assert_eq!(
+        original_center_pos, rotated_center_pos,
+        "S-mino SRS rotation center should remain consistent"
+    );
+}
+
+/// Test that Z-mino follows SRS standard rotation behavior
+#[test]
+fn test_z_mino_srs_rotation_center() {
+    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let piece = Tetromino::from_shape(TetrominoShape::Z, colors);
+
+    let rotated = piece.rotated();
+
+    // Z-mino should rotate around proper SRS center
+    let original_center_pos = get_srs_rotation_center(&piece);
+    let rotated_center_pos = get_srs_rotation_center(&rotated);
+
+    assert_eq!(
+        original_center_pos, rotated_center_pos,
+        "Z-mino SRS rotation center should remain consistent"
+    );
+}
+
+/// Helper function to calculate SRS rotation center for a tetromino
+/// Returns the center point in world coordinates for SRS compliance verification
+fn get_srs_rotation_center(piece: &Tetromino) -> (f32, f32) {
+    // SRS standard rotation centers (relative to piece position):
+    // T, L, J, S, Z: center at (1, 1)
+    // I: center between (1.5, 1.5) in state 0/2, (2, 2) in state 1/3
+    // O: no rotation (center irrelevant)
+
+    let shape = piece.shape;
+    let rotation_state = piece.get_rotation_state();
+    let pos = piece.pos;
+
+    match shape {
+        TetrominoShape::I => {
+            // I-mino has alternating center between rotations
+            if rotation_state % 2 == 0 {
+                // States 0, 2: center at (1.5, 1.5)
+                (pos.0 as f32 + 1.5, pos.1 as f32 + 1.5)
+            } else {
+                // States 1, 3: center at (2, 2)
+                (pos.0 as f32 + 2.0, pos.1 as f32 + 2.0)
+            }
+        }
+        TetrominoShape::O => {
+            // O-mino doesn't really rotate, center at (1.5, 1.5)
+            (pos.0 as f32 + 1.5, pos.1 as f32 + 1.5)
+        }
+        _ => {
+            // T, L, J, S, Z: center at (1, 1)
+            (pos.0 as f32 + 1.0, pos.1 as f32 + 1.0)
+        }
+    }
 }

@@ -60,7 +60,7 @@ lazy_static! {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tetromino {
-    _shape: TetrominoShape,
+    pub shape: TetrominoShape, // Made public for SRS testing
     pub pos: (i8, i8),
     blocks: Vec<((i8, i8), Color)>,
     rotation_state: u8, // SRS rotation state: 0, 1, 2, 3
@@ -121,7 +121,7 @@ impl Tetromino {
         }
 
         Tetromino {
-            _shape: shape,
+            shape,
             pos: ((BOARD_WIDTH as i8) / 2 - 2, 0),
             blocks,
             rotation_state: 0, // Initial rotation state
@@ -149,159 +149,143 @@ impl Tetromino {
 
     pub fn rotated(&self) -> Self {
         let mut new_piece = self.clone();
-        if self._shape == TetrominoShape::O {
-            let old_colors: Vec<Color> = self.blocks.iter().map(|&(_, color)| color).collect();
-            let mut new_colors: Vec<Color> = vec![Color::Black; 4]; // Initialize with dummy colors
 
-            // Apply the specific clockwise color rotation for O-mino
-            new_colors[0] = old_colors[2]; // Top-Left gets Bottom-Left's color
-            new_colors[1] = old_colors[0]; // Top-Right gets Top-Left's color
-            new_colors[2] = old_colors[3]; // Bottom-Left gets Bottom-Right's color
-            new_colors[3] = old_colors[1]; // Bottom-Right gets Top-Right's color
+        // Use SRS standard rotation data
+        let shape_index = match self.shape {
+            TetrominoShape::I => 0,
+            TetrominoShape::O => 1,
+            TetrominoShape::T => 2,
+            TetrominoShape::L => 3,
+            TetrominoShape::J => 4,
+            TetrominoShape::S => 5,
+            TetrominoShape::Z => 6,
+        };
 
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .enumerate()
-                .map(|(i, &((x, y), _))| ((x, y), new_colors[i]))
-                .collect();
-        } else if self._shape == TetrominoShape::I {
-            // I-mino specific rotation around the second block
-            let pivot_block_index = 1; // Second block is at index 1
-            let (pivot_x, pivot_y) = self.blocks[pivot_block_index].0;
+        let next_rotation_state = (self.rotation_state + 1) % 4;
+        let next_state_blocks = &Self::SHAPES[shape_index][next_rotation_state as usize];
 
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .map(|&((block_x, block_y), color)| {
-                    // Translate block so pivot is at (0,0)
-                    let translated_x = block_x - pivot_x;
-                    let translated_y = block_y - pivot_y;
+        // Apply rotation using SRS standard coordinates
+        new_piece.blocks = next_state_blocks
+            .iter()
+            .enumerate()
+            .map(|(i, &(x, y))| {
+                let color = if self.shape == TetrominoShape::O {
+                    // O-mino color rotation (clockwise)
+                    let old_colors: Vec<Color> =
+                        self.blocks.iter().map(|&(_, color)| color).collect();
+                    match i {
+                        0 => old_colors[2], // Top-Left gets Bottom-Left's color
+                        1 => old_colors[0], // Top-Right gets Top-Left's color
+                        2 => old_colors[3], // Bottom-Left gets Bottom-Right's color
+                        3 => old_colors[1], // Bottom-Right gets Top-Right's color
+                        _ => unreachable!(),
+                    }
+                } else {
+                    // Keep original color for same block index
+                    self.blocks[i].1
+                };
+                ((x, y), color)
+            })
+            .collect();
 
-                    // Rotate around (0,0)
-                    let rotated_x = -translated_y;
-                    let rotated_y = translated_x;
-
-                    // Translate back
-                    ((rotated_x + pivot_x, rotated_y + pivot_y), color)
-                })
-                .collect();
-        } else {
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .map(|&((x, y), color)| ((-y, x), color))
-                .collect();
-        }
-
-        // Update rotation state: clockwise (0 -> 1 -> 2 -> 3 -> 0)
-        new_piece.rotation_state = (self.rotation_state + 1) % 4;
-
+        new_piece.rotation_state = next_rotation_state;
         new_piece
     }
 
     pub fn rotated_counter_clockwise(&self) -> Self {
         let mut new_piece = self.clone();
-        if self._shape == TetrominoShape::O {
-            let old_colors: Vec<Color> = self.blocks.iter().map(|&(_, color)| color).collect();
-            let mut new_colors: Vec<Color> = vec![Color::Black; 4]; // Initialize with dummy colors
 
-            // Apply the specific counter-clockwise color rotation for O-mino
-            new_colors[0] = old_colors[1]; // Top-Left gets Top-Right's color
-            new_colors[1] = old_colors[3]; // Top-Right gets Bottom-Right's color
-            new_colors[2] = old_colors[0]; // Bottom-Left gets Top-Left's color
-            new_colors[3] = old_colors[2]; // Bottom-Right gets Bottom-Left's color
+        // Use SRS standard rotation data
+        let shape_index = match self.shape {
+            TetrominoShape::I => 0,
+            TetrominoShape::O => 1,
+            TetrominoShape::T => 2,
+            TetrominoShape::L => 3,
+            TetrominoShape::J => 4,
+            TetrominoShape::S => 5,
+            TetrominoShape::Z => 6,
+        };
 
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .enumerate()
-                .map(|(i, &((x, y), _))| ((x, y), new_colors[i]))
-                .collect();
-        } else if self._shape == TetrominoShape::I {
-            // I-mino specific counter-clockwise rotation around the second block
-            let pivot_block_index = 1; // Second block is at index 1
-            let (pivot_x, pivot_y) = self.blocks[pivot_block_index].0;
+        let next_rotation_state = (self.rotation_state + 3) % 4; // +3 is equivalent to -1 in modulo 4
+        let next_state_blocks = &Self::SHAPES[shape_index][next_rotation_state as usize];
 
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .map(|&((block_x, block_y), color)| {
-                    // Translate block so pivot is at (0,0)
-                    let translated_x = block_x - pivot_x;
-                    let translated_y = block_y - pivot_y;
+        // Apply rotation using SRS standard coordinates
+        new_piece.blocks = next_state_blocks
+            .iter()
+            .enumerate()
+            .map(|(i, &(x, y))| {
+                let color = if self.shape == TetrominoShape::O {
+                    // O-mino color rotation (counter-clockwise)
+                    let old_colors: Vec<Color> =
+                        self.blocks.iter().map(|&(_, color)| color).collect();
+                    match i {
+                        0 => old_colors[1], // Top-Left gets Top-Right's color
+                        1 => old_colors[3], // Top-Right gets Bottom-Right's color
+                        2 => old_colors[0], // Bottom-Left gets Top-Left's color
+                        3 => old_colors[2], // Bottom-Right gets Bottom-Left's color
+                        _ => unreachable!(),
+                    }
+                } else {
+                    // Keep original color for same block index
+                    self.blocks[i].1
+                };
+                ((x, y), color)
+            })
+            .collect();
 
-                    // Rotate around (0,0) (counter-clockwise)
-                    let rotated_x = translated_y;
-                    let rotated_y = -translated_x;
-
-                    // Translate back
-                    ((rotated_x + pivot_x, rotated_y + pivot_y), color)
-                })
-                .collect();
-        } else {
-            new_piece.blocks = self
-                .blocks
-                .iter()
-                .map(|&((x, y), color)| ((y, -x), color))
-                .collect();
-        }
-
-        // Update rotation state: counter-clockwise (0 -> 3 -> 2 -> 1 -> 0)
-        new_piece.rotation_state = (self.rotation_state + 3) % 4; // +3 is equivalent to -1 in modulo 4
-
+        new_piece.rotation_state = next_rotation_state;
         new_piece
     }
 
     const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
-        // I
+        // I - SRS standard coordinates
         [
-            [(1, 0), (1, 1), (1, 2), (1, 3)],
-            [(0, 2), (1, 2), (2, 2), (3, 2)],
-            [(2, 0), (2, 1), (2, 2), (2, 3)],
-            [(0, 1), (1, 1), (2, 1), (3, 1)],
+            [(0, 1), (1, 1), (2, 1), (3, 1)], // State 0: horizontal
+            [(2, 0), (2, 1), (2, 2), (2, 3)], // State 1: vertical
+            [(0, 2), (1, 2), (2, 2), (3, 2)], // State 2: horizontal (offset)
+            [(1, 0), (1, 1), (1, 2), (1, 3)], // State 3: vertical
         ],
-        // O
+        // O - No rotation, same for all states
         [
             [(1, 1), (2, 1), (1, 2), (2, 2)],
             [(1, 1), (2, 1), (1, 2), (2, 2)],
             [(1, 1), (2, 1), (1, 2), (2, 2)],
             [(1, 1), (2, 1), (1, 2), (2, 2)],
         ],
-        // T
+        // T - SRS standard coordinates with (1,1) rotation center
         [
-            [(1, 0), (0, 1), (1, 1), (2, 1)],
-            [(1, 0), (1, 1), (2, 1), (1, 2)],
-            [(0, 1), (1, 1), (2, 1), (1, 2)],
-            [(1, 0), (0, 1), (1, 1), (1, 2)],
+            [(1, 0), (0, 1), (1, 1), (2, 1)], // State 0: upward T
+            [(1, 0), (1, 1), (2, 1), (1, 2)], // State 1: rightward T
+            [(0, 1), (1, 1), (2, 1), (1, 2)], // State 2: downward T
+            [(1, 0), (0, 1), (1, 1), (1, 2)], // State 3: leftward T
         ],
-        // L
+        // L - SRS standard coordinates
         [
-            [(2, 0), (0, 1), (1, 1), (2, 1)],
-            [(1, 0), (1, 1), (1, 2), (2, 2)],
-            [(0, 1), (1, 1), (2, 1), (0, 2)],
-            [(0, 0), (1, 0), (1, 1), (1, 2)],
+            [(2, 0), (0, 1), (1, 1), (2, 1)], // State 0
+            [(1, 0), (1, 1), (1, 2), (2, 2)], // State 1
+            [(0, 1), (1, 1), (2, 1), (0, 2)], // State 2
+            [(0, 0), (1, 0), (1, 1), (1, 2)], // State 3
         ],
-        // J
+        // J - SRS standard coordinates
         [
-            [(0, 0), (0, 1), (1, 1), (2, 1)],
-            [(1, 0), (2, 0), (1, 1), (1, 2)],
-            [(0, 1), (1, 1), (2, 1), (2, 2)],
-            [(1, 0), (1, 1), (0, 2), (1, 2)],
+            [(0, 0), (0, 1), (1, 1), (2, 1)], // State 0
+            [(1, 0), (2, 0), (1, 1), (1, 2)], // State 1
+            [(0, 1), (1, 1), (2, 1), (2, 2)], // State 2
+            [(1, 0), (1, 1), (0, 2), (1, 2)], // State 3
         ],
-        // S
+        // S - SRS standard coordinates
         [
-            [(1, 0), (2, 0), (0, 1), (1, 1)],
-            [(1, 0), (1, 1), (2, 1), (2, 2)],
-            [(1, 1), (2, 1), (0, 2), (1, 2)],
-            [(0, 0), (0, 1), (1, 1), (1, 2)],
+            [(1, 0), (2, 0), (0, 1), (1, 1)], // State 0
+            [(1, 0), (1, 1), (2, 1), (2, 2)], // State 1
+            [(1, 1), (2, 1), (0, 2), (1, 2)], // State 2
+            [(0, 0), (0, 1), (1, 1), (1, 2)], // State 3
         ],
-        // Z
+        // Z - SRS standard coordinates
         [
-            [(0, 0), (1, 0), (1, 1), (2, 1)],
-            [(2, 0), (1, 1), (2, 1), (1, 2)],
-            [(0, 1), (1, 1), (1, 2), (2, 2)],
-            [(1, 0), (0, 1), (1, 1), (0, 2)],
+            [(0, 0), (1, 0), (1, 1), (2, 1)], // State 0
+            [(2, 0), (1, 1), (2, 1), (1, 2)], // State 1
+            [(0, 1), (1, 1), (1, 2), (2, 2)], // State 2
+            [(1, 0), (0, 1), (1, 1), (0, 2)], // State 3
         ],
     ];
 }
