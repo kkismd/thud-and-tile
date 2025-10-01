@@ -315,6 +315,7 @@ impl GameState {
     }
 
     #[deprecated(note = "Use custom_score_system for color-based scoring instead")]
+    #[allow(dead_code)]
     fn update_score(&mut self, lines: u32) {
         let points = match lines {
             1 => 100,

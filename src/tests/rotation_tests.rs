@@ -926,7 +926,7 @@ fn test_i_mino_wall_kick() {
 #[test]
 fn test_wall_kick_offset_attempts() {
     let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
-    let piece = Tetromino::from_shape(TetrominoShape::T, colors);
+    let _piece = Tetromino::from_shape(TetrominoShape::T, colors);
     
     // Get wall kick offsets for T-mino state 0->1 transition
     let offsets = get_wall_kick_offsets(TetrominoShape::T, 0, 1);
@@ -1056,6 +1056,7 @@ fn test_srs_complex_wall_kick_multiple_attempts() {
 
 /// Helper function for Phase 4 - Get SRS standard wall kick offsets
 /// Returns the exact SRS offset table for testing verification
+#[allow(dead_code)]
 fn get_srs_wall_kick_offsets(from_state: u8, to_state: u8, is_i_mino: bool) -> Vec<(i32, i32)> {
     if is_i_mino {
         // SRS I-mino offsets

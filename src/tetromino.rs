@@ -190,6 +190,12 @@ impl Tetromino {
         })
     }
 
+    /// Gets the colors of the blocks in order
+    /// Used for testing color consistency during rotations
+    pub fn get_colors(&self) -> Vec<Color> {
+        self.blocks.iter().map(|(_, color)| *color).collect()
+    }
+
     /// Gets the current rotation state (0, 1, 2, 3).
     /// This method is primarily used for testing SRS compliance.
     pub fn get_rotation_state(&self) -> u8 {
@@ -293,8 +299,9 @@ impl Tetromino {
                         _ => unreachable!(),
                     }
                 } else {
-                    // Keep original color for same block index
-                    self.blocks[i].1
+                    // For non-O pieces: use clockwise rotation mapping
+                    // Map each new position to the color from the corresponding old position
+                    self.get_rotated_color_mapping(i, self.rotation_state, next_rotation_state)
                 };
                 ((x, y), color)
             })
@@ -302,6 +309,84 @@ impl Tetromino {
 
         new_piece.rotation_state = next_rotation_state;
         new_piece
+    }
+    
+    /// Get the color mapping for rotation transitions
+    /// Maps new block index to the color from the corresponding old block
+    fn get_rotated_color_mapping(&self, new_index: usize, from_state: u8, to_state: u8) -> Color {
+        // For clockwise rotation, define the index mapping for each shape
+        let rotation_mapping = match self.shape {
+            TetrominoShape::T => {
+                // T-mino rotation mappings (clockwise)
+                // State 0: [(1,0), (0,1), (1,1), (2,1)] -> State 1: [(1,0), (1,1), (2,1), (1,2)]
+                // Physical position tracking:
+                // (1,0) stays at (1,0): index 0->0  
+                // (0,1) moves to (1,2): index 1->3
+                // (1,1) stays at (1,1): index 2->1
+                // (2,1) stays at (2,1): index 3->2
+                match (from_state, to_state) {
+                    (0, 1) => [0, 2, 3, 1], // new[0]=old[0], new[1]=old[2], new[2]=old[3], new[3]=old[1]
+                    (1, 2) => [3, 0, 1, 2], // Continue the rotation pattern
+                    (2, 3) => [2, 1, 0, 3], // Continue the rotation pattern
+                    (3, 0) => [1, 3, 2, 0], // Back to original
+                    _ => [0, 1, 2, 3], // Fallback
+                }
+            }
+            TetrominoShape::I => {
+                // I-mino rotation mappings
+                match (from_state, to_state) {
+                    (0, 1) => [3, 2, 1, 0], // Horizontal to vertical
+                    (1, 2) => [3, 2, 1, 0], // Vertical to horizontal
+                    (2, 3) => [3, 2, 1, 0], // Same pattern
+                    (3, 0) => [3, 2, 1, 0], // Same pattern
+                    _ => [0, 1, 2, 3], // Fallback
+                }
+            }
+            TetrominoShape::L => {
+                // L-mino rotation mappings
+                match (from_state, to_state) {
+                    (0, 1) => [1, 2, 3, 0], // Clockwise rotation
+                    (1, 2) => [1, 2, 3, 0],
+                    (2, 3) => [1, 2, 3, 0],
+                    (3, 0) => [1, 2, 3, 0],
+                    _ => [0, 1, 2, 3],
+                }
+            }
+            TetrominoShape::J => {
+                // J-mino rotation mappings (mirror of L)
+                match (from_state, to_state) {
+                    (0, 1) => [3, 0, 1, 2],
+                    (1, 2) => [3, 0, 1, 2],
+                    (2, 3) => [3, 0, 1, 2],
+                    (3, 0) => [3, 0, 1, 2],
+                    _ => [0, 1, 2, 3],
+                }
+            }
+            TetrominoShape::S => {
+                // S-mino rotation mappings
+                match (from_state, to_state) {
+                    (0, 1) => [2, 3, 0, 1],
+                    (1, 2) => [2, 3, 0, 1],
+                    (2, 3) => [2, 3, 0, 1],
+                    (3, 0) => [2, 3, 0, 1],
+                    _ => [0, 1, 2, 3],
+                }
+            }
+            TetrominoShape::Z => {
+                // Z-mino rotation mappings (mirror of S)
+                match (from_state, to_state) {
+                    (0, 1) => [1, 0, 3, 2],
+                    (1, 2) => [1, 0, 3, 2],
+                    (2, 3) => [1, 0, 3, 2],
+                    (3, 0) => [1, 0, 3, 2],
+                    _ => [0, 1, 2, 3],
+                }
+            }
+            _ => [0, 1, 2, 3], // O-mino and fallback
+        };
+        
+        let old_index = rotation_mapping[new_index];
+        self.blocks[old_index].1
     }
 
     pub fn rotated_counter_clockwise(&self) -> Self {
