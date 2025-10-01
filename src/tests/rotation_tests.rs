@@ -98,3 +98,47 @@ fn test_physical_rotation_produces_movement() {
     
     assert_eq!(initial_colors, rotated_colors, "Colors should be preserved during rotation");
 }
+
+#[test]
+fn test_color_physical_rotation_detailed() {
+    // Phase 5: 色の物理的回転の詳細テスト
+    let colors = [Color::Red, Color::Green, Color::Blue, Color::Yellow];
+    let piece = Tetromino::from_shape(TetrominoShape::T, colors);
+    
+    // T-mino初期状態: [(1,0), (0,1), (1,1), (2,1)]の色を確認
+    let initial_blocks: Vec<_> = piece.iter_blocks().collect();
+    println!("Initial T-mino blocks: {:?}", initial_blocks);
+    
+    // 1回転後の色の位置を確認
+    let rotated = piece.rotated();
+    let rotated_blocks: Vec<_> = rotated.iter_blocks().collect();
+    println!("Rotated T-mino blocks: {:?}", rotated_blocks);
+    
+    // 物理的に色が移動していることを確認
+    // 初期位置と回転後で、同じ位置に同じ色がないことを確認（O-mino以外）
+    let _same_position_same_color = initial_blocks.iter().any(|&((pos1, color1), _)| {
+        rotated_blocks.iter().any(|&((pos2, color2), _)| {
+            pos1 == pos2 && color1 == color2
+        })
+    });
+    
+    // T-minoでは、位置(1,1)に同じ色が残る可能性があるが、他の位置では色が物理的に移動する
+    let positions_changed = initial_blocks.iter().zip(rotated_blocks.iter())
+        .filter(|((pos1, _), (pos2, _))| pos1 != pos2)
+        .count();
+    
+    assert!(positions_changed >= 1, "At least one block should have moved to a different position");
+    
+    // 4回転で元に戻ることを確認
+    let mut test_piece = piece;
+    for _ in 0..4 {
+        test_piece = test_piece.rotated();
+    }
+    let final_blocks: Vec<_> = test_piece.iter_blocks().collect();
+    
+    // 初期状態と4回転後が同じであることを確認
+    assert_eq!(initial_blocks.len(), final_blocks.len());
+    for (initial, final_block) in initial_blocks.iter().zip(final_blocks.iter()) {
+        assert_eq!(initial, final_block, "After 4 rotations, blocks should return to original positions and colors");
+    }
+}

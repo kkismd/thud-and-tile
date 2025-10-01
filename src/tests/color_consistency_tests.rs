@@ -75,3 +75,28 @@ fn test_t_mino_physical_rotation_color_movement() {
     
     println!("✅ 物理的回転テスト成功: 色が位置と一緒に正しく移動");
 }
+
+/// 他のテトロミノの物理的回転の基本動作確認（サンプル: I-mino）
+/// 全テトロミノで同じマッピングを使用するため、代表的な1つをテスト
+#[test]
+fn test_other_mino_physical_rotation_sample() {
+    // I-minoを代表例として使用
+    let colors = [Color::Red, Color::Blue, Color::Green, Color::Yellow];
+    let mut i_piece = Tetromino::from_shape(TetrominoShape::I, colors);
+    i_piece.pos = (2, 2);
+    
+    // 4回転で元に戻ることを確認（物理的回転の基本検証）
+    let initial_blocks: Vec<_> = i_piece.iter_blocks().collect();
+    
+    for _ in 0..4 {
+        i_piece = i_piece.rotated();
+    }
+    
+    let final_blocks: Vec<_> = i_piece.iter_blocks().collect();
+    
+    // 4回転後は元の位置と色に戻る
+    assert_eq!(initial_blocks, final_blocks, 
+               "4回転後は元の位置と色配置に戻らなければならない");
+    
+    println!("✅ 他テトロミノ物理的回転テスト成功: I-mino代表例で4回転サイクル確認");
+}

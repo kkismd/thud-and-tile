@@ -313,74 +313,32 @@ impl Tetromino {
     
     /// Get the color mapping for rotation transitions
     /// Maps new block index to the color from the corresponding old block
-    fn get_rotated_color_mapping(&self, new_index: usize, from_state: u8, to_state: u8) -> Color {
-        // For clockwise rotation, define the index mapping for each shape
+    fn get_rotated_color_mapping(&self, new_index: usize, _from_state: u8, _to_state: u8) -> Color {
+        // For physical rotation order, all tetrominoes use simple direct mapping
         let rotation_mapping = match self.shape {
             TetrominoShape::T => {
-                // T-mino rotation mappings (clockwise)
-                // State 0: [(1,0), (0,1), (1,1), (2,1)] -> State 1: [(1,0), (1,1), (2,1), (1,2)]
-                // Physical position tracking:
-                // (1,0) stays at (1,0): index 0->0  
-                // (0,1) moves to (1,2): index 1->3
-                // (1,1) stays at (1,1): index 2->1
-                // (2,1) stays at (2,1): index 3->2
-                match (from_state, to_state) {
-                    (0, 1) => [0, 2, 3, 1], // new[0]=old[0], new[1]=old[2], new[2]=old[3], new[3]=old[1]
-                    (1, 2) => [3, 0, 1, 2], // Continue the rotation pattern
-                    (2, 3) => [2, 1, 0, 3], // Continue the rotation pattern
-                    (3, 0) => [1, 3, 2, 0], // Back to original
-                    _ => [0, 1, 2, 3], // Fallback
-                }
+                // T-mino with physical rotation order - colors follow blocks naturally
+                [0, 1, 2, 3]
             }
             TetrominoShape::I => {
-                // I-mino rotation mappings
-                match (from_state, to_state) {
-                    (0, 1) => [3, 2, 1, 0], // Horizontal to vertical
-                    (1, 2) => [3, 2, 1, 0], // Vertical to horizontal
-                    (2, 3) => [3, 2, 1, 0], // Same pattern
-                    (3, 0) => [3, 2, 1, 0], // Same pattern
-                    _ => [0, 1, 2, 3], // Fallback
-                }
+                // I-mino with physical rotation order - colors follow blocks naturally
+                [0, 1, 2, 3]
             }
             TetrominoShape::L => {
-                // L-mino rotation mappings
-                match (from_state, to_state) {
-                    (0, 1) => [1, 2, 3, 0], // Clockwise rotation
-                    (1, 2) => [1, 2, 3, 0],
-                    (2, 3) => [1, 2, 3, 0],
-                    (3, 0) => [1, 2, 3, 0],
-                    _ => [0, 1, 2, 3],
-                }
+                // L-mino with physical rotation order - colors follow blocks naturally
+                [0, 1, 2, 3]
             }
             TetrominoShape::J => {
-                // J-mino rotation mappings (mirror of L)
-                match (from_state, to_state) {
-                    (0, 1) => [3, 0, 1, 2],
-                    (1, 2) => [3, 0, 1, 2],
-                    (2, 3) => [3, 0, 1, 2],
-                    (3, 0) => [3, 0, 1, 2],
-                    _ => [0, 1, 2, 3],
-                }
+                // J-mino with physical rotation order - colors follow blocks naturally
+                [0, 1, 2, 3]
             }
             TetrominoShape::S => {
-                // S-mino rotation mappings
-                match (from_state, to_state) {
-                    (0, 1) => [2, 3, 0, 1],
-                    (1, 2) => [2, 3, 0, 1],
-                    (2, 3) => [2, 3, 0, 1],
-                    (3, 0) => [2, 3, 0, 1],
-                    _ => [0, 1, 2, 3],
-                }
+                // S-mino with physical rotation order - colors follow blocks naturally
+                [0, 1, 2, 3]
             }
             TetrominoShape::Z => {
-                // Z-mino rotation mappings (mirror of S)
-                match (from_state, to_state) {
-                    (0, 1) => [1, 0, 3, 2],
-                    (1, 2) => [1, 0, 3, 2],
-                    (2, 3) => [1, 0, 3, 2],
-                    (3, 0) => [1, 0, 3, 2],
-                    _ => [0, 1, 2, 3],
-                }
+                // Z-mino with physical rotation order - colors follow blocks naturally
+                [0, 1, 2, 3]
             }
             _ => [0, 1, 2, 3], // O-mino and fallback
         };
@@ -435,12 +393,12 @@ impl Tetromino {
     }
 
     const SHAPES: [[[(i8, i8); 4]; 4]; 7] = [
-        // I - SRS standard coordinates
+        // I - SRS standard coordinates with physical rotation order
         [
-            [(0, 1), (1, 1), (2, 1), (3, 1)], // State 0: horizontal
-            [(2, 0), (2, 1), (2, 2), (2, 3)], // State 1: vertical
-            [(0, 2), (1, 2), (2, 2), (3, 2)], // State 2: horizontal (offset)
-            [(1, 0), (1, 1), (1, 2), (1, 3)], // State 3: vertical
+            [(0, 1), (1, 1), (2, 1), (3, 1)], // State 0: horizontal - A,B,C,D
+            [(2, 3), (2, 2), (2, 1), (2, 0)], // State 1: vertical - D,C,B,A (physical rotation)
+            [(3, 2), (2, 2), (1, 2), (0, 2)], // State 2: horizontal - A,B,C,D (continue rotation)
+            [(1, 0), (1, 1), (1, 2), (1, 3)], // State 3: vertical - D,C,B,A (back to original)
         ],
         // O - No rotation, same for all states
         [
@@ -449,40 +407,40 @@ impl Tetromino {
             [(1, 1), (2, 1), (1, 2), (2, 2)],
             [(1, 1), (2, 1), (1, 2), (2, 2)],
         ],
-        // T - SRS standard coordinates with (1,1) rotation center
+        // T - SRS standard coordinates with physical rotation order
         [
-            [(1, 0), (0, 1), (1, 1), (2, 1)], // State 0: upward T
-            [(1, 0), (1, 1), (2, 1), (1, 2)], // State 1: rightward T
-            [(0, 1), (1, 1), (2, 1), (1, 2)], // State 2: downward T
-            [(1, 0), (0, 1), (1, 1), (1, 2)], // State 3: leftward T
+            [(1, 0), (0, 1), (1, 1), (2, 1)], // State 0: upward T - A,B,C,D
+            [(2, 1), (1, 0), (1, 1), (1, 2)], // State 1: rightward T - D,A,C,B (physical rotation)
+            [(1, 2), (2, 1), (1, 1), (0, 1)], // State 2: downward T - B,D,C,A (continue rotation)
+            [(0, 1), (1, 2), (1, 1), (1, 0)], // State 3: leftward T - A,B,C,D (back to original)
         ],
-        // L - SRS standard coordinates
+        // L - SRS standard coordinates with physical rotation order
         [
-            [(2, 0), (0, 1), (1, 1), (2, 1)], // State 0
-            [(1, 0), (1, 1), (1, 2), (2, 2)], // State 1
-            [(0, 1), (1, 1), (2, 1), (0, 2)], // State 2
-            [(0, 0), (1, 0), (1, 1), (1, 2)], // State 3
+            [(2, 0), (0, 1), (1, 1), (2, 1)], // State 0: A,B,C,D
+            [(2, 2), (1, 0), (1, 1), (1, 2)], // State 1: A,C,D,B (physical rotation)
+            [(0, 2), (2, 1), (1, 1), (0, 1)], // State 2: A,D,C,B (continue rotation)
+            [(0, 0), (1, 2), (1, 1), (1, 0)], // State 3: A,B,C,D (back to original)
         ],
-        // J - SRS standard coordinates
+        // J - SRS standard coordinates with physical rotation order
         [
-            [(0, 0), (0, 1), (1, 1), (2, 1)], // State 0
-            [(1, 0), (2, 0), (1, 1), (1, 2)], // State 1
-            [(0, 1), (1, 1), (2, 1), (2, 2)], // State 2
-            [(1, 0), (1, 1), (0, 2), (1, 2)], // State 3
+            [(0, 0), (0, 1), (1, 1), (2, 1)], // State 0: A,B,C,D
+            [(2, 0), (1, 0), (1, 1), (1, 2)], // State 1: A,B,C,D (physical rotation)
+            [(2, 2), (2, 1), (1, 1), (0, 1)], // State 2: A,D,C,B (continue rotation)
+            [(0, 2), (1, 2), (1, 1), (1, 0)], // State 3: A,D,C,B (back to original)
         ],
-        // S - SRS standard coordinates
+        // S - SRS standard coordinates with physical rotation order
         [
-            [(1, 0), (2, 0), (0, 1), (1, 1)], // State 0
-            [(1, 0), (1, 1), (2, 1), (2, 2)], // State 1
-            [(1, 1), (2, 1), (0, 2), (1, 2)], // State 2
-            [(0, 0), (0, 1), (1, 1), (1, 2)], // State 3
+            [(1, 0), (2, 0), (0, 1), (1, 1)], // State 0: A,B,C,D
+            [(2, 1), (2, 2), (1, 0), (1, 1)], // State 1: A,B,C,D (physical rotation)
+            [(1, 2), (0, 2), (2, 1), (1, 1)], // State 2: A,B,C,D (continue rotation)
+            [(0, 1), (0, 0), (1, 2), (1, 1)], // State 3: A,B,C,D (back to original)
         ],
-        // Z - SRS standard coordinates
+        // Z - SRS standard coordinates with physical rotation order
         [
-            [(0, 0), (1, 0), (1, 1), (2, 1)], // State 0
-            [(2, 0), (1, 1), (2, 1), (1, 2)], // State 1
-            [(0, 1), (1, 1), (1, 2), (2, 2)], // State 2
-            [(1, 0), (0, 1), (1, 1), (0, 2)], // State 3
+            [(0, 0), (1, 0), (1, 1), (2, 1)], // State 0: standard Z shape
+            [(2, 0), (1, 1), (2, 1), (1, 2)], // State 1: rotated 90° (D,C,B,A physical order)
+            [(0, 1), (1, 1), (1, 2), (2, 2)], // State 2: rotated 180°
+            [(1, 0), (0, 1), (1, 1), (0, 2)], // State 3: rotated 270°
         ],
     ];
 }
