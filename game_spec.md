@@ -174,7 +174,7 @@ MAX-CHAIN: 5
         *   `GameState::lock_piece()` 内の `max_chain` 更新ロジックが簡潔で読みやすいことを確認する。
 
 *   **ステップ 2.3: より大きな連結数での `max_chain` 更新テスト**
-    *   **Red:**
+    *   [x] **Red:**
         *   `src/tests/game_state_tests.rs` に `test_max_chain_updates_on_larger_chain` を追加する。
         *   既存の `max_chain` よりも大きな連結数を持つテトリミノを配置し、`lock_piece()` を呼び出した後、`max_chain` がさらに大きい値に更新されていることをアサートする。
         *   このテストが失敗することを確認する。

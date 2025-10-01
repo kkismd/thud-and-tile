@@ -440,6 +440,37 @@ fn test_multiple_gray_lines_stack_and_reduce_board_height() {
 }
 
 #[test]
+fn test_max_chain_updates_on_larger_chain() {
+    // 盤面に2つのシアンブロックを配置して初期化
+    let initial_blocks = vec![
+        ((0, BOARD_HEIGHT - 1), Color::Cyan),
+        ((1, BOARD_HEIGHT - 1), Color::Cyan),
+    ];
+    let mut state = setup_game_state_with_fixed_blocks(&initial_blocks);
+    state.mode = GameMode::Playing;
+
+    // 初期状態でのmax_chainが2であることをシミュレート
+    state.custom_score.max_chains.insert(Color::Cyan, 2);
+
+    // 4つのシアンブロックを持つIテトリミノを配置し、着地させる
+    let piece_to_lock = Tetromino::from_shape(
+        TetrominoShape::I,
+        [Color::Cyan, Color::Cyan, Color::Cyan, Color::Cyan],
+    );
+    // 盤面の上部に配置し、着地させる
+    state.current_piece = Some(piece_to_lock.moved(0, (BOARD_HEIGHT - 1) as i8 - 1)); // 盤面最下段の1つ上に配置
+
+    let time_provider = MockTimeProvider::new();
+    state.lock_piece(&time_provider);
+
+    // max_chainのシアンが4に更新されていることを期待する（既存の2より大きい）
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Cyan).unwrap(), 4);
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Magenta).unwrap(), 0);
+    assert_eq!(*state.custom_score.max_chains.get(&Color::Yellow).unwrap(), 0);
+}
+
+
+#[test]
 fn test_max_chain_updates_on_first_lock() {
     let mut state = setup_game_state_with_fixed_blocks(&[]); // 空の盤面で初期化
     state.mode = GameMode::Playing; // ゲームモードをPlayingに設定
