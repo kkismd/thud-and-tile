@@ -415,7 +415,7 @@ pub fn draw<R: Renderer>(
                 let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
                 renderer.set_foreground_color(Color::White)?;
                 renderer.move_to(ui_x, 2)?;
-                renderer.print("SCORE:    0     ")?;
+                renderer.print("SCORE:     0     ")?;
                 renderer.move_to(ui_x, 3)?;
                 renderer.print("  CYAN:    0     ")?;
                 renderer.move_to(ui_x, 4)?;
@@ -587,7 +587,7 @@ pub fn draw<R: Renderer>(
                 // Display total score
                 renderer.move_to(ui_x, 2)?;
                 renderer.print(
-                    format!("SCORE:    {:<6}", state.custom_score_system.scores.total()).as_str(),
+                    format!("SCORE:     {:<6}", state.custom_score_system.scores.total()).as_str(),
                 )?;
 
                 // Display color breakdown
