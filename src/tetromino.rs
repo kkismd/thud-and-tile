@@ -18,6 +18,61 @@ pub enum TetrominoShape {
     Z,
 }
 
+// SRS Standard Wall Kick Offset Tables
+// Phase 4 Refactor: Static tables for performance optimization
+
+/// SRS offset table for J, L, T, S, Z tetrominoes
+/// Index corresponds to transition: [0->1, 1->0, 1->2, 2->1, 2->3, 3->2, 3->0, 0->3]
+const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
+    // 0->1 transition
+    [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+    // 1->0 transition  
+    [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+    // 1->2 transition
+    [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+    // 2->1 transition
+    [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+    // 2->3 transition
+    [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+    // 3->2 transition
+    [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+    // 3->0 transition
+    [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+    // 0->3 transition
+    [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+];
+
+/// SRS offset table for I tetromino
+/// Index corresponds to transition: [0->1, 1->0, 1->2, 2->1, 2->3, 3->2, 3->0, 0->3]
+const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
+    // 0->1 transition
+    [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+    // 1->0 transition
+    [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+    // 1->2 transition
+    [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+    // 2->1 transition
+    [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+    // 2->3 transition
+    [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+    // 3->2 transition
+    [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+    // 3->0 transition
+    [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+    // 0->3 transition
+    [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+];
+
+/// Convert rotation state transition to offset table index
+/// Phase 4 Refactor: Optimized lookup function
+const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
+    match (from_state, to_state) {
+        (0, 1) => 0, (1, 0) => 1, (1, 2) => 2, (2, 1) => 3,
+        (2, 3) => 4, (3, 2) => 5, (3, 0) => 6, (0, 3) => 7,
+        _ => 0, // Default fallback
+    }
+}
+
 impl TetrominoShape {
     pub fn all_shapes() -> Vec<TetrominoShape> {
         vec![
@@ -152,11 +207,11 @@ impl Tetromino {
         let offsets = self.get_srs_wall_kick_offsets(original_state, target_state);
         
         // Try each offset in order until one works or all fail
-        for offset in offsets {
+        for &[offset_x, offset_y] in offsets {
             let mut candidate_piece = self.rotated();
             candidate_piece.pos = (
-                candidate_piece.pos.0 + offset.0 as i8,
-                candidate_piece.pos.1 + offset.1 as i8
+                candidate_piece.pos.0 + offset_x,
+                candidate_piece.pos.1 + offset_y
             );
             
             // For now, check basic bounds (in full game would check board collision)
@@ -169,41 +224,18 @@ impl Tetromino {
     }
     
     /// Get SRS standard wall kick offsets for a rotation transition
-    /// Returns Vec<(x_offset, y_offset)> in try order
-    fn get_srs_wall_kick_offsets(&self, from_state: u8, to_state: u8) -> Vec<(i32, i32)> {
+    /// Phase 4 Refactor: Optimized with static table lookup
+    fn get_srs_wall_kick_offsets(&self, from_state: u8, to_state: u8) -> &'static [[i8; 2]; 5] {
+        let index = get_transition_index(from_state, to_state);
+        
         match self.shape {
-            TetrominoShape::I => {
-                // SRS I-mino specific offsets
-                match (from_state, to_state) {
-                    (0, 1) => vec![(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
-                    (1, 0) => vec![(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
-                    (1, 2) => vec![(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
-                    (2, 1) => vec![(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
-                    (2, 3) => vec![(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
-                    (3, 2) => vec![(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
-                    (3, 0) => vec![(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
-                    (0, 3) => vec![(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
-                    _ => vec![(0, 0)], // Fallback
-                }
-            }
+            TetrominoShape::I => &SRS_I_OFFSETS[index],
             TetrominoShape::O => {
                 // O-mino doesn't need wall kicks (rotates in place)
-                vec![(0, 0)]
+                static O_OFFSETS: [[i8; 2]; 5] = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]];
+                &O_OFFSETS
             }
-            _ => {
-                // SRS J,L,T,S,Z offsets (all use same table)
-                match (from_state, to_state) {
-                    (0, 1) => vec![(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
-                    (1, 0) => vec![(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
-                    (1, 2) => vec![(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
-                    (2, 1) => vec![(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
-                    (2, 3) => vec![(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
-                    (3, 2) => vec![(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
-                    (3, 0) => vec![(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
-                    (0, 3) => vec![(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
-                    _ => vec![(0, 0)], // Fallback
-                }
-            }
+            _ => &SRS_JLTSZ_OFFSETS[index],
         }
     }
     
