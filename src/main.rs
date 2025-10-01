@@ -214,6 +214,7 @@ impl GameState {
                     color,
                     count: count as u8,
                 };
+                self.custom_score.update_max_chain(color, count);
             }
         }
     }

@@ -165,7 +165,7 @@ MAX-CHAIN: 5
         *   このヘルパー関数を使用して `GameState` を初期化し、特定のテトリミノを盤面に配置し、`GameState::lock_piece()` を呼び出す。
         *   `lock_piece` 実行後、盤面上の連結ブロックの数を手動で計算し、`CustomScore` の `max_chain` がその値に更新されていることをアサートする。
         *   このテストが失敗することを確認する。
-    *   **Green:**
+    *   [x] **Green:**
         *   `GameState::lock_piece()` 内で、`board_logic::count_connected_blocks` を呼び出し、盤面全体を対象として連結数を取得する。
         *   取得した連結数から、色ごとの `max_chain` を更新するロジックを `GameState` または `CustomScore` に追加する。
         *   テストがパスすることを確認する。

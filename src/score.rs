@@ -20,4 +20,11 @@ impl CustomScore {
         max_chains.insert(Color::Yellow, 0);
         Self { scores, max_chains }
     }
+
+    pub fn update_max_chain(&mut self, color: Color, count: u32) {
+        self.max_chains
+            .entry(color)
+            .and_modify(|e| *e = (*e).max(count))
+            .or_insert(count);
+    }
 }
