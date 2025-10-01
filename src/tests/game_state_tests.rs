@@ -7,6 +7,83 @@ fn test_game_starts_in_title_mode() {
 }
 
 #[test]
+fn test_new_score_calculation_system() {
+    // Test the new scoring formula: block_count × MAX-CHAIN × 10 points
+    let mut time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // Set up some MAX-CHAIN values
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Cyan, 3);
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Magenta, 2);
+
+    // Create a line with connected blocks at the bottom
+    state.board[19] = vec![
+        Cell::Connected {
+            color: Color::Cyan,
+            count: 2,
+        }, // 2 × 3 × 10 = 60 points
+        Cell::Connected {
+            color: Color::Magenta,
+            count: 1,
+        }, // 1 × 2 × 10 = 20 points
+        Cell::Connected {
+            color: Color::Cyan,
+            count: 3,
+        }, // 3 × 3 × 10 = 90 points
+        Cell::Connected {
+            color: Color::Cyan,
+            count: 2,
+        }, // 2 × 3 × 10 = 60 points
+        Cell::Connected {
+            color: Color::Magenta,
+            count: 1,
+        }, // 1 × 2 × 10 = 20 points
+        Cell::Connected {
+            color: Color::Cyan,
+            count: 3,
+        }, // 3 × 3 × 10 = 90 points
+        Cell::Connected {
+            color: Color::Cyan,
+            count: 2,
+        }, // 2 × 3 × 10 = 60 points
+        Cell::Connected {
+            color: Color::Magenta,
+            count: 1,
+        }, // 1 × 2 × 10 = 20 points
+        Cell::Connected {
+            color: Color::Cyan,
+            count: 3,
+        }, // 3 × 3 × 10 = 90 points
+        Cell::Connected {
+            color: Color::Magenta,
+            count: 1,
+        }, // 1 × 2 × 10 = 20 points
+    ];
+
+    let initial_cyan_score = state.custom_score_system.scores.get(Color::Cyan);
+    let initial_magenta_score = state.custom_score_system.scores.get(Color::Magenta);
+
+    // Trigger line clear using the clear_lines method
+    state.clear_lines(&[19], &time_provider);
+
+    // Verify new score calculation
+    let final_cyan_score = state.custom_score_system.scores.get(Color::Cyan);
+    let final_magenta_score = state.custom_score_system.scores.get(Color::Magenta);
+
+    // Expected: Cyan = (2+3+2+3+2+3)×3×10 = 15×3×10 = 450
+    // Expected: Magenta = (1+1+1+1)×2×10 = 4×2×10 = 80
+    assert_eq!(final_cyan_score - initial_cyan_score, 450);
+    assert_eq!(final_magenta_score - initial_magenta_score, 80);
+}
+
+#[test]
 fn test_connected_blocks_count_updated_after_animation_completion() {
     // Test that update_all_connected_block_counts is called after animation completion
     // This test verifies the fix for the bug where connected block counts weren't updated
@@ -781,6 +858,20 @@ fn test_color_score_updated_after_line_clear() {
     let mut state = GameState::new();
     state.mode = GameMode::Playing;
 
+    // Set up MAX-CHAIN values for scoring calculation
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Cyan, 2);
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Magenta, 3);
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Yellow, 1);
+
     // Initially, all color scores should be zero
     assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 0);
     assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 0);
@@ -789,44 +880,44 @@ fn test_color_score_updated_after_line_clear() {
 
     // Create a line with mixed colors to clear
     let clear_line_y = BOARD_HEIGHT - 1;
-    state.board[clear_line_y][0] = Cell::Occupied(Color::Cyan);
-    state.board[clear_line_y][1] = Cell::Occupied(Color::Cyan);
-    state.board[clear_line_y][2] = Cell::Occupied(Color::Magenta);
-    state.board[clear_line_y][3] = Cell::Occupied(Color::Magenta);
-    state.board[clear_line_y][4] = Cell::Occupied(Color::Magenta);
-    state.board[clear_line_y][5] = Cell::Occupied(Color::Yellow);
-    state.board[clear_line_y][6] = Cell::Occupied(Color::Yellow);
-    state.board[clear_line_y][7] = Cell::Occupied(Color::Cyan);
-    state.board[clear_line_y][8] = Cell::Occupied(Color::Magenta);
-    state.board[clear_line_y][9] = Cell::Occupied(Color::Yellow);
+    state.board[clear_line_y][0] = Cell::Occupied(Color::Cyan); // 1×2×10 = 20
+    state.board[clear_line_y][1] = Cell::Occupied(Color::Cyan); // 1×2×10 = 20
+    state.board[clear_line_y][2] = Cell::Occupied(Color::Magenta); // 1×3×10 = 30
+    state.board[clear_line_y][3] = Cell::Occupied(Color::Magenta); // 1×3×10 = 30
+    state.board[clear_line_y][4] = Cell::Occupied(Color::Magenta); // 1×3×10 = 30
+    state.board[clear_line_y][5] = Cell::Occupied(Color::Yellow); // 1×1×10 = 10
+    state.board[clear_line_y][6] = Cell::Occupied(Color::Yellow); // 1×1×10 = 10
+    state.board[clear_line_y][7] = Cell::Occupied(Color::Cyan); // 1×2×10 = 20
+    state.board[clear_line_y][8] = Cell::Occupied(Color::Magenta); // 1×3×10 = 30
+    state.board[clear_line_y][9] = Cell::Occupied(Color::Yellow); // 1×1×10 = 10
 
     // Clear the line (this should be treated as bottom line clear)
     let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
     state.animation.extend(new_animations);
 
-    // After line clear, scores should be updated based on block colors:
-    // Cyan: 3 blocks (positions 0, 1, 7)
-    // Magenta: 4 blocks (positions 2, 3, 4, 8)
-    // Yellow: 3 blocks (positions 5, 6, 9)
+    // After line clear, scores should be updated based on new formula:
+    // Cyan: 3 blocks × MAX-CHAIN(2) × 10 = 60 points
+    // Magenta: 4 blocks × MAX-CHAIN(3) × 10 = 120 points
+    // Yellow: 3 blocks × MAX-CHAIN(1) × 10 = 30 points
     assert_eq!(
         state.custom_score_system.scores.get(Color::Cyan),
-        3,
-        "Cyan should have 3 points from 3 cleared blocks"
+        60,
+        "Cyan should have 60 points from 3 blocks × 2 MAX-CHAIN × 10"
     );
     assert_eq!(
         state.custom_score_system.scores.get(Color::Magenta),
-        4,
-        "Magenta should have 4 points from 4 cleared blocks"
+        120,
+        "Magenta should have 120 points from 4 blocks × 3 MAX-CHAIN × 10"
     );
     assert_eq!(
         state.custom_score_system.scores.get(Color::Yellow),
-        3,
-        "Yellow should have 3 points from 3 cleared blocks"
+        30,
+        "Yellow should have 30 points from 3 blocks × 1 MAX-CHAIN × 10"
     );
     assert_eq!(
         state.custom_score_system.scores.total(),
-        10,
-        "Total score should be 10"
+        210,
+        "Total score should be 60 + 120 + 30 = 210"
     );
 }
 
@@ -839,6 +930,16 @@ fn test_color_score_accumulates_across_multiple_clears() {
     // Set initial scores
     state.custom_score_system.scores.add(Color::Cyan, 5);
     state.custom_score_system.scores.add(Color::Magenta, 10);
+
+    // Set MAX-CHAIN values for calculation
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Cyan, 2);
+    state
+        .custom_score_system
+        .max_chains
+        .update_max(Color::Yellow, 1);
 
     // Create a line with blocks to clear
     let clear_line_y = BOARD_HEIGHT - 1;
@@ -853,12 +954,12 @@ fn test_color_score_accumulates_across_multiple_clears() {
     let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
     state.animation.extend(new_animations);
 
-    // Scores should accumulate:
-    // Cyan: 5 (initial) + 5 (new) = 10
+    // Scores should accumulate using new formula:
+    // Cyan: 5 (initial) + (5 blocks × 2 MAX-CHAIN × 10) = 5 + 100 = 105
     // Magenta: 10 (initial) + 0 (new) = 10
-    // Yellow: 0 (initial) + 5 (new) = 5
-    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 10);
+    // Yellow: 0 (initial) + (5 blocks × 1 MAX-CHAIN × 10) = 0 + 50 = 50
+    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 105);
     assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 10);
-    assert_eq!(state.custom_score_system.scores.get(Color::Yellow), 5);
-    assert_eq!(state.custom_score_system.scores.total(), 25);
+    assert_eq!(state.custom_score_system.scores.get(Color::Yellow), 50);
+    assert_eq!(state.custom_score_system.scores.total(), 165);
 }

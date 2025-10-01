@@ -314,23 +314,6 @@ impl GameState {
         }
     }
 
-    #[deprecated(note = "Use custom_score_system for color-based scoring instead")]
-    #[allow(dead_code)]
-    fn update_score(&mut self, lines: u32) {
-        let points = match lines {
-            1 => 100,
-            2 => 300,
-            3 => 500,
-            4 => 800,
-            _ => 0,
-        };
-        self.score += points;
-        self.lines_cleared += lines;
-        if self.lines_cleared > 0 && self.lines_cleared % 10 == 0 {
-            self.fall_speed = self.fall_speed.saturating_sub(Duration::from_millis(50));
-        }
-    }
-
     fn clear_lines(&mut self, lines: &[usize], time_provider: &dyn TimeProvider) -> Vec<Animation> {
         let mut new_animations = Vec::new();
         let mut bottom_lines_cleared = Vec::new();
@@ -351,12 +334,23 @@ impl GameState {
             sorted_lines.sort_by(|a, b| b.cmp(a));
 
             // Count colors before clearing lines for custom scoring
+            // Use new scoring formula: block_count × MAX-CHAIN × 10 points
             for &line_y in &sorted_lines {
                 for x in 0..BOARD_WIDTH {
-                    if let Cell::Occupied(color) = self.board[line_y][x] {
-                        self.custom_score_system.scores.add(color, 1);
-                    } else if let Cell::Connected { color, count: _ } = self.board[line_y][x] {
-                        self.custom_score_system.scores.add(color, 1);
+                    match self.board[line_y][x] {
+                        Cell::Occupied(color) => {
+                            // Occupied blocks have count=1
+                            let points = self.custom_score_system.max_chains.get(color) * 10;
+                            self.custom_score_system.scores.add(color, points);
+                        }
+                        Cell::Connected { color, count } => {
+                            // Connected blocks use their actual count value
+                            let points = (count as u32)
+                                * self.custom_score_system.max_chains.get(color)
+                                * 10;
+                            self.custom_score_system.scores.add(color, points);
+                        }
+                        _ => {} // Empty cells and other types are ignored
                     }
                 }
             }
@@ -421,7 +415,6 @@ impl GameState {
                     // Hard Drop
                     while self.is_valid_position(&piece.moved(0, 1)) {
                         piece = piece.moved(0, 1);
-                        self.score += 2;
                     }
                 } else {
                     // Clockwise Rotation
@@ -435,7 +428,6 @@ impl GameState {
             KeyCode::Char(' ') => {
                 // Soft Drop
                 piece = piece.moved(0, 1);
-                self.score += 1;
             }
             _ => return,
         }

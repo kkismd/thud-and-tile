@@ -26,7 +26,7 @@ pub enum TetrominoShape {
 const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
     // 0->1 transition
     [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
-    // 1->0 transition  
+    // 1->0 transition
     [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
     // 1->2 transition
     [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
@@ -67,8 +67,14 @@ const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
 /// Phase 4 Refactor: Optimized lookup function
 const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
     match (from_state, to_state) {
-        (0, 1) => 0, (1, 0) => 1, (1, 2) => 2, (2, 1) => 3,
-        (2, 3) => 4, (3, 2) => 5, (3, 0) => 6, (0, 3) => 7,
+        (0, 1) => 0,
+        (1, 0) => 1,
+        (1, 2) => 2,
+        (2, 1) => 3,
+        (2, 3) => 4,
+        (3, 2) => 5,
+        (3, 0) => 6,
+        (0, 3) => 7,
         _ => 0, // Default fallback
     }
 }
@@ -208,18 +214,18 @@ impl Tetromino {
     pub fn rotated_with_wall_kick(&self) -> Self {
         let original_state = self.get_rotation_state();
         let target_state = (original_state + 1) % 4;
-        
+
         // Get SRS wall kick offset table for this transition
         let offsets = self.get_srs_wall_kick_offsets(original_state, target_state);
-        
+
         // Try each offset in order until one works or all fail
         for &[offset_x, offset_y] in offsets {
             let mut candidate_piece = self.rotated();
             candidate_piece.pos = (
                 candidate_piece.pos.0 + offset_x,
-                candidate_piece.pos.1 + offset_y
+                candidate_piece.pos.1 + offset_y,
             );
-            
+
             // For now, check basic bounds (in full game would check board collision)
             if self.is_position_valid(&candidate_piece) {
                 return candidate_piece;
@@ -228,12 +234,12 @@ impl Tetromino {
         // If all offsets fail, return normal rotation (in real game might fail)
         self.rotated()
     }
-    
+
     /// Get SRS standard wall kick offsets for a rotation transition
     /// Phase 4 Refactor: Optimized with static table lookup
     fn get_srs_wall_kick_offsets(&self, from_state: u8, to_state: u8) -> &'static [[i8; 2]; 5] {
         let index = get_transition_index(from_state, to_state);
-        
+
         match self.shape {
             TetrominoShape::I => &SRS_I_OFFSETS[index],
             TetrominoShape::O => {
@@ -244,13 +250,13 @@ impl Tetromino {
             _ => &SRS_JLTSZ_OFFSETS[index],
         }
     }
-    
+
     /// Check if a piece position is valid (basic bounds checking)
     /// In full game would also check board collision
     fn is_position_valid(&self, piece: &Self) -> bool {
         const BOARD_WIDTH: i8 = 10;
         const BOARD_HEIGHT: i8 = 20;
-        
+
         for ((block_x, block_y), _) in piece.iter_blocks() {
             if block_x < 0 || block_x >= BOARD_WIDTH || block_y < 0 || block_y >= BOARD_HEIGHT {
                 return false;
@@ -310,7 +316,7 @@ impl Tetromino {
         new_piece.rotation_state = next_rotation_state;
         new_piece
     }
-    
+
     /// Get the color mapping for rotation transitions
     /// Maps new block index to the color from the corresponding old block
     fn get_rotated_color_mapping(&self, new_index: usize, _from_state: u8, _to_state: u8) -> Color {
@@ -342,7 +348,7 @@ impl Tetromino {
             }
             _ => [0, 1, 2, 3], // O-mino and fallback
         };
-        
+
         let old_index = rotation_mapping[new_index];
         self.blocks[old_index].1
     }
