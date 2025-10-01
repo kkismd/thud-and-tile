@@ -141,11 +141,17 @@ MAX-CHAIN: 5
 
 **ステップ 3: `MAX-CHAIN` の計算と更新を実装する (Red)**
 
-1.  **Red:** `GameState::update_connected_block_counts` が呼ばれた後、または `GameState::lock_piece` 内で、`board_logic::count_connected_blocks` の結果を利用して、各色の `max_chain_by_color` を更新するロジックを追加する。
-    *   `max_chain_by_color` は、ゲームプレイ中の最大連結数を保持するようにする。
-2.  **Test:**
-    *   テトリミノが着地し、`Cell::Connected` が更新された後、`max_chain_by_color` が正しく最大値を保持していることを確認するテストを追加する。
-    *   異なる色のテトリミノが着地した場合に、それぞれの色の `max_chain_by_color` が独立して更新されることを確認するテストを追加する。
+ステップ 3.1: `GameState::update_connected_block_counts` 内で `max_chain_by_color` を更新するロジックを追加する (Red)
+
+1. **Red:** GameState::update_connected_block_counts 関数内で、board_logic::count_connected_blocks 
+   から返される各ブロックの連結数 (component_size) を利用して、対応する色の max_chain_by_color 
+   を更新するロジックを追加する。
+    * 現在の max_chain_by_color の値と component_size を比較し、大きい方を採用する。
+2. **Test:**
+    * update_connected_block_counts が呼ばれたときに、max_chain_by_color 
+      が正しく更新されることを確認するテストを追加する。
+    * 同じ色のブロックが異なる連結数で出現した場合に、max_chain_by_color 
+      が常に最大値を保持することを確認するテストを追加する。
 
 **ステップ 4: UI表示を更新する (Green)**
 
@@ -163,9 +169,39 @@ MAX-CHAIN: 5
     *   `mock_renderer` を使用して、新しいスコア表示が正しくレンダリングされることを確認するテストを追加する。
     *   `score_by_color` や `max_chain_by_color` の値が変更されたときに、UIが更新されることを確認するテストを追加する。
 
-**ステップ 5: `Cell::Solid` と `current_board_height` の挙動を調整する (Refactor)**
+ステップ 5.1: `GameState` に `solid_lines_count` フィールドを追加し、`current_board_height` 
+の計算を調整する (Refactor)
 
-1.  **Refactor:** `game_spec.md` の「灰色のラインが一番したの段に達したらSolidのままで残り、フィールドの高さがそのラインの数だけ減る」という記述に合わせて、`handle_push_down_animation` 内の `Cell::Solid` の扱いと `current_board_height` の更新ロジックを見直す。
-    *   `Cell::Solid` がボードから削除されるのではなく、ボードの下部に固定されるように変更する。
-    *   `current_board_height` が、プレイ可能な領域の高さを示すように調整する。
-2.  **Test:** 既存のテストが壊れないことを確認し、必要であれば新しいテストを追加して、`Cell::Solid` と `current_board_height` の新しい挙動が正しいことを検証する。
+1. Refactor: GameState に solid_lines_count: usize フィールドを追加し、GameState::new() 
+   で初期化する。
+2. Refactor: current_board_height の計算を BOARD_HEIGHT - solid_lines_count に変更する。
+3. Test: GameState::new() が呼ばれたときに solid_lines_count 
+   が正しく初期化され、current_board_height が正しく計算されることを確認するテストを追加する。
+
+ステップ 5.2.1: `handle_push_down_animation` で灰色のラインを `Cell::Solid` に変換し、`solid_lines_count` を更新する (Refactor)
+
+1.  **Refactor:** `handle_push_down_animation` 関数内で、灰色のラインが一番下の段に達したときに、そのラインを `Cell::Solid` で埋めるように変更する。
+2.  **Refactor:** `solid_lines_count` をインクリメントする。
+3.  **Test:**
+    *   灰色のラインが一番下の段に達したときに、そのラインが `Cell::Solid` に変換され、`solid_lines_count` が正しくインクリメントされることを確認するテストを追加する。
+
+ステップ 5.2.2: `Board` 構造体または関連する描画ロジックで、`current_board_height` に基づいてボードの表示範囲を調整する (Refactor)
+
+1.  **Refactor:** `Board` 構造体または `render.rs` 内の描画ロジックを修正し、`current_board_height` を利用して、実際に描画されるボードの範囲を調整する。これにより、`solid_lines_count` によって隠された下部の行が描画されないようにする。
+2.  **Test:**
+    *   `current_board_height` が減少したときに、描画されるボードの高さが正しく調整され、`solid_lines_count` に対応する行が描画されないことを確認するテストを追加する。
+    *   ボードの枠線も `current_board_height` に合わせて正しく描画されることを確認するテストを追加する。
+
+ステップ 5.3: `is_valid_position` および関連ロジックを `current_board_height` に対応させる 
+(Refactor)
+
+1. Refactor: is_valid_position 関数が current_board_height を適切に利用して、テトリミノがプレイ
+   可能な領域内に収まっているかをチェックするように変更する。
+2. Refactor: draw 関数など、ボードの高さに依存する他の描画ロジックも current_board_height 
+   に対応させる。
+3. Test:
+    * current_board_height が減少したときに、テトリミノが以前は有効だった位置で無効になることを
+      確認するテストを追加する。
+    * draw 関数が current_board_height 
+      に応じてボードの枠線を正しく描画することを確認するテストを追加する。
+
