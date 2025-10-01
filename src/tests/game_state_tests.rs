@@ -8,7 +8,7 @@ fn test_game_starts_in_title_mode() {
 
 #[test]
 fn test_connected_blocks_count_updated_after_animation_completion() {
-    // Test that update_connected_block_counts is called after animation completion
+    // Test that update_all_connected_block_counts is called after animation completion
     // This test verifies the fix for the bug where connected block counts weren't updated
     // after line clear animations completed.
 
@@ -18,78 +18,75 @@ fn test_connected_blocks_count_updated_after_animation_completion() {
 
     let test_color = Color::Red;
 
-    // Create a simple scenario: place connected blocks on the board
-    state.board[BOARD_HEIGHT - 2][0] = Cell::Connected {
+    // Set up a realistic scenario: reduced board height with solid lines at bottom
+    state.current_board_height = BOARD_HEIGHT - 3; // Leave some space for solid lines
+    for x in 0..BOARD_WIDTH {
+        state.board[BOARD_HEIGHT - 1][x] = Cell::Solid;
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Solid;
+        state.board[BOARD_HEIGHT - 3][x] = Cell::Solid;
+    }
+
+    // Create connected blocks in the active area with wrong counts
+    let test_y = state.current_board_height - 2; // Place in active area
+    state.board[test_y][0] = Cell::Connected {
         color: test_color,
         count: 3, // Wrong count initially
     };
-    state.board[BOARD_HEIGHT - 2][1] = Cell::Connected {
+    state.board[test_y][1] = Cell::Connected {
         color: test_color,
         count: 3, // Wrong count initially
     };
     // Only 2 blocks connected, so count should be 2
 
-    // Create a simple scenario that triggers the bug fix:
-    // Manually set up a PushDown animation that will complete quickly
+    // Create a PushDown animation that will complete when it hits solid
     state.animation.push(Animation::PushDown {
-        gray_line_y: BOARD_HEIGHT - 1,
+        gray_line_y: state.current_board_height - 1,
         start_time: time_provider.now(),
     });
 
-    // Force the current_board_height to be 1 so animation completes immediately
-    state.current_board_height = 1;
+    // Turn the gray line to gray (simulating the line clear process)
+    for x in 0..BOARD_WIDTH {
+        state.board[state.current_board_height - 1][x] = Cell::Occupied(Color::Grey);
+    }
 
-    // Process the animation - this should call update_connected_block_counts
+    // Process the animation - this should call update_all_connected_block_counts
     time_provider.advance(PUSH_DOWN_STEP_DURATION);
     handle_animation(&mut state, &time_provider);
 
-    // After the fix, the animation should complete and update_connected_block_counts should be called
+    // After the fix, the animation should complete and update_all_connected_block_counts should be called
     assert!(state.animation.is_empty(), "Animation should be complete");
 
     // The bottom line should be solid (from the completed PushDown)
     for x in 0..BOARD_WIDTH {
-        assert_eq!(state.board[BOARD_HEIGHT - 1][x], Cell::Solid);
+        assert_eq!(state.board[state.current_board_height][x], Cell::Solid);
     }
 
-    // Most importantly: verify that update_connected_block_counts was called
-    // The blocks that were originally at [BOARD_HEIGHT - 2] should have their counts updated
-    if let Cell::Connected { color, count } = state.board[BOARD_HEIGHT - 2][0] {
+    // Most importantly: verify that update_all_connected_block_counts was called
+    // The connected blocks should have been updated to the correct count
+    if let Cell::Connected { color, count } = state.board[test_y][0] {
         assert_eq!(color, test_color);
         assert_eq!(
             count, 2,
             "Connected block count should be updated from 3 to 2 after animation completion - this verifies the bug fix"
         );
     } else {
-        // If this fails, it might indicate that the blocks moved during animation
-        // Let's check if they moved to the top
-        if let Cell::Connected { color, count } = state.board[0][0] {
-            assert_eq!(color, test_color);
-            assert_eq!(
-                count, 2,
-                "Connected block count should be updated after animation completion"
-            );
-        } else {
-            panic!("Expected connected block not found after animation");
-        }
+        panic!(
+            "Block should be Connected after animation completion, but found: {:?}",
+            state.board[test_y][0]
+        );
     }
 
-    if let Cell::Connected { color, count } = state.board[BOARD_HEIGHT - 2][1] {
+    if let Cell::Connected { color, count } = state.board[test_y][1] {
         assert_eq!(color, test_color);
         assert_eq!(
             count, 2,
             "Connected block count should be updated from 3 to 2 after animation completion"
         );
     } else {
-        // Check if it moved to the top
-        if let Cell::Connected { color, count } = state.board[0][1] {
-            assert_eq!(color, test_color);
-            assert_eq!(
-                count, 2,
-                "Connected block count should be updated after animation completion"
-            );
-        } else {
-            panic!("Expected connected block not found after animation");
-        }
+        panic!(
+            "Block should be Connected after animation completion, but found: {:?}",
+            state.board[test_y][1]
+        );
     }
 }
 
@@ -559,4 +556,106 @@ fn test_connected_blocks_separation_after_line_clear() {
         found_top_group,
         "Should find a group of 2 connected blocks after line clear separation"
     );
+}
+
+#[test]
+fn test_connected_blocks_count_updated_after_bottom_line_clear() {
+    // Test that connected blocks are updated even when clearing the bottom line of current field
+    // (i.e., current_board_height - 1, which is just above solid lines)
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    let test_color = Color::Red;
+
+    // Set up some solid lines at the bottom to simulate a reduced field
+    state.current_board_height = BOARD_HEIGHT - 2; // Simulate field with solid lines at bottom
+    for x in 0..BOARD_WIDTH {
+        state.board[BOARD_HEIGHT - 1][x] = Cell::Solid;
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Solid;
+    }
+
+    // Create a full line at the current bottom (current_board_height - 1)
+    let bottom_line_y = state.current_board_height - 1;
+    for x in 0..BOARD_WIDTH {
+        state.board[bottom_line_y][x] = Cell::Occupied(Color::Blue);
+    }
+
+    // Place connected blocks above the line to be cleared with wrong counts
+    // After bottom line clear, these will move down by 1 position
+    state.board[bottom_line_y - 1][0] = Cell::Connected {
+        color: test_color,
+        count: 3, // Wrong count - should be 2 after line clear
+    };
+    state.board[bottom_line_y - 1][1] = Cell::Connected {
+        color: test_color,
+        count: 3, // Wrong count - should be 2 after line clear
+    };
+    // No block at position 2, so they should only count as 2
+
+    // Process line clear - this should be treated as bottom line clear
+    let new_animations = state.clear_lines(&[bottom_line_y], &time_provider);
+    state.animation.extend(new_animations);
+
+    // The line should be cleared immediately (standard Tetris clear) with no animations
+    assert!(
+        state.animation.is_empty(),
+        "Bottom line clear should not create animations"
+    );
+
+    // After bottom line clear, the connected blocks move down by one position
+    // The new position would be bottom_line_y - 1, which was originally bottom_line_y - 1,
+    // but after the line at bottom_line_y is removed, they shift down to bottom_line_y - 1
+
+    // Verify that the connected blocks have been updated to the correct count
+    // After bottom line clear with board.remove + board.insert(0, empty), the blocks move up
+    // Find where the connected blocks ended up
+    let mut found_connected_blocks = false;
+    let mut found_y = 0;
+
+    for y in 0..state.current_board_height {
+        if let Cell::Connected { color: c, count: _ } = state.board[y][0] {
+            if c == test_color {
+                found_connected_blocks = true;
+                found_y = y;
+                break;
+            }
+        }
+    }
+
+    if !found_connected_blocks {
+        // Debug: print the entire relevant board state
+        println!("Board state after bottom line clear:");
+        for y in 0..10 {
+            println!("Row {}: {:?}", y, &state.board[y][0..3]);
+        }
+        panic!("Could not find connected blocks after bottom line clear");
+    }
+
+    // Verify both connected blocks have correct count
+    if let Cell::Connected { color, count } = state.board[found_y][0] {
+        assert_eq!(color, test_color);
+        assert_eq!(
+            count, 2,
+            "Connected blocks should be recounted after bottom line clear - expected 2"
+        );
+    } else {
+        panic!(
+            "Block should be Connected after bottom line clear, but found: {:?}",
+            state.board[found_y][0]
+        );
+    }
+
+    if let Cell::Connected { color, count } = state.board[found_y][1] {
+        assert_eq!(color, test_color);
+        assert_eq!(
+            count, 2,
+            "Connected blocks should be recounted after bottom line clear - expected 2"
+        );
+    } else {
+        panic!(
+            "Block should be Connected after bottom line clear, but found: {:?}",
+            state.board[found_y][1]
+        );
+    }
 }

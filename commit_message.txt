@@ -1,5 +1,0 @@
-feat: TDD計画ステップ2.4のRedフェーズを完了し、より小さい連結数でのmax_chain更新なしテストを追加
-
-TDD計画の「ステップ 2.4: より小さい連結数での `max_chain` 更新なしテスト」のRedフェーズを完了しました。
-- `src/tests/game_state_tests.rs` に `test_max_chain_not_updated_on_smaller_chain` テストケースを追加し、このテストが期待通り失敗することを確認しました。
-- `game_spec.md` の該当ステップに完了マークを付けました。

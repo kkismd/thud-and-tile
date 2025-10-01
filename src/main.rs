@@ -218,6 +218,81 @@ impl GameState {
         }
     }
 
+    fn update_all_connected_block_counts(&mut self) {
+        // For full board update, we need to check all rows from 0 to current_board_height
+        // Use current_board_height as the limit and start from 0
+        let mut results = Vec::new();
+        let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
+
+        for y in 0..self.current_board_height {
+            for x in 0..BOARD_WIDTH {
+                if let Some(color) = match self.board[y][x] {
+                    Cell::Occupied(c) => Some(c),
+                    Cell::Connected { color: c, count: _ } => Some(c),
+                    _ => None,
+                } {
+                    if visited[y][x] {
+                        continue;
+                    }
+
+                    let mut component = Vec::new();
+                    let mut queue = std::collections::VecDeque::new();
+
+                    visited[y][x] = true;
+                    queue.push_back((x, y));
+                    component.push((x, y));
+
+                    while let Some((qx, qy)) = queue.pop_front() {
+                        let neighbors = [
+                            (qx as i8 - 1, qy as i8),
+                            (qx as i8 + 1, qy as i8),
+                            (qx as i8, qy as i8 - 1),
+                            (qx as i8, qy as i8 + 1),
+                        ];
+
+                        for (nx, ny) in neighbors {
+                            if nx >= 0
+                                && nx < BOARD_WIDTH as i8
+                                && ny >= 0
+                                && ny < self.current_board_height as i8
+                            {
+                                let (nx_usize, ny_usize) = (nx as usize, ny as usize);
+                                if !visited[ny_usize][nx_usize]
+                                    && let Some(neighbor_color) =
+                                        match self.board[ny_usize][nx_usize] {
+                                            Cell::Occupied(c) => Some(c),
+                                            Cell::Connected { color: c, count: _ } => Some(c),
+                                            _ => None,
+                                        }
+                                    && neighbor_color == color
+                                {
+                                    visited[ny_usize][nx_usize] = true;
+                                    queue.push_back((nx_usize, ny_usize));
+                                    component.push((nx_usize, ny_usize));
+                                }
+                            }
+                        }
+                    }
+
+                    let component_size = component.len() as u32;
+                    for &(px, py) in &component {
+                        results.push(((px, py), component_size));
+                    }
+                }
+            }
+        }
+
+        // Update the board with the new counts
+        for ((x, y), count) in results {
+            if let Cell::Connected { color, count: _ } = self.board[y][x] {
+                self.board[y][x] = Cell::Connected {
+                    color,
+                    count: count as u8,
+                };
+            }
+        }
+    }
+
     fn update_score(&mut self, lines: u32) {
         let points = match lines {
             1 => 100,
@@ -258,6 +333,12 @@ impl GameState {
                 self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
             }
             self.update_score(num_cleared as u32);
+
+            // Update connected block counts after bottom line clear
+            // This ensures connected blocks are properly recounted even for standard clears
+            // Use full board update since bottom line clear affects the entire board structure
+            self.update_all_connected_block_counts();
+
             // No animation for standard clear, just spawn new piece
             self.spawn_piece();
         }
@@ -389,7 +470,8 @@ fn handle_push_down_animation(
                 // Update connected block counts after animation completion (Bug fix)
                 // This ensures that after line clear animations complete, the connected blocks
                 // are properly recounted to reflect any changes in connectivity
-                state.update_connected_block_counts();
+                // Use full board update since animation affects the entire board structure
+                state.update_all_connected_block_counts();
                 finished = true;
                 // Do not push the animation back
             } else {
