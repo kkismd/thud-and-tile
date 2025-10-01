@@ -430,20 +430,6 @@ pub fn draw<R: Renderer>(
                 renderer.print("  MAGENTA: 0     ")?;
                 renderer.move_to(ui_x, 10)?;
                 renderer.print("  YELLOW:  0     ")?;
-                renderer.move_to(ui_x, 12)?;
-                renderer.print("Controls:")?;
-                renderer.move_to(ui_x, 13)?;
-                renderer.print("←/→: Move")?;
-                renderer.move_to(ui_x, 14)?;
-                renderer.print("↓: Rotate Clockwise")?;
-                renderer.move_to(ui_x, 15)?;
-                renderer.print("↑: Rotate Counter-Clockwise")?;
-                renderer.move_to(ui_x, 16)?;
-                renderer.print("Space: Soft Drop")?;
-                renderer.move_to(ui_x, 17)?;
-                renderer.print("Shift + ↓: Hard Drop")?;
-                renderer.move_to(ui_x, 18)?;
-                renderer.print("q: Quit")?;
             }
 
             // --- 消去フェーズ ---
@@ -624,13 +610,14 @@ pub fn draw<R: Renderer>(
             }
 
             // NEXTミノの描画
+            let next_piece_offset_x = ui_x;
+            let next_piece_offset_y = 14; // NEXT:ラベルの下
+            
             // 以前のNEXTミノをクリア
             if let Some(prev_next_piece) = &prev_state.next_piece
                 && prev_state.next_piece != state.next_piece
             {
-                // NEXTミノが変更された場合
-                let next_piece_offset_x = ui_x;
-                let next_piece_offset_y = 21; // Adjusted to avoid overlap with new UI
+                // NEXTミノが変更された場合、以前の位置をクリア
                 for ((x, y), _) in prev_next_piece.iter_blocks() {
                     let draw_x = next_piece_offset_x + (x as u16 * 2);
                     let draw_y = next_piece_offset_y + y as u16;
@@ -639,12 +626,11 @@ pub fn draw<R: Renderer>(
                 }
             }
 
+            // 現在のNEXTミノを描画
             if let Some(next_piece) = &state.next_piece {
                 renderer.set_foreground_color(Color::White)?;
-                renderer.move_to(ui_x, 19)?;
+                renderer.move_to(ui_x, 12)?;
                 renderer.print("NEXT:")?; // "NEXT:" ラベル
-                let next_piece_offset_x = ui_x;
-                let next_piece_offset_y = 21; // "NEXT:" の下あたりに描画
 
                 for ((x, y), color) in next_piece.iter_blocks() {
                     // ミノの座標を調整してUI領域に描画
