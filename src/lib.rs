@@ -488,6 +488,26 @@ impl WasmGameState {
         
         true
     }
+
+    /// ゴーストピースの位置（現在のテトロミノが真下に落下する最終位置）を計算
+    fn calculate_ghost_position(&self, piece: &SimpleTetromino) -> Option<(i8, i8)> {
+        let mut ghost_y = piece.y as i8;
+        
+        // 現在位置から下方向に1つずつ降りて、有効でない位置の直前を見つける
+        loop {
+            if !self.is_valid_position(piece, piece.x as i8, ghost_y + 1, piece.rotation) {
+                break;
+            }
+            ghost_y += 1;
+        }
+        
+        // 現在位置と同じ場合はゴーストピースを表示しない
+        if ghost_y == piece.y as i8 {
+            None
+        } else {
+            Some((piece.x as i8, ghost_y))
+        }
+    }
     
     /// 自動落下処理 - JavaScriptから定期的に呼び出される
     #[wasm_bindgen]
@@ -623,6 +643,30 @@ impl WasmGameState {
             }
             
             result
+        } else {
+            vec![]
+        }
+    }
+
+    /// ゴーストピースのブロック座標を取得
+    pub fn get_ghost_piece_blocks(&self) -> Vec<i32> {
+        if let Some(ref piece) = self.current_piece {
+            if let Some((ghost_x, ghost_y)) = self.calculate_ghost_position(piece) {
+                let blocks = piece.get_blocks_at_rotation(piece.rotation);
+                let mut result = Vec::new();
+                
+                for (dx, dy) in blocks {
+                    let board_x = ghost_x + dx;
+                    let board_y = ghost_y + dy;
+                    result.push(board_x as i32);
+                    result.push(board_y as i32);
+                    result.push(piece.color as i32); // 同じ色で表示（半透明化はフロントエンド側で処理）
+                }
+                
+                result
+            } else {
+                vec![]
+            }
         } else {
             vec![]
         }
