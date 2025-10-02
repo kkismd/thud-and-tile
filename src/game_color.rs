@@ -1,4 +1,4 @@
-// ThumperBlocks用のデバイス独立カラーシステム
+// Thud & Tile用のデバイス独立カラーシステム
 // WASM移植のためにcrossterm::style::Colorからの独立を実現
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

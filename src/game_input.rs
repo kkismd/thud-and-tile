@@ -1,4 +1,4 @@
-// ThumperBlocks用のデバイス独立入力システム
+// Thud & Tile用のデバイス独立入力システム
 // WASM移植のためにcrossterm::eventからの独立を実現
 
 use std::io;

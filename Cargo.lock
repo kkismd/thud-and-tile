@@ -267,7 +267,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "thumper-blocks"
+name = "thud-and-tile"
 version = "0.1.0"
 dependencies = [
  "crossterm",
