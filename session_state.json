@@ -12,18 +12,25 @@
   ],
   "pending_tasks": [
     {
-      "task": "Complete Line Clear System Migration", 
+      "task": "SRS Rotation System Code Unification", 
       "priority": "high",
-      "estimated_effort": "medium",
+      "estimated_effort": "low",
       "cli_reusability": "high",
-      "notes": "Web version has simplified line clearing, needs CLI's connected block system migration"
+      "notes": "URGENT: Web version duplicates CLI's SRS implementation. Need to eliminate code duplication and use CLI's proven SRS functions directly"
     },
     {
       "task": "Animation System Complete Migration",
-      "priority": "high", 
+      "priority": "medium", 
       "estimated_effort": "medium",
       "cli_reusability": "medium",
       "notes": "Web version lacks animation phases and timing control present in CLI version"
+    },
+    {
+      "task": "Complete Line Clear System Migration", 
+      "priority": "completed",
+      "estimated_effort": "medium",
+      "cli_reusability": "high",
+      "notes": "COMPLETED: CLI's connected block system, isolated block removal, and advanced scoring migrated to Web version"
     }
   ],
   "technical_notes": {

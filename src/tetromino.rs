@@ -21,8 +21,7 @@ pub enum TetrominoShape {
 
 /// SRS offset table for J, L, T, S, Z tetrominoes
 /// Index corresponds to transition: [0->1, 1->0, 1->2, 2->1, 2->3, 3->2, 3->0, 0->3]
-#[allow(dead_code)]
-const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
+pub const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
     // 0->1 transition
     [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
     // 1->0 transition
@@ -43,8 +42,7 @@ const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
 
 /// SRS offset table for I tetromino
 /// Index corresponds to transition: [0->1, 1->0, 1->2, 2->1, 2->3, 3->2, 3->0, 0->3]
-#[allow(dead_code)]
-const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
+pub const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
     // 0->1 transition
     [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
     // 1->0 transition
@@ -65,8 +63,7 @@ const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
 
 /// Convert rotation state transition to offset table index
 /// Phase 4 Refactor: Optimized lookup function
-#[allow(dead_code)]
-const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
+pub const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
     match (from_state, to_state) {
         (0, 1) => 0,
         (1, 0) => 1,
@@ -77,6 +74,22 @@ const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
         (3, 0) => 6,
         (0, 3) => 7,
         _ => 0, // Default fallback
+    }
+}
+
+/// Web版で使用するための独立したSRS wall kick offsets関数
+/// 形状を数値で指定してSRSオフセットを取得
+pub fn get_srs_wall_kick_offsets_by_shape(shape: u8, from_state: u8, to_state: u8) -> &'static [[i8; 2]; 5] {
+    let index = get_transition_index(from_state, to_state);
+
+    match shape {
+        0 => &SRS_I_OFFSETS[index], // I piece
+        1 => {
+            // O piece doesn't need wall kicks (rotates in place)
+            static O_OFFSETS: [[i8; 2]; 5] = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]];
+            &O_OFFSETS
+        }
+        _ => &SRS_JLTSZ_OFFSETS[index], // J, L, T, S, Z pieces
     }
 }
 
@@ -242,8 +255,7 @@ impl Tetromino {
 
     /// Get SRS standard wall kick offsets for a rotation transition
     /// Phase 4 Refactor: Optimized with static table lookup
-    #[allow(dead_code)]
-    fn get_srs_wall_kick_offsets(&self, from_state: u8, to_state: u8) -> &'static [[i8; 2]; 5] {
+    pub fn get_srs_wall_kick_offsets(&self, from_state: u8, to_state: u8) -> &'static [[i8; 2]; 5] {
         let index = get_transition_index(from_state, to_state);
 
         match self.shape {

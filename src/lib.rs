@@ -6,6 +6,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use std::time::Duration;
+use std::collections::VecDeque; // BFS用
 
 // JavaScript console.log への出力用マクロ
 #[cfg(target_arch = "wasm32")]
@@ -109,6 +110,7 @@ use game_input::GameInput;
 use random::{RandomProvider, create_default_random_provider};
 use cell::Cell;
 use scoring::CustomScoreSystem;
+use tetromino::get_srs_wall_kick_offsets_by_shape; // CLI版のSRS関数をimport
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -426,63 +428,6 @@ impl SimpleTetromino {
     }
 }
 
-// SRS Standard Wall Kick Offset Tables
-/// SRS offset table for J, L, T, S, Z tetrominoes
-/// Index corresponds to transition: [0->1, 1->0, 1->2, 2->1, 2->3, 3->2, 3->0, 0->3]
-const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
-    // 0->1 transition
-    [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
-    // 1->0 transition
-    [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
-    // 1->2 transition
-    [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
-    // 2->1 transition
-    [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
-    // 2->3 transition
-    [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
-    // 3->2 transition
-    [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
-    // 3->0 transition
-    [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
-    // 0->3 transition
-    [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
-];
-
-/// SRS offset table for I tetromino
-const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
-    // 0->1 transition
-    [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
-    // 1->0 transition
-    [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
-    // 1->2 transition
-    [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
-    // 2->1 transition
-    [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
-    // 2->3 transition
-    [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
-    // 3->2 transition
-    [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
-    // 3->0 transition
-    [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
-    // 0->3 transition
-    [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
-];
-
-/// Convert rotation state transition to offset table index
-const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
-    match (from_state, to_state) {
-        (0, 1) => 0,
-        (1, 0) => 1,
-        (1, 2) => 2,
-        (2, 1) => 3,
-        (2, 3) => 4,
-        (3, 2) => 5,
-        (3, 0) => 6,
-        (0, 3) => 7,
-        _ => 0, // Default fallback
-    }
-}
-
 // WASM初期化関数
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
@@ -761,8 +706,8 @@ impl WasmGameState {
                 (current_rotation + 3) % 4
             };
             
-            // SRS wall kick offsets を試行
-            let offsets = self.get_srs_wall_kick_offsets(piece.shape, current_rotation, new_rotation);
+            // CLI版のSRS関数を使用
+            let offsets = get_srs_wall_kick_offsets_by_shape(piece.shape, current_rotation, new_rotation);
             
             for &[offset_x, offset_y] in offsets {
                 let test_x = piece.x as i8 + offset_x;
@@ -783,21 +728,6 @@ impl WasmGameState {
             console_log!("SRS rotation failed: no valid position found");
         }
         false
-    }
-    
-    /// SRS standard wall kick offsetsを取得
-    fn get_srs_wall_kick_offsets(&self, shape: u8, from_rotation: u8, to_rotation: u8) -> &'static [[i8; 2]; 5] {
-        let index = get_transition_index(from_rotation, to_rotation);
-        
-        match shape {
-            0 => &SRS_I_OFFSETS[index], // I piece
-            1 => {
-                // O piece doesn't need wall kicks (rotates in place)
-                static O_OFFSETS: [[i8; 2]; 5] = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]];
-                &O_OFFSETS
-            }
-            _ => &SRS_JLTSZ_OFFSETS[index], // J, L, T, S, Z pieces
-        }
     }
     
     /// ハードドロップ
@@ -858,7 +788,7 @@ impl WasmGameState {
         }
     }
     
-    /// ラインクリア処理（アニメーション対応）
+    /// ラインクリア処理（CLI版互換の高度な実装）
     #[wasm_bindgen]
     pub fn clear_lines(&mut self) {
         // すでにアニメーション中の場合は何もしない
@@ -883,11 +813,107 @@ impl WasmGameState {
         }
         
         if !lines_to_clear.is_empty() {
-            // アニメーションを開始
-            self.clearing_lines = lines_to_clear;
+            self.clear_lines_advanced(&lines_to_clear);
+        }
+    }
+    
+    /// CLI版互換の高度なライン削除処理（内部実装）
+    fn clear_lines_advanced(&mut self, lines: &[usize]) {
+        let mut bottom_lines_cleared = Vec::new();
+        let mut non_bottom_lines_cleared = Vec::new();
+
+        // Bottom line と Non-bottom line を分離（CLI版と同じロジック）
+        for &y in lines {
+            if y == self.current_board_height - 1 {
+                bottom_lines_cleared.push(y);
+            } else {
+                non_bottom_lines_cleared.push(y);
+            }
+        }
+
+        // Bottom lines の標準テトリスクリア処理
+        if !bottom_lines_cleared.is_empty() {
+            let num_cleared = bottom_lines_cleared.len();
+            let mut sorted_lines = bottom_lines_cleared.to_vec();
+            sorted_lines.sort_by(|a, b| b.cmp(a));
+
+            // スコア計算（CLI版と同じ）
+            for &line_y in &sorted_lines {
+                for x in 0..BOARD_WIDTH {
+                    match self.board[line_y][x] {
+                        Cell::Occupied(color) => {
+                            // Occupied blocks have count=1
+                            let points = self.custom_score_system.inner.max_chains.get(color) * 10;
+                            self.custom_score_system.inner.scores.add(color, points);
+                        }
+                        Cell::Connected { color, count } => {
+                            // Connected blocks use their actual count value
+                            let points = (count as u32)
+                                * self.custom_score_system.inner.max_chains.get(color)
+                                * 10;
+                            self.custom_score_system.inner.scores.add(color, points);
+                        }
+                        _ => {} // Empty cells and other types are ignored
+                    }
+                }
+            }
+
+            // ライン削除と上からの補充
+            for &line_y in &sorted_lines {
+                self.board.remove(line_y);
+            }
+            for _ in 0..num_cleared {
+                self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+            }
+
+            // 連結ブロックカウント更新
+            self.update_all_connected_block_counts();
+
+            // 新しいピースをスポーン（アニメーションなし）
+            self.spawn_piece();
+            
+            console_log!("Bottom line clear: {} lines cleared", num_cleared);
+        }
+
+        // Non-bottom lines のカスタムクリア処理
+        for &y in &non_bottom_lines_cleared {
+            // 1. 孤立ブロック除去
+            self.remove_isolated_blocks(y);
+
+            // 2. スコア計算
+            for x in 0..BOARD_WIDTH {
+                match self.board[y][x] {
+                    Cell::Occupied(color) => {
+                        let points = self.custom_score_system.inner.max_chains.get(color) * 10;
+                        self.custom_score_system.inner.scores.add(color, points);
+                    }
+                    Cell::Connected { color, count } => {
+                        let points = (count as u32)
+                            * self.custom_score_system.inner.max_chains.get(color)
+                            * 10;
+                        self.custom_score_system.inner.scores.add(color, points);
+                    }
+                    _ => {}
+                }
+            }
+
+            // 3. ライン をグレー化（アニメーション準備）
+            for x in 0..BOARD_WIDTH {
+                self.board[y][x] = Cell::Occupied(GameColor::Grey);
+            }
+            
+            console_log!("Non-bottom line clear: line {} marked for animation", y);
+        }
+
+        // アニメーション開始
+        if !non_bottom_lines_cleared.is_empty() {
+            self.clearing_lines = non_bottom_lines_cleared;
             self.animation_start_time = Some(self.time_provider.now());
             self.animation_phase = 1; // 点滅フェーズ開始
             console_log!("Starting line clear animation for {} lines", self.clearing_lines.len());
+        } else if bottom_lines_cleared.is_empty() {
+            // どちらのラインもクリアされなかった場合、新しいピースをスポーン
+            self.spawn_piece();
         }
     }
     
@@ -1253,5 +1279,195 @@ impl WasmGameState {
         }
         
         result
+    }
+    
+    /// CLI版のcount_connected_blocks相当の実装（内部実装のみ）
+    /// cleared_line_y より下の行の連結ブロックを BFS で検出してカウント
+    fn count_connected_blocks(&self, cleared_line_y: usize) -> Vec<((usize, usize), u32)> {
+        let mut results = Vec::new();
+        let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
+
+        for y in (cleared_line_y + 1)..self.current_board_height {
+            for x in 0..BOARD_WIDTH {
+                let color = match self.board[y][x] {
+                    Cell::Occupied(c) => Some(c),
+                    Cell::Connected { color: c, count: _ } => Some(c),
+                    _ => None,
+                };
+                
+                if let Some(color) = color {
+                    if visited[y][x] {
+                        continue;
+                    }
+
+                    let mut component = Vec::new();
+                    let mut queue = VecDeque::new();
+
+                    visited[y][x] = true;
+                    queue.push_back((x, y));
+                    component.push((x, y));
+
+                    // BFS で連結コンポーネント検出
+                    while let Some((qx, qy)) = queue.pop_front() {
+                        let neighbors = [
+                            (qx as i8 - 1, qy as i8),
+                            (qx as i8 + 1, qy as i8),
+                            (qx as i8, qy as i8 - 1),
+                            (qx as i8, qy as i8 + 1),
+                        ];
+
+                        for (nx, ny) in neighbors {
+                            if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && (ny as usize) < self.current_board_height {
+                                let (nx_usize, ny_usize) = (nx as usize, ny as usize);
+                                if !visited[ny_usize][nx_usize] {
+                                    let neighbor_color = match self.board[ny_usize][nx_usize] {
+                                        Cell::Occupied(c) => Some(c),
+                                        Cell::Connected { color: c, count: _ } => Some(c),
+                                        _ => None,
+                                    };
+                                    if let Some(neighbor_color) = neighbor_color {
+                                        if neighbor_color == color {
+                                            visited[ny_usize][nx_usize] = true;
+                                            queue.push_back((nx_usize, ny_usize));
+                                            component.push((nx_usize, ny_usize));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    let component_size = component.len() as u32;
+                    for &(px, py) in &component {
+                        results.push(((px, py), component_size));
+                    }
+                }
+            }
+        }
+
+        results
+    }
+    
+    /// CLI版のremove_isolated_blocks相当の実装（内部実装のみ）
+    /// cleared_line_y より下の行で、隣接する同色ブロックがない孤立ブロックを除去
+    fn remove_isolated_blocks(&mut self, cleared_line_y: usize) {
+        let mut blocks_to_remove = Vec::new();
+
+        for y in (cleared_line_y + 1)..self.current_board_height {
+            for x in 0..BOARD_WIDTH {
+                let color = match self.board[y][x] {
+                    Cell::Occupied(c) => Some(c),
+                    Cell::Connected { color: c, count: _ } => Some(c),
+                    _ => None,
+                };
+                
+                if let Some(color) = color {
+                    let mut is_isolated = true;
+                    let neighbors = [
+                        (x as i8 - 1, y as i8),
+                        (x as i8 + 1, y as i8),
+                        (x as i8, y as i8 - 1),
+                        (x as i8, y as i8 + 1),
+                    ];
+
+                    for (nx, ny) in neighbors {
+                        if nx >= 0
+                            && nx < BOARD_WIDTH as i8
+                            && ny >= 0
+                            && (ny as usize) < self.current_board_height
+                        {
+                            let neighbor_color = match self.board[ny as usize][nx as usize] {
+                                Cell::Occupied(c) => Some(c),
+                                Cell::Connected { color: c, count: _ } => Some(c),
+                                _ => None,
+                            };
+                            if let Some(neighbor_color) = neighbor_color {
+                                if neighbor_color == color {
+                                    is_isolated = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if is_isolated {
+                        blocks_to_remove.push((x, y));
+                    }
+                }
+            }
+        }
+
+        // 孤立ブロックを削除
+        for (x, y) in blocks_to_remove {
+            self.board[y][x] = Cell::Empty;
+            console_log!("Removed isolated block at ({}, {})", x, y);
+        }
+    }
+    
+    /// 全ボードの連結ブロック数を更新（CLI版のupdate_all_connected_block_counts相当）
+    fn update_all_connected_block_counts(&mut self) {
+        // 一度すべてのConnected cellをOccupied cellに戻す
+        for y in 0..self.current_board_height {
+            for x in 0..BOARD_WIDTH {
+                if let Cell::Connected { color, count: _ } = self.board[y][x] {
+                    self.board[y][x] = Cell::Occupied(color);
+                }
+            }
+        }
+
+        // 各セルについて連結コンポーネントサイズを再計算
+        let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
+        
+        for y in 0..self.current_board_height {
+            for x in 0..BOARD_WIDTH {
+                if !visited[y][x] {
+                    if let Cell::Occupied(color) = self.board[y][x] {
+                        // BFSで連結コンポーネントを検出
+                        let mut component = Vec::new();
+                        let mut queue = VecDeque::new();
+
+                        visited[y][x] = true;
+                        queue.push_back((x, y));
+                        component.push((x, y));
+
+                        while let Some((qx, qy)) = queue.pop_front() {
+                            let neighbors = [
+                                (qx as i8 - 1, qy as i8),
+                                (qx as i8 + 1, qy as i8),
+                                (qx as i8, qy as i8 - 1),
+                                (qx as i8, qy as i8 + 1),
+                            ];
+
+                            for (nx, ny) in neighbors {
+                                if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && (ny as usize) < self.current_board_height {
+                                    let (nx_usize, ny_usize) = (nx as usize, ny as usize);
+                                    if !visited[ny_usize][nx_usize] {
+                                        if let Cell::Occupied(neighbor_color) = self.board[ny_usize][nx_usize] {
+                                            if neighbor_color == color {
+                                                visited[ny_usize][nx_usize] = true;
+                                                queue.push_back((nx_usize, ny_usize));
+                                                component.push((nx_usize, ny_usize));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 連結コンポーネントサイズを各セルに設定
+                        let component_size = component.len() as u8; // u8にキャスト
+                        for &(cx, cy) in &component {
+                            if component_size > 1 {
+                                self.board[cy][cx] = Cell::Connected { color, count: component_size };
+                            } else {
+                                self.board[cy][cx] = Cell::Occupied(color); // 単独ブロックはOccupiedのまま
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        console_log!("Updated all connected block counts");
     }
 }
