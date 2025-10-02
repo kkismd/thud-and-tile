@@ -3,10 +3,9 @@
 //! このモジュールは、Thud & TileゲームのWASM環境用エントリーポイントを提供します。
 //! JavaScript環境からアクセス可能なAPIを実装し、ゲームロジックとUI間の橋渡しを行います。
 
-#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use std::time::Duration;
-use std::collections::VecDeque; // BFS用
+use std::collections::{VecDeque, HashSet}; // BFS用とAnimation管理用
 
 // JavaScript console.log への出力用マクロ
 #[cfg(target_arch = "wasm32")]
@@ -111,6 +110,20 @@ use random::{RandomProvider, create_default_random_provider};
 use cell::Cell;
 use scoring::CustomScoreSystem;
 use tetromino::get_srs_wall_kick_offsets_by_shape; // CLI版のSRS関数をimport
+
+/// CLI版互換のAnimation構造体をWeb版に移植
+#[derive(Clone, Debug, PartialEq)]
+pub enum Animation {
+    LineBlink {
+        lines: Vec<usize>,
+        count: usize,
+        start_time: Duration,
+    },
+    PushDown {
+        gray_line_y: usize,
+        start_time: Duration,
+    },
+}
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -375,8 +388,14 @@ impl SimpleTetromino {
                     _ => vec![(0, 1), (1, 1), (2, 1), (3, 1)],
                 }
             },
-            1 => { // O piece - no rotation
-                vec![(1, 1), (2, 1), (1, 2), (2, 2)]
+            1 => { // O piece - 回転で座標配置を変更（視覚的な回転エフェクト）
+                match rotation {
+                    0 => vec![(1, 1), (2, 1), (1, 2), (2, 2)], // 基本配置
+                    1 => vec![(2, 1), (2, 2), (1, 2), (1, 1)], // 90度回転（時計回り）
+                    2 => vec![(2, 2), (1, 2), (2, 1), (1, 1)], // 180度回転
+                    3 => vec![(1, 2), (1, 1), (2, 1), (2, 2)], // 270度回転
+                    _ => vec![(1, 1), (2, 1), (1, 2), (2, 2)],
+                }
             },
             2 => { // T piece - SRS standard
                 match rotation {
@@ -449,10 +468,8 @@ pub struct WasmGameState {
     time_provider: WasmTimeProvider,
     tetromino_bag: WebTetrominoBag, // 7-bag実装
     current_board_height: usize, // 動的ボード高さ（CLI版と同じ）
-    // アニメーション関連
-    clearing_lines: Vec<usize>, // 現在アニメーション中のライン
-    animation_start_time: Option<Duration>, // アニメーション開始時刻
-    animation_phase: u8, // 0: なし, 1: 点滅中, 2: 落下中
+    // アニメーション関連（CLI版と同等）
+    animation: Vec<Animation>, // CLI版と同じVec<Animation>管理
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -476,9 +493,7 @@ impl WasmGameState {
             time_provider,
             tetromino_bag: WebTetrominoBag::new(),
             current_board_height: BOARD_HEIGHT, // CLI版と同じ初期値
-            clearing_lines: Vec::new(),
-            animation_start_time: None,
-            animation_phase: 0,
+            animation: Vec::new(), // CLI版と同じ初期状態
         }
     }
     
@@ -494,9 +509,7 @@ impl WasmGameState {
         self.last_fall_time = current_time;
         self.current_board_height = BOARD_HEIGHT; // ボード高さもリセット
         // アニメーション状態もリセット
-        self.clearing_lines.clear();
-        self.animation_start_time = None;
-        self.animation_phase = 0;
+        self.animation.clear();
         
         // CLI版と同じピース初期化ロジック
         // 1. 最初にnext_pieceのみを生成（CLI版のnew()と同じ）
@@ -584,16 +597,19 @@ impl WasmGameState {
                             GameColor::Cyan => 1,
                             GameColor::Magenta => 2,
                             GameColor::Yellow => 3,
-                            _ => 4, // 他の色は4以降
+                            _ => {
+                                console_log!("Warning: Unexpected color in board: {:?}", color);
+                                4 // 他の色は4以降
+                            }
                         };
                         result.push(color_id);
                     },
                     Cell::Connected { color, count: _ } => {
                         let color_id = match color {
-                            GameColor::Cyan => 11,
-                            GameColor::Magenta => 12,
-                            GameColor::Yellow => 13,
-                            _ => 14, // 他の色は14以降
+                            GameColor::Cyan => 10,    // JavaScript側の期待値に合わせる
+                            GameColor::Magenta => 11,
+                            GameColor::Yellow => 12,
+                            _ => 13, // 他の色は13以降
                         };
                         result.push(color_id);
                     },
@@ -757,6 +773,8 @@ impl WasmGameState {
     #[wasm_bindgen]
     pub fn lock_piece(&mut self) {
         if let Some(piece) = self.current_piece.take() {
+            console_log!("Locking piece with colors: {:?}", piece.colors);
+            
             // ピースをボードに配置（CLI版と同様の処理）
             let blocks = piece.get_blocks_at_rotation(piece.rotation);
             for (block_index, (dx, dy)) in blocks.iter().enumerate() {
@@ -768,6 +786,8 @@ impl WasmGameState {
                     // 各ブロックに個別の色を使用
                     let block_color = piece.colors[block_index % piece.colors.len()];
                     self.board[board_y as usize][board_x as usize] = Cell::Occupied(block_color);
+                    console_log!("Placing block {} at ({}, {}) with color {:?}", 
+                        block_index, board_x, board_y, block_color);
                 }
             }
             
@@ -780,7 +800,7 @@ impl WasmGameState {
             self.clear_lines();
             
             // アニメーション中でなければ新しいピースをスポーン
-            if self.animation_phase == 0 {
+            if self.animation.is_empty() {
                 self.spawn_piece();
             }
             
@@ -792,7 +812,7 @@ impl WasmGameState {
     #[wasm_bindgen]
     pub fn clear_lines(&mut self) {
         // すでにアニメーション中の場合は何もしない
-        if self.animation_phase != 0 {
+        if !self.animation.is_empty() {
             return;
         }
         
@@ -907,10 +927,15 @@ impl WasmGameState {
 
         // アニメーション開始
         if !non_bottom_lines_cleared.is_empty() {
-            self.clearing_lines = non_bottom_lines_cleared;
-            self.animation_start_time = Some(self.time_provider.now());
-            self.animation_phase = 1; // 点滅フェーズ開始
-            console_log!("Starting line clear animation for {} lines", self.clearing_lines.len());
+            let start_time = self.time_provider.now();
+            let line_blink_animation = Animation::LineBlink {
+                lines: non_bottom_lines_cleared,
+                count: 0,
+                start_time,
+            };
+            self.animation.push(line_blink_animation);
+            console_log!("Starting line clear animation for {} lines", 
+                if let Animation::LineBlink { lines, .. } = &self.animation[0] { lines.len() } else { 0 });
         } else if bottom_lines_cleared.is_empty() {
             // どちらのラインもクリアされなかった場合、新しいピースをスポーン
             self.spawn_piece();
@@ -1006,7 +1031,7 @@ impl WasmGameState {
         self.update_animation();
         
         // アニメーション中は新しいピースの処理を停止
-        if self.animation_phase != 0 {
+        if !self.animation.is_empty() {
             return true;
         }
         
@@ -1169,71 +1194,113 @@ impl WasmGameState {
         }
     }
     
-    /// アニメーション処理を実行
+    /// アニメーション処理を実行（CLI版互換）
     #[wasm_bindgen]
     pub fn update_animation(&mut self) {
-        if self.animation_phase == 0 {
+        if self.animation.is_empty() {
             return;
         }
         
         let current_time = self.time_provider.now();
-        let start_time = self.animation_start_time.unwrap();
-        let elapsed = current_time - start_time;
+        let mut completed_indices = Vec::new();
+        let mut lines_to_clear = Vec::new();
+        let mut gray_lines_to_finalize = Vec::new();
         
-        if self.animation_phase == 1 {
-            // 点滅フェーズ（500ms）
-            if elapsed >= Duration::from_millis(500) {
-                // 点滅終了、実際にラインを消去
-                for &y in &self.clearing_lines {
-                    // ライン消去前に各セルの色別スコアを計算
-                    for x in 0..BOARD_WIDTH {
-                        match self.board[y][x] {
-                            Cell::Occupied(color) => {
-                                // 基本スコア: 色ごとに100点を加算
-                                let color_index = match color {
-                                    GameColor::Cyan => 0,
-                                    GameColor::Magenta => 1, 
-                                    GameColor::Yellow => 2,
-                                    _ => 0, // その他の色はCyanとして扱う
-                                };
-                                self.custom_score_system.add_score(color_index, 100);
-                                console_log!("Added 100 points to color {} (index {})", format!("{:?}", color), color_index);
-                            }
-                            Cell::Connected { color, count } => {
-                                // 接続ブロックの場合: count * 100 点を加算
-                                let color_index = match color {
-                                    GameColor::Cyan => 0,
-                                    GameColor::Magenta => 1,
-                                    GameColor::Yellow => 2, 
-                                    _ => 0,
-                                };
-                                let points = (count as u32) * 100;
-                                self.custom_score_system.add_score(color_index, points);
-                                console_log!("Added {} points to color {} (index {}) for connected block", points, format!("{:?}", color), color_index);
-                            }
-                            _ => {} // Empty cells are ignored
+        // 各アニメーションを処理（borrowing問題を回避するため、状態変更は分離）
+        for (i, animation) in self.animation.iter_mut().enumerate() {
+            match animation {
+                Animation::LineBlink { lines, count, start_time } => {
+                    let elapsed = current_time - *start_time;
+                    let blink_step = Duration::from_millis(120); // BLINK_ANIMATION_STEP from config.rs
+                    let steps_elapsed = elapsed.as_millis() / blink_step.as_millis();
+                    
+                    if steps_elapsed > *count as u128 {
+                        *count = steps_elapsed as usize;
+                        
+                        // CLI版のBLINK_COUNT_MAX: 6 を適用
+                        if *count >= 6 {
+                            // 完了フラグとライン情報を記録
+                            completed_indices.push(i);
+                            lines_to_clear.extend(lines.iter().cloned());
                         }
                     }
+                }
+                Animation::PushDown { gray_line_y, start_time } => {
+                    let elapsed = current_time - *start_time;
+                    let push_down_step = Duration::from_millis(100); // PUSH_DOWN_STEP_DURATION from config.rs
                     
-                    // ライン削除
-                    self.board.remove(y);
-                    self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+                    if elapsed >= push_down_step {
+                        // 完了フラグとgray_line情報を記録
+                        completed_indices.push(i);
+                        gray_lines_to_finalize.push(*gray_line_y);
+                    }
+                }
+            }
+        }
+        
+        // 完了したアニメーションの処理を実行
+        if !completed_indices.is_empty() {
+            let lines_count = lines_to_clear.len(); // move前にcountを取得
+            
+            // ライン消去処理
+            for y in &lines_to_clear { // 参照でイテレート
+                // ライン消去前に各セルの色別スコアを計算
+                for x in 0..BOARD_WIDTH {
+                    match self.board[*y][x] {
+                        Cell::Occupied(color) => {
+                            // 基本スコア: 色ごとに100点を加算
+                            let color_index = match color {
+                                GameColor::Cyan => 0,
+                                GameColor::Magenta => 1, 
+                                GameColor::Yellow => 2,
+                                _ => 0, // その他の色はCyanとして扱う
+                            };
+                            self.custom_score_system.add_score(color_index, 100);
+                            console_log!("Added 100 points to color {} (index {})", format!("{:?}", color), color_index);
+                        }
+                        Cell::Connected { color, count } => {
+                            // 接続ブロックの場合: count * 100 点を加算
+                            let color_index = match color {
+                                GameColor::Cyan => 0,
+                                GameColor::Magenta => 1,
+                                GameColor::Yellow => 2, 
+                                _ => 0,
+                            };
+                            let points = (count as u32) * 100;
+                            self.custom_score_system.add_score(color_index, points);
+                            console_log!("Added {} points to color {} (index {}) for connected block", points, format!("{:?}", color), color_index);
+                        }
+                        _ => {} // Empty cells are ignored
+                    }
                 }
                 
-                console_log!("Cleared {} lines", self.clearing_lines.len());
+                // ライン削除
+                self.board.remove(*y);
+                self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+            }
+            
+            // グレーライン最終化処理
+            for gray_line_y in gray_lines_to_finalize {
+                self.finalize_gray_line(gray_line_y);
+            }
+            
+            if lines_count > 0 {
+                console_log!("Cleared {} lines", lines_count);
                 console_log!("Total score: {}", self.custom_score_system.get_total_score());
                 console_log!("Cyan: {}, Magenta: {}, Yellow: {}", 
                     self.custom_score_system.get_cyan_score(),
                     self.custom_score_system.get_magenta_score(), 
                     self.custom_score_system.get_yellow_score()
                 );
-                
-                // アニメーション終了
-                self.clearing_lines.clear();
-                self.animation_start_time = None;
-                self.animation_phase = 0;
-                
-                // 新しいピースをスポーン
+            }
+            
+            // 完了したアニメーションを削除（逆順で削除してインデックスを維持）
+            for &i in completed_indices.iter().rev() {
+                self.animation.remove(i);
+            }
+            
+            // すべてのアニメーションが完了した場合、新しいピースをスポーン
+            if self.animation.is_empty() {
                 self.spawn_piece();
             }
         }
@@ -1258,22 +1325,31 @@ impl WasmGameState {
     /// アニメーション情報を取得（JavaScript用）
     #[wasm_bindgen]
     pub fn get_animation_info(&self) -> Vec<i32> {
-        if self.animation_phase == 0 {
+        if self.animation.is_empty() {
             return vec![];
         }
         
-        let mut result = vec![self.animation_phase as i32];
+        let mut result = Vec::new();
+        let current_time = self.time_provider.now();
         
-        if let Some(start_time) = self.animation_start_time {
-            let current_time = self.time_provider.now();
-            let elapsed_ms = (current_time - start_time).as_millis() as i32;
-            result.push(elapsed_ms);
-            
-            // 点滅アニメーションの場合、対象ライン情報も追加
-            if self.animation_phase == 1 {
-                result.push(self.clearing_lines.len() as i32);
-                for &line in &self.clearing_lines {
-                    result.push(line as i32);
+        // 各アニメーションの情報を追加（CLI版と同等の詳細情報）
+        for animation in &self.animation {
+            match animation {
+                Animation::LineBlink { lines, count, start_time } => {
+                    result.push(1); // LineBlink type id
+                    let elapsed_ms = (current_time - *start_time).as_millis() as i32;
+                    result.push(elapsed_ms);
+                    result.push(*count as i32);
+                    result.push(lines.len() as i32);
+                    for &line in lines {
+                        result.push(line as i32);
+                    }
+                }
+                Animation::PushDown { gray_line_y, start_time } => {
+                    result.push(2); // PushDown type id
+                    let elapsed_ms = (current_time - *start_time).as_millis() as i32;
+                    result.push(elapsed_ms);
+                    result.push(*gray_line_y as i32);
                 }
             }
         }
