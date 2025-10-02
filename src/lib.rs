@@ -98,19 +98,152 @@ mod game_color;
 mod game_input;
 mod random;
 mod scheduler;
+mod scoring;
 mod cell;
 mod board_logic;
 mod tetromino;
-mod scoring;
 
 use config::*;
 use game_color::GameColor;
 use game_input::GameInput;
 use random::{RandomProvider, create_default_random_provider};
 use cell::Cell;
+use scoring::CustomScoreSystem;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+/// WASMバインディング対応のCustomScoreSystemラッパー
+/// 既存のscoring.rsロジックを活用し、JavaScript連携を提供
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct WasmCustomScoreSystem {
+    inner: CustomScoreSystem,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl WasmCustomScoreSystem {
+    /// 新しいWasmCustomScoreSystemを作成
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> WasmCustomScoreSystem {
+        WasmCustomScoreSystem {
+            inner: CustomScoreSystem::new(),
+        }
+    }
+    
+    /// 指定された色にスコアを加算（u8でGameColorを指定）
+    /// 0=Cyan, 1=Magenta, 2=Yellow, その他は無視
+    #[wasm_bindgen]
+    pub fn add_score(&mut self, color_index: u8, points: u32) {
+        let color = match color_index {
+            0 => GameColor::Cyan,
+            1 => GameColor::Magenta, 
+            2 => GameColor::Yellow,
+            _ => return, // 無効な色は無視
+        };
+        self.inner.scores.add(color, points);
+    }
+    
+    /// 合計スコアを取得
+    #[wasm_bindgen]
+    pub fn get_total_score(&self) -> u32 {
+        self.inner.scores.total()
+    }
+    
+    /// Cyanスコアを取得
+    #[wasm_bindgen]
+    pub fn get_cyan_score(&self) -> u32 {
+        self.inner.scores.cyan
+    }
+    
+    /// Magentaスコアを取得
+    #[wasm_bindgen]
+    pub fn get_magenta_score(&self) -> u32 {
+        self.inner.scores.magenta
+    }
+    
+    /// Yellowスコアを取得
+    #[wasm_bindgen]
+    pub fn get_yellow_score(&self) -> u32 {
+        self.inner.scores.yellow
+    }
+    
+    /// 全色のスコアを配列で取得 [cyan, magenta, yellow]
+    #[wasm_bindgen]
+    pub fn get_all_scores(&self) -> Vec<u32> {
+        vec![
+            self.inner.scores.cyan,
+            self.inner.scores.magenta,
+            self.inner.scores.yellow,
+        ]
+    }
+    
+    /// 指定された色の最大チェーン数を更新
+    #[wasm_bindgen]
+    pub fn update_max_chain(&mut self, color_index: u8, chain_count: u32) {
+        let color = match color_index {
+            0 => GameColor::Cyan,
+            1 => GameColor::Magenta,
+            2 => GameColor::Yellow,
+            _ => return, // 無効な色は無視
+        };
+        self.inner.max_chains.update_max(color, chain_count);
+    }
+    
+    /// 指定された色の最大チェーン数を取得
+    #[wasm_bindgen]
+    pub fn get_max_chain(&self, color_index: u8) -> u32 {
+        let color = match color_index {
+            0 => GameColor::Cyan,
+            1 => GameColor::Magenta,
+            2 => GameColor::Yellow,
+            _ => return 0, // 無効な色は0を返す
+        };
+        self.inner.max_chains.get(color)
+    }
+    
+    /// 全色の最大チェーン数を配列で取得 [cyan, magenta, yellow]
+    #[wasm_bindgen]
+    pub fn get_all_max_chains(&self) -> Vec<u32> {
+        vec![
+            self.inner.max_chains.cyan,
+            self.inner.max_chains.magenta,
+            self.inner.max_chains.yellow,
+        ]
+    }
+    
+    /// 全体の最大チェーン数を取得
+    #[wasm_bindgen]
+    pub fn get_overall_max_chain(&self) -> u32 {
+        self.inner.max_chains.max()
+    }
+    
+    /// スコア表示用文字列を取得（CLI版のDisplay traitと同等）
+    #[wasm_bindgen]
+    pub fn get_display_string(&self) -> String {
+        format!("{}", self.inner)
+    }
+    
+    /// JavaScript用のスコア詳細情報を取得
+    /// [total_score, cyan, magenta, yellow, max_chain, cyan_chain, magenta_chain, yellow_chain]
+    #[wasm_bindgen]
+    pub fn get_score_details(&self) -> Vec<u32> {
+        vec![
+            self.inner.scores.total(),
+            self.inner.scores.cyan,
+            self.inner.scores.magenta,
+            self.inner.scores.yellow,
+            self.inner.max_chains.max(),
+            self.inner.max_chains.cyan,
+            self.inner.max_chains.magenta,
+            self.inner.max_chains.yellow,
+        ]
+    }
+}
 
 /// Web版用のTetrominoShape列挙型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -167,7 +300,7 @@ pub struct SimpleTetromino {
     pub x: usize,
     pub y: usize,
     pub rotation: u8,
-    pub color: GameColor,
+    pub colors: Vec<GameColor>, // 各ブロックの色（4要素固定）
     pub shape: u8, // 0=I, 1=O, 2=T, 3=L, 4=J, 5=S, 6=Z
 }
 
@@ -175,28 +308,42 @@ impl SimpleTetromino {
     pub fn new_random() -> Self {
         let mut provider = create_default_random_provider();
         let shape = provider.gen_range(0, 7) as u8;
-        let color_index = provider.gen_range(0, 4);
-        let colors = [GameColor::Red, GameColor::Green, GameColor::Blue, GameColor::Yellow];
+        let color_palette = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
+        
+        // 各ブロックに個別の色を割り当て（ランダム）
+        let colors = vec![
+            color_palette[provider.gen_range(0, 3)],
+            color_palette[provider.gen_range(0, 3)],
+            color_palette[provider.gen_range(0, 3)],
+            color_palette[provider.gen_range(0, 3)],
+        ];
         
         SimpleTetromino {
             x: (BOARD_WIDTH / 2 - 2) as usize, // CLI版と同じ位置 (x=3)
             y: 0,
             rotation: 0,
-            color: colors[color_index],
+            colors,
             shape,
         }
     }
     
     pub fn from_shape(shape: TetrominoShape) -> Self {
         let mut provider = create_default_random_provider();
-        let color_index = provider.gen_range(0, 4);
-        let colors = [GameColor::Red, GameColor::Green, GameColor::Blue, GameColor::Yellow];
+        let color_palette = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
+        
+        // 各ブロックに個別の色を割り当て（ランダム）
+        let colors = vec![
+            color_palette[provider.gen_range(0, 3)],
+            color_palette[provider.gen_range(0, 3)],
+            color_palette[provider.gen_range(0, 3)],
+            color_palette[provider.gen_range(0, 3)],
+        ];
         
         SimpleTetromino {
             x: (BOARD_WIDTH / 2 - 2) as usize, // CLI版と同じ位置 (x=3)
             y: 0,
             rotation: 0,
-            color: colors[color_index],
+            colors,
             shape: shape as u8,
         }
     }
@@ -348,7 +495,7 @@ pub fn main() {
 #[wasm_bindgen]
 pub struct WasmGameState {
     board: Vec<Vec<Cell>>,
-    score: u32,
+    custom_score_system: WasmCustomScoreSystem, // 単一scoreをCustomScoreSystemに置換
     current_piece: Option<SimpleTetromino>,
     next_piece: Option<SimpleTetromino>,
     game_mode: u8, // 0: Title, 1: Playing, 2: GameOver
@@ -374,7 +521,7 @@ impl WasmGameState {
         
         WasmGameState {
             board: vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT],
-            score: 0,
+            custom_score_system: WasmCustomScoreSystem::new(),
             current_piece: None,
             next_piece: None,
             game_mode: 0, // Title
@@ -393,7 +540,7 @@ impl WasmGameState {
     pub fn start_game(&mut self) {
         console_log!("Starting new game");
         self.game_mode = 1; // Playing
-        self.score = 0;
+        self.custom_score_system = WasmCustomScoreSystem::new(); // スコアシステムリセット
         self.board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
         self.fall_speed = FALL_SPEED_START;
         let current_time = self.time_provider.now();
@@ -439,10 +586,35 @@ impl WasmGameState {
         console_log!("spawn_piece completed: next → current, new next generated");
     }
     
-    /// 現在のスコアを取得
+    /// 現在の合計スコアを取得
     #[wasm_bindgen]
     pub fn get_score(&self) -> u32 {
-        self.score
+        self.custom_score_system.get_total_score()
+    }
+    
+    /// 3色別スコアを取得 [cyan, magenta, yellow]
+    #[wasm_bindgen]
+    pub fn get_color_scores(&self) -> Vec<u32> {
+        self.custom_score_system.get_all_scores()
+    }
+    
+    /// 3色別最大チェーン数を取得 [cyan, magenta, yellow]
+    #[wasm_bindgen]
+    pub fn get_max_chains(&self) -> Vec<u32> {
+        self.custom_score_system.get_all_max_chains()
+    }
+    
+    /// スコア詳細情報を取得
+    /// [total, cyan, magenta, yellow, max_chain, cyan_chain, magenta_chain, yellow_chain]
+    #[wasm_bindgen]
+    pub fn get_score_details(&self) -> Vec<u32> {
+        self.custom_score_system.get_score_details()
+    }
+    
+    /// スコア表示用文字列を取得
+    #[wasm_bindgen]
+    pub fn get_score_display(&self) -> String {
+        self.custom_score_system.get_display_string()
     }
     
     /// ゲームモードを取得
@@ -459,8 +631,24 @@ impl WasmGameState {
             for cell in row {
                 match cell {
                     Cell::Empty => result.push(0),
-                    Cell::Occupied(color) => result.push(color_to_u8(*color) + 1),
-                    Cell::Connected { color, count: _ } => result.push(color_to_u8(*color) + 10),
+                    Cell::Occupied(color) => {
+                        let color_id = match color {
+                            GameColor::Cyan => 1,
+                            GameColor::Magenta => 2,
+                            GameColor::Yellow => 3,
+                            _ => 4, // 他の色は4以降
+                        };
+                        result.push(color_id);
+                    },
+                    Cell::Connected { color, count: _ } => {
+                        let color_id = match color {
+                            GameColor::Cyan => 11,
+                            GameColor::Magenta => 12,
+                            GameColor::Yellow => 13,
+                            _ => 14, // 他の色は14以降
+                        };
+                        result.push(color_id);
+                    },
                     Cell::Solid => result.push(21),
                 }
             }
@@ -638,23 +826,22 @@ impl WasmGameState {
         if let Some(piece) = self.current_piece.take() {
             // ピースをボードに配置（CLI版と同様の処理）
             let blocks = piece.get_blocks_at_rotation(piece.rotation);
-            for (dx, dy) in blocks {
+            for (block_index, (dx, dy)) in blocks.iter().enumerate() {
                 let board_x = piece.x as i8 + dx;
                 let board_y = piece.y as i8 + dy;
                 
                 if board_x >= 0 && board_x < BOARD_WIDTH as i8 && 
                    board_y >= 0 && board_y < BOARD_HEIGHT as i8 {
-                    // CLI版と同じようにOccupied状態で配置
-                    self.board[board_y as usize][board_x as usize] = Cell::Occupied(piece.color);
+                    // 各ブロックに個別の色を使用
+                    let block_color = piece.colors[block_index % piece.colors.len()];
+                    self.board[board_y as usize][board_x as usize] = Cell::Occupied(block_color);
                 }
             }
             
             console_log!("Piece locked at position ({}, {})", piece.x, piece.y);
             
-            // TODO: 隣接ブロック処理（Phase 2Cで実装予定）
-            // board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear);
-            // self.update_connected_block_counts();
-            // self.update_max_chains();
+            // CLI版と同じ隣接ブロック処理を使用
+            crate::board_logic::find_and_connect_adjacent_blocks(&mut self.board, &[]);
             
             // ライン消去チェック（アニメーション対応）
             self.clear_lines();
@@ -699,6 +886,25 @@ impl WasmGameState {
             self.animation_phase = 1; // 点滅フェーズ開始
             console_log!("Starting line clear animation for {} lines", self.clearing_lines.len());
         }
+    }
+    
+    
+    /// Connected cellsの詳細情報を取得 [x, y, count, x, y, count, ...]
+    #[wasm_bindgen]
+    pub fn get_connected_cells_info(&self) -> Vec<i32> {
+        let mut result = Vec::new();
+        
+        for y in 0..BOARD_HEIGHT {
+            for x in 0..BOARD_WIDTH {
+                if let Cell::Connected { color: _, count } = self.board[y][x] {
+                    result.push(x as i32);
+                    result.push(y as i32);
+                    result.push(count as i32);
+                }
+            }
+        }
+        
+        result
     }
     
     /// 現在のピース情報を取得（JavaScript用）
@@ -820,21 +1026,7 @@ impl WasmGameState {
     }
 }
 
-/// GameColorをu8に変換するヘルパー関数
-fn color_to_u8(color: GameColor) -> u8 {
-    match color {
-        GameColor::Red => 1,
-        GameColor::Green => 2,
-        GameColor::Blue => 3,
-        GameColor::Yellow => 4,
-        GameColor::Magenta => 5,
-        GameColor::Cyan => 6,
-        GameColor::White => 7,
-        GameColor::Black => 8,
-        GameColor::DarkGrey => 9,
-        _ => 0, // その他の色
-    }
-}
+
 
 /// バージョン情報を返す
 #[cfg(target_arch = "wasm32")]
@@ -859,12 +1051,13 @@ impl WasmGameState {
             let blocks = piece.get_blocks_at_rotation(piece.rotation);
             let mut result = Vec::new();
             
-            for (dx, dy) in blocks {
+            for (block_index, (dx, dy)) in blocks.iter().enumerate() {
                 let board_x = piece.x as i8 + dx;
                 let board_y = piece.y as i8 + dy;
                 result.push(board_x as i32);
                 result.push(board_y as i32);
-                result.push(piece.color as i32); // 色情報も含める
+                let block_color = piece.colors[block_index % piece.colors.len()];
+                result.push(block_color as i32); // 各ブロックの個別色
             }
             
             result
@@ -873,14 +1066,14 @@ impl WasmGameState {
         }
     }
 
-    /// 次のテトロミノの情報を取得 [x, y, rotation, color, shape]
+    /// 次のテトロミノの情報を取得 [x, y, rotation, primary_color, shape]
     pub fn get_next_piece_info(&self) -> Vec<i32> {
         if let Some(ref piece) = self.next_piece {
             vec![
                 piece.x as i32,
                 piece.y as i32, 
                 piece.rotation as i32,
-                piece.color as i32,
+                piece.colors[0] as i32, // 最初の色を代表色として使用
                 piece.shape as i32
             ]
         } else {
@@ -894,11 +1087,12 @@ impl WasmGameState {
             let blocks = piece.get_blocks_at_rotation(piece.rotation);
             let mut result = Vec::new();
             
-            for (dx, dy) in blocks {
+            for (block_index, (dx, dy)) in blocks.iter().enumerate() {
                 // 次ピース表示用なので固定位置（0,0基準）で座標を返す
-                result.push(dx as i32);
-                result.push(dy as i32);
-                result.push(piece.color as i32);
+                result.push(*dx as i32);
+                result.push(*dy as i32);
+                let block_color = piece.colors[block_index % piece.colors.len()];
+                result.push(block_color as i32);
             }
             
             result
@@ -914,12 +1108,13 @@ impl WasmGameState {
                 let blocks = piece.get_blocks_at_rotation(piece.rotation);
                 let mut result = Vec::new();
                 
-                for (dx, dy) in blocks {
+                for (block_index, (dx, dy)) in blocks.iter().enumerate() {
                     let board_x = ghost_x + dx;
                     let board_y = ghost_y + dy;
                     result.push(board_x as i32);
                     result.push(board_y as i32);
-                    result.push(piece.color as i32); // 同じ色で表示（半透明化はフロントエンド側で処理）
+                    let block_color = piece.colors[block_index % piece.colors.len()];
+                    result.push(block_color as i32); // 各ブロックの個別色（半透明化はフロントエンド側で処理）
                 }
                 
                 result
@@ -947,12 +1142,48 @@ impl WasmGameState {
             if elapsed >= Duration::from_millis(500) {
                 // 点滅終了、実際にラインを消去
                 for &y in &self.clearing_lines {
+                    // ライン消去前に各セルの色別スコアを計算
+                    for x in 0..BOARD_WIDTH {
+                        match self.board[y][x] {
+                            Cell::Occupied(color) => {
+                                // 基本スコア: 色ごとに100点を加算
+                                let color_index = match color {
+                                    GameColor::Cyan => 0,
+                                    GameColor::Magenta => 1, 
+                                    GameColor::Yellow => 2,
+                                    _ => 0, // その他の色はCyanとして扱う
+                                };
+                                self.custom_score_system.add_score(color_index, 100);
+                                console_log!("Added 100 points to color {} (index {})", format!("{:?}", color), color_index);
+                            }
+                            Cell::Connected { color, count } => {
+                                // 接続ブロックの場合: count * 100 点を加算
+                                let color_index = match color {
+                                    GameColor::Cyan => 0,
+                                    GameColor::Magenta => 1,
+                                    GameColor::Yellow => 2, 
+                                    _ => 0,
+                                };
+                                let points = (count as u32) * 100;
+                                self.custom_score_system.add_score(color_index, points);
+                                console_log!("Added {} points to color {} (index {}) for connected block", points, format!("{:?}", color), color_index);
+                            }
+                            _ => {} // Empty cells are ignored
+                        }
+                    }
+                    
+                    // ライン削除
                     self.board.remove(y);
                     self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-                    self.score += 100; // 基本スコア
                 }
                 
-                console_log!("Cleared {} lines, score: {}", self.clearing_lines.len(), self.score);
+                console_log!("Cleared {} lines", self.clearing_lines.len());
+                console_log!("Total score: {}", self.custom_score_system.get_total_score());
+                console_log!("Cyan: {}, Magenta: {}, Yellow: {}", 
+                    self.custom_score_system.get_cyan_score(),
+                    self.custom_score_system.get_magenta_score(), 
+                    self.custom_score_system.get_yellow_score()
+                );
                 
                 // アニメーション終了
                 self.clearing_lines.clear();
