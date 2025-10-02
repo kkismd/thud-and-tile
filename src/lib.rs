@@ -5,6 +5,7 @@
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+use std::time::Duration;
 
 // JavaScript console.log への出力用マクロ
 #[cfg(target_arch = "wasm32")]
@@ -12,6 +13,10 @@ use wasm_bindgen::prelude::*;
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
+    
+    // JavaScript Date.now()へのアクセス
+    #[wasm_bindgen(js_namespace = Date, js_name = now)]
+    fn js_date_now() -> f64;
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -23,6 +28,67 @@ macro_rules! console_log {
 macro_rules! console_log {
     ($($t:tt)*) => {
         println!($($t)*);
+    }
+}
+
+// --- 時間管理（WASM対応） ---
+pub trait TimeProvider {
+    fn now(&self) -> Duration;
+}
+
+#[cfg(target_arch = "wasm32")]
+pub struct WasmTimeProvider {
+    start_time: f64,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl WasmTimeProvider {
+    pub fn new() -> Self {
+        Self {
+            start_time: js_date_now(),
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Default for WasmTimeProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl TimeProvider for WasmTimeProvider {
+    fn now(&self) -> Duration {
+        let current_time = js_date_now();
+        let elapsed_ms = current_time - self.start_time;
+        Duration::from_millis(elapsed_ms as u64)
+    }
+}
+
+// テスト用モック（WASM環境でも使用可能）
+#[cfg(test)]
+pub struct MockTimeProvider {
+    current_time: Duration,
+}
+
+#[cfg(test)]
+impl MockTimeProvider {
+    pub fn new() -> Self {
+        Self {
+            current_time: Duration::from_secs(0),
+        }
+    }
+
+    pub fn advance(&mut self, duration: Duration) {
+        self.current_time += duration;
+    }
+}
+
+#[cfg(test)]
+impl TimeProvider for MockTimeProvider {
+    fn now(&self) -> Duration {
+        self.current_time
     }
 }
 
@@ -116,6 +182,9 @@ pub struct WasmGameState {
     current_piece: Option<SimpleTetromino>,
     next_piece: Option<SimpleTetromino>,
     game_mode: u8, // 0: Title, 1: Playing, 2: GameOver
+    fall_speed: Duration,
+    last_fall_time: Duration,
+    time_provider: WasmTimeProvider,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -125,6 +194,8 @@ impl WasmGameState {
     #[wasm_bindgen(constructor)]
     pub fn new() -> WasmGameState {
         console_log!("Creating new WasmGameState");
+        let time_provider = WasmTimeProvider::new();
+        let current_time = time_provider.now();
         
         WasmGameState {
             board: vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT],
@@ -132,6 +203,9 @@ impl WasmGameState {
             current_piece: None,
             next_piece: None,
             game_mode: 0, // Title
+            fall_speed: FALL_SPEED_START,
+            last_fall_time: current_time,
+            time_provider,
         }
     }
     
@@ -142,6 +216,9 @@ impl WasmGameState {
         self.game_mode = 1; // Playing
         self.score = 0;
         self.board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+        self.fall_speed = FALL_SPEED_START;
+        let current_time = self.time_provider.now();
+        self.last_fall_time = current_time;
         self.spawn_piece();
     }
     
@@ -410,6 +487,57 @@ impl WasmGameState {
         }
         
         true
+    }
+    
+    /// 自動落下処理 - JavaScriptから定期的に呼び出される
+    #[wasm_bindgen]
+    pub fn auto_fall(&mut self) -> bool {
+        if self.game_mode != 1 { // Playingモードでない場合はスキップ
+            return false;
+        }
+        
+        let current_time = self.time_provider.now();
+        
+        // 落下時間チェック
+        if current_time - self.last_fall_time >= self.fall_speed {
+            if let Some(ref piece) = self.current_piece {
+                let new_y = piece.y as i8 + 1;
+                
+                // 下に移動可能かチェック
+                if self.is_valid_position(piece, piece.x as i8, new_y, piece.rotation) {
+                    // 移動実行
+                    if let Some(ref mut piece) = self.current_piece {
+                        piece.y = new_y as usize;
+                    }
+                    console_log!("Auto-fall: piece moved down to y={}", new_y);
+                } else {
+                    // 移動不可 - ピースをロック
+                    self.lock_piece();
+                    console_log!("Auto-fall: piece locked, spawning new piece");
+                }
+            } else {
+                // 現在のピースがない場合は新しいピースを生成
+                self.spawn_piece();
+            }
+            
+            self.last_fall_time = current_time;
+            return true;
+        }
+        
+        false
+    }
+    
+    /// 自動落下速度を取得（ミリ秒）
+    #[wasm_bindgen]
+    pub fn get_fall_speed_ms(&self) -> u32 {
+        self.fall_speed.as_millis() as u32
+    }
+    
+    /// 自動落下速度を設定（ミリ秒）
+    #[wasm_bindgen]
+    pub fn set_fall_speed_ms(&mut self, ms: u32) {
+        self.fall_speed = Duration::from_millis(ms as u64);
+        console_log!("Fall speed set to {}ms", ms);
     }
 }
 

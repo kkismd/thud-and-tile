@@ -1,0 +1,111 @@
+{
+  "session_info": {
+    "date": "2025-10-02",
+    "phase": "Phase 2A - Critical Features Implementation",
+    "progress": "60% complete (3/5 tasks)",
+    "current_issue": "startGame function not accessible from HTML",
+    "next_priority": "Fix startGame error, then implement next piece display"
+  },
+  "completed_tasks": [
+    {
+      "task": "Timer/Scheduler Implementation",
+      "status": "✅ Complete",
+      "details": "WasmTimeProvider with JavaScript Date.now() integration",
+      "files_modified": ["src/lib.rs"],
+      "key_additions": ["TimeProvider trait", "WasmTimeProvider struct", "auto_fall() method"]
+    },
+    {
+      "task": "Auto-fall Logic Migration", 
+      "status": "✅ Complete",
+      "details": "800ms interval gravity system with Duration-based control",
+      "files_modified": ["src/lib.rs"],
+      "key_additions": ["fall_speed: Duration", "last_fall_time: Duration", "get_fall_speed_ms()", "set_fall_speed_ms()"]
+    },
+    {
+      "task": "JavaScript Timer Integration",
+      "status": "✅ Complete", 
+      "details": "setInterval-based game loop with WASM function calls",
+      "files_modified": ["../thud-and-tile-web/src/main.ts"],
+      "key_additions": ["autoFallInterval", "startAutoFall()", "stopAutoFall()"]
+    }
+  ],
+  "current_issue": {
+    "error": "Uncaught ReferenceError: startGame is not defined",
+    "location": "/thud-and-tile-web/index.html line 152",
+    "cause": "HTML onclick calls function in module scope, not global scope",
+    "solutions": [
+      {
+        "method": "Fix HTML ID mismatch (recommended)",
+        "steps": [
+          "Change id='start-button' to id='start-game' in HTML",
+          "Remove onclick='startGame()' from HTML",
+          "TypeScript event listener already configured for id='start-game'"
+        ]
+      },
+      {
+        "method": "Expose function globally (quick fix)",
+        "steps": ["Add (window as any).startGame = startGame; to main.ts"]
+      }
+    ]
+  },
+  "pending_tasks": [
+    {
+      "task": "Fix startGame Error",
+      "priority": "🚨 Critical",
+      "estimated_time": "15 minutes",
+      "blocking": true
+    },
+    {
+      "task": "Next Piece Display Implementation", 
+      "priority": "🔥 High",
+      "estimated_time": "2-3 hours",
+      "components": ["Rust API", "HTML UI", "TypeScript rendering"]
+    },
+    {
+      "task": "Ghost Piece Implementation",
+      "priority": "🔥 High", 
+      "estimated_time": "2-3 hours",
+      "reference": "main.rs ghost_piece() method (lines 126-133)"
+    }
+  ],
+  "project_structure": {
+    "rust_project": "/Users/kshimada/Documents/move_folder/src/Rust/block-down/",
+    "web_project": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile-web/",
+    "key_files": {
+      "src/lib.rs": "WASM API with auto-fall implementation",
+      "src/main.rs": "CLI reference implementation", 
+      "../thud-and-tile-web/src/main.ts": "TypeScript with auto-fall integration",
+      "../thud-and-tile-web/index.html": "HTML UI (has ID mismatch issue)"
+    },
+    "backup_files": [
+      "../thud-and-tile-web/src/main_original.ts",
+      "../thud-and-tile-web/src/main.ts.backup"
+    ]
+  },
+  "environment_setup": {
+    "recommended_workspace": "/Users/kshimada/Documents/move_folder/src/Rust",
+    "dev_server": "npm run dev in thud-and-tile-web directory",
+    "build_command": "wasm-pack build --target web --out-dir ../thud-and-tile-web/pkg",
+    "test_url": "http://localhost:5173/"
+  },
+  "success_criteria": {
+    "auto_fall": "✅ Piece drops every 800ms automatically",
+    "next_piece_display": "⏳ Next tetromino visible in UI",
+    "ghost_piece": "⏳ Semi-transparent piece shows landing position"
+  },
+  "debug_info": {
+    "console_logs_expected": [
+      "自動落下タイマー開始: 800ms間隔",
+      "自動落下実行"
+    ],
+    "wasm_methods_added": [
+      "auto_fall() -> bool",
+      "get_fall_speed_ms() -> u32", 
+      "set_fall_speed_ms(ms: u32)"
+    ],
+    "test_commands": [
+      "gameState.get_fall_speed_ms() // should return 800",
+      "gameState.auto_fall() // should return true when playing"
+    ]
+  }
+}
