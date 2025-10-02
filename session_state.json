@@ -2,9 +2,9 @@
   "session_info": {
     "date": "2025-10-02",
     "phase": "Phase 2A - Critical Features Implementation",
-    "progress": "80% complete (4/5 tasks)",
-    "current_issue": "RESOLVED: テトロミノ描画とstartGameエラー修正完了",
-    "next_priority": "Implement next piece display"
+    "progress": "100% complete (5/5 tasks)",
+    "current_issue": "COMPLETED: Phase 2A全ての重要機能実装完了",
+    "next_priority": "Phase 2B: Ghost piece implementation or advanced features"
   },
   "completed_tasks": [
     {
@@ -34,6 +34,13 @@
       "details": "Fixed startGame error and tetromino rendering (single block -> full shape)",
       "files_modified": ["../thud-and-tile-web/index.html", "../thud-and-tile-web/src/main.ts", "src/lib.rs"],
       "key_additions": ["get_current_piece_blocks() method", "improved rendering logic", "HTML button ID fix"]
+    },
+    {
+      "task": "Next Piece Display Implementation",
+      "status": "✅ Complete",
+      "details": "Next piece preview with dedicated canvas and real-time updates",
+      "files_modified": ["src/lib.rs", "../thud-and-tile-web/index.html", "../thud-and-tile-web/src/main.ts"],
+      "key_additions": ["get_next_piece_info() method", "get_next_piece_blocks() method", "next-piece-canvas UI", "drawNextPiece() function"]
     }
   ],
   "resolved_issue": {
