@@ -126,7 +126,7 @@ impl RandomProvider for WebRandomProvider {
         min + (self.next_u64() as usize) % range
     }
     
-    fn choose<T>(&mut self, slice: &[T]) -> Option<&T> {
+    fn choose<'a, T>(&mut self, slice: &'a [T]) -> Option<&'a T> {
         if slice.is_empty() {
             return None;
         }
@@ -167,6 +167,7 @@ pub fn create_default_random_provider() -> RandomProviderImpl {
 
 /// RandomProviderの具象実装のenum
 pub enum RandomProviderImpl {
+    #[cfg(not(target_arch = "wasm32"))]
     Native(NativeRandomProvider),
     #[cfg(target_arch = "wasm32")]
     Web(WebRandomProvider),
@@ -176,6 +177,7 @@ pub enum RandomProviderImpl {
 impl RandomProvider for RandomProviderImpl {
     fn gen_range(&mut self, low: usize, high: usize) -> usize {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             RandomProviderImpl::Native(provider) => provider.gen_range(low, high),
             #[cfg(target_arch = "wasm32")]
             RandomProviderImpl::Web(provider) => provider.gen_range(low, high),
@@ -185,6 +187,7 @@ impl RandomProvider for RandomProviderImpl {
 
     fn choose<'a, T>(&mut self, slice: &'a [T]) -> Option<&'a T> {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             RandomProviderImpl::Native(provider) => provider.choose(slice),
             #[cfg(target_arch = "wasm32")]
             RandomProviderImpl::Web(provider) => provider.choose(slice),
@@ -194,6 +197,7 @@ impl RandomProvider for RandomProviderImpl {
 
     fn shuffle<T>(&mut self, slice: &mut [T]) {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             RandomProviderImpl::Native(provider) => provider.shuffle(slice),
             #[cfg(target_arch = "wasm32")]
             RandomProviderImpl::Web(provider) => provider.shuffle(slice),
@@ -203,6 +207,7 @@ impl RandomProvider for RandomProviderImpl {
     
     fn gen_bool(&mut self) -> bool {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             RandomProviderImpl::Native(provider) => provider.gen_bool(),
             #[cfg(target_arch = "wasm32")]
             RandomProviderImpl::Web(provider) => provider.gen_bool(),
@@ -212,6 +217,7 @@ impl RandomProvider for RandomProviderImpl {
     
     fn gen_f64(&mut self) -> f64 {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             RandomProviderImpl::Native(provider) => provider.gen_f64(),
             #[cfg(target_arch = "wasm32")]
             RandomProviderImpl::Web(provider) => provider.gen_f64(),
