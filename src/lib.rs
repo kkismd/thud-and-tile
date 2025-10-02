@@ -503,6 +503,7 @@ pub struct WasmGameState {
     last_fall_time: Duration,
     time_provider: WasmTimeProvider,
     tetromino_bag: WebTetrominoBag, // 7-bag実装
+    current_board_height: usize, // 動的ボード高さ（CLI版と同じ）
     // アニメーション関連
     clearing_lines: Vec<usize>, // 現在アニメーション中のライン
     animation_start_time: Option<Duration>, // アニメーション開始時刻
@@ -529,6 +530,7 @@ impl WasmGameState {
             last_fall_time: current_time,
             time_provider,
             tetromino_bag: WebTetrominoBag::new(),
+            current_board_height: BOARD_HEIGHT, // CLI版と同じ初期値
             clearing_lines: Vec::new(),
             animation_start_time: None,
             animation_phase: 0,
@@ -545,6 +547,7 @@ impl WasmGameState {
         self.fall_speed = FALL_SPEED_START;
         let current_time = self.time_provider.now();
         self.last_fall_time = current_time;
+        self.current_board_height = BOARD_HEIGHT; // ボード高さもリセット
         // アニメーション状態もリセット
         self.clearing_lines.clear();
         self.animation_start_time = None;
@@ -865,8 +868,8 @@ impl WasmGameState {
         
         let mut lines_to_clear = Vec::new();
         
-        // 完成したラインを見つける
-        for y in 0..BOARD_HEIGHT {
+        // 完成したラインを見つける（CLI版と同じ動的高さ制限）
+        for y in 0..self.current_board_height {
             let mut line_complete = true;
             for x in 0..BOARD_WIDTH {
                 if matches!(self.board[y][x], Cell::Empty) {
@@ -894,7 +897,7 @@ impl WasmGameState {
     pub fn get_connected_cells_info(&self) -> Vec<i32> {
         let mut result = Vec::new();
         
-        for y in 0..BOARD_HEIGHT {
+        for y in 0..self.current_board_height {
             for x in 0..BOARD_WIDTH {
                 if let Cell::Connected { color: _, count } = self.board[y][x] {
                     result.push(x as i32);
@@ -930,8 +933,8 @@ impl WasmGameState {
                 return false;
             }
             
-            // 下方境界チェック
-            if board_y >= BOARD_HEIGHT as i8 {
+            // 下方境界チェック（CLI版と同じ動的高さ使用）
+            if board_y >= self.current_board_height as i8 {
                 return false;
             }
             
@@ -1023,6 +1026,20 @@ impl WasmGameState {
     pub fn set_fall_speed_ms(&mut self, ms: u32) {
         self.fall_speed = Duration::from_millis(ms as u64);
         console_log!("Fall speed set to {}ms", ms);
+    }
+    
+    /// 現在のボード高さを取得（Dynamic Board Height System）
+    #[wasm_bindgen]
+    pub fn get_current_board_height(&self) -> usize {
+        self.current_board_height
+    }
+    
+    /// 現在のボード高さを設定（Dynamic Board Height System）
+    #[wasm_bindgen]
+    pub fn set_current_board_height(&mut self, height: usize) {
+        // 安全性チェック：高さは最大BOARD_HEIGHT以下
+        self.current_board_height = height.min(BOARD_HEIGHT);
+        console_log!("Board height set to {}", self.current_board_height);
     }
 }
 
@@ -1194,6 +1211,22 @@ impl WasmGameState {
                 self.spawn_piece();
             }
         }
+    }
+    
+    /// グレーラインをSolidラインに変換し、board heightを減少（CLI版と同じロジック）
+    /// 将来のComplete Line Clear System Migrationで使用予定
+    fn finalize_gray_line(&mut self, gray_line_y: usize) {
+        // グレーラインをSolidに変換
+        for x in 0..BOARD_WIDTH {
+            self.board[gray_line_y][x] = Cell::Solid;
+        }
+        
+        // CLI版と同じboard height減少処理
+        self.current_board_height = self.current_board_height.saturating_sub(1);
+        console_log!("Board height reduced to {}", self.current_board_height);
+        
+        // 将来的にここでconnected block countsの更新も行う
+        // self.update_all_connected_block_counts();
     }
     
     /// アニメーション情報を取得（JavaScript用）
