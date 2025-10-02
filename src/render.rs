@@ -336,7 +336,7 @@ mod tests {
 
 pub fn draw_title_screen<R: Renderer>(renderer: &mut R) -> io::Result<()> {
     renderer.clear_screen()?;
-    let title = "THUMPERBLOCKS";
+    let title = "THUD & TILE";
     let start_msg = "Press Enter to Start";
     let quit_msg = "Press 'q' to Quit";
 
