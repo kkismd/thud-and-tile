@@ -109,6 +109,58 @@ use game_input::GameInput;
 use random::{RandomProvider, create_default_random_provider};
 use cell::Cell;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+/// Web版用のTetrominoShape列挙型
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TetrominoShape {
+    I = 0,
+    O = 1,
+    T = 2,
+    L = 3,
+    J = 4,
+    S = 5,
+    Z = 6,
+}
+
+impl TetrominoShape {
+    fn all_shapes() -> Vec<TetrominoShape> {
+        vec![
+            TetrominoShape::I,
+            TetrominoShape::O,
+            TetrominoShape::T,
+            TetrominoShape::L,
+            TetrominoShape::J,
+            TetrominoShape::S,
+            TetrominoShape::Z,
+        ]
+    }
+}
+
+/// Web版用の7-bag実装
+pub struct WebTetrominoBag {
+    bag: Vec<TetrominoShape>,
+}
+
+impl WebTetrominoBag {
+    pub fn new() -> Self {
+        let mut bag = TetrominoShape::all_shapes();
+        let mut provider = create_default_random_provider();
+        provider.shuffle(&mut bag);
+        WebTetrominoBag { bag }
+    }
+
+    pub fn next(&mut self) -> TetrominoShape {
+        if self.bag.is_empty() {
+            self.bag = TetrominoShape::all_shapes();
+            let mut provider = create_default_random_provider();
+            provider.shuffle(&mut self.bag);
+        }
+        self.bag.pop().unwrap()
+    }
+}
+
 /// 簡易テトロミノ（WASM用）
 #[derive(Debug, Clone)]
 pub struct SimpleTetromino {
@@ -127,7 +179,7 @@ impl SimpleTetromino {
         let colors = [GameColor::Red, GameColor::Green, GameColor::Blue, GameColor::Yellow];
         
         SimpleTetromino {
-            x: BOARD_WIDTH / 2 - 1,
+            x: (BOARD_WIDTH / 2 - 2) as usize, // CLI版と同じ位置 (x=3)
             y: 0,
             rotation: 0,
             color: colors[color_index],
@@ -135,34 +187,152 @@ impl SimpleTetromino {
         }
     }
     
+    pub fn from_shape(shape: TetrominoShape) -> Self {
+        let mut provider = create_default_random_provider();
+        let color_index = provider.gen_range(0, 4);
+        let colors = [GameColor::Red, GameColor::Green, GameColor::Blue, GameColor::Yellow];
+        
+        SimpleTetromino {
+            x: (BOARD_WIDTH / 2 - 2) as usize, // CLI版と同じ位置 (x=3)
+            y: 0,
+            rotation: 0,
+            color: colors[color_index],
+            shape: shape as u8,
+        }
+    }
+    
     pub fn get_blocks(&self) -> Vec<(i8, i8)> {
         match self.shape {
-            0 => vec![(0, 0), (1, 0), (2, 0), (3, 0)], // I piece
-            1 => vec![(0, 0), (1, 0), (0, 1), (1, 1)], // O piece
-            2 => vec![(1, 0), (0, 1), (1, 1), (2, 1)], // T piece
-            3 => vec![(0, 0), (0, 1), (0, 2), (1, 2)], // L piece
-            4 => vec![(1, 0), (1, 1), (1, 2), (0, 2)], // J piece
-            5 => vec![(1, 0), (2, 0), (0, 1), (1, 1)], // S piece
-            6 => vec![(0, 0), (1, 0), (1, 1), (2, 1)], // Z piece
+            0 => vec![(0, 1), (1, 1), (2, 1), (3, 1)], // I piece - SRS standard
+            1 => vec![(1, 1), (2, 1), (1, 2), (2, 2)], // O piece - SRS standard
+            2 => vec![(1, 0), (0, 1), (1, 1), (2, 1)], // T piece - SRS standard
+            3 => vec![(2, 0), (0, 1), (1, 1), (2, 1)], // L piece - SRS standard
+            4 => vec![(0, 0), (0, 1), (1, 1), (2, 1)], // J piece - SRS standard
+            5 => vec![(1, 0), (2, 0), (0, 1), (1, 1)], // S piece - SRS standard
+            6 => vec![(0, 0), (1, 0), (1, 1), (2, 1)], // Z piece - SRS standard
             _ => vec![(0, 0)], // Default
         }
     }
     
     pub fn get_blocks_at_rotation(&self, rotation: u8) -> Vec<(i8, i8)> {
-        let base_blocks = self.get_blocks();
-        if rotation == 0 || self.shape == 1 { // O piece doesn't rotate
-            return base_blocks;
+        // SRS標準座標系による4つの回転状態
+        match self.shape {
+            0 => { // I piece - SRS standard
+                match rotation {
+                    0 => vec![(0, 1), (1, 1), (2, 1), (3, 1)], // horizontal
+                    1 => vec![(2, 3), (2, 2), (2, 1), (2, 0)], // vertical
+                    2 => vec![(3, 2), (2, 2), (1, 2), (0, 2)], // horizontal
+                    3 => vec![(1, 0), (1, 1), (1, 2), (1, 3)], // vertical
+                    _ => vec![(0, 1), (1, 1), (2, 1), (3, 1)],
+                }
+            },
+            1 => { // O piece - no rotation
+                vec![(1, 1), (2, 1), (1, 2), (2, 2)]
+            },
+            2 => { // T piece - SRS standard
+                match rotation {
+                    0 => vec![(1, 0), (0, 1), (1, 1), (2, 1)], // upward T
+                    1 => vec![(2, 1), (1, 0), (1, 1), (1, 2)], // rightward T
+                    2 => vec![(1, 2), (2, 1), (1, 1), (0, 1)], // downward T
+                    3 => vec![(0, 1), (1, 2), (1, 1), (1, 0)], // leftward T
+                    _ => vec![(1, 0), (0, 1), (1, 1), (2, 1)],
+                }
+            },
+            3 => { // L piece - SRS standard
+                match rotation {
+                    0 => vec![(2, 0), (0, 1), (1, 1), (2, 1)],
+                    1 => vec![(2, 2), (1, 0), (1, 1), (1, 2)],
+                    2 => vec![(0, 2), (2, 1), (1, 1), (0, 1)],
+                    3 => vec![(0, 0), (1, 2), (1, 1), (1, 0)],
+                    _ => vec![(2, 0), (0, 1), (1, 1), (2, 1)],
+                }
+            },
+            4 => { // J piece - SRS standard
+                match rotation {
+                    0 => vec![(0, 0), (0, 1), (1, 1), (2, 1)],
+                    1 => vec![(2, 0), (1, 0), (1, 1), (1, 2)],
+                    2 => vec![(2, 2), (2, 1), (1, 1), (0, 1)],
+                    3 => vec![(0, 2), (1, 2), (1, 1), (1, 0)],
+                    _ => vec![(0, 0), (0, 1), (1, 1), (2, 1)],
+                }
+            },
+            5 => { // S piece - SRS standard
+                match rotation {
+                    0 => vec![(1, 0), (2, 0), (0, 1), (1, 1)],
+                    1 => vec![(2, 1), (2, 2), (1, 0), (1, 1)],
+                    2 => vec![(1, 2), (0, 2), (2, 1), (1, 1)],
+                    3 => vec![(0, 1), (0, 0), (1, 2), (1, 1)],
+                    _ => vec![(1, 0), (2, 0), (0, 1), (1, 1)],
+                }
+            },
+            6 => { // Z piece - SRS standard
+                match rotation {
+                    0 => vec![(0, 0), (1, 0), (1, 1), (2, 1)],
+                    1 => vec![(2, 0), (1, 1), (2, 1), (1, 2)],
+                    2 => vec![(0, 1), (1, 1), (1, 2), (2, 2)],
+                    3 => vec![(1, 0), (0, 1), (1, 1), (0, 2)],
+                    _ => vec![(0, 0), (1, 0), (1, 1), (2, 1)],
+                }
+            },
+            _ => vec![(0, 0)], // Default
         }
-        
-        // 簡単な90度回転実装
-        base_blocks.iter().map(|(x, y)| {
-            match rotation {
-                1 => (-y, *x),
-                2 => (-x, -y),
-                3 => (*y, -x),
-                _ => (*x, *y),
-            }
-        }).collect()
+    }
+}
+
+// SRS Standard Wall Kick Offset Tables
+/// SRS offset table for J, L, T, S, Z tetrominoes
+/// Index corresponds to transition: [0->1, 1->0, 1->2, 2->1, 2->3, 3->2, 3->0, 0->3]
+const SRS_JLTSZ_OFFSETS: [[[i8; 2]; 5]; 8] = [
+    // 0->1 transition
+    [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+    // 1->0 transition
+    [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+    // 1->2 transition
+    [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+    // 2->1 transition
+    [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+    // 2->3 transition
+    [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+    // 3->2 transition
+    [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+    // 3->0 transition
+    [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+    // 0->3 transition
+    [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+];
+
+/// SRS offset table for I tetromino
+const SRS_I_OFFSETS: [[[i8; 2]; 5]; 8] = [
+    // 0->1 transition
+    [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+    // 1->0 transition
+    [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+    // 1->2 transition
+    [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+    // 2->1 transition
+    [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+    // 2->3 transition
+    [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+    // 3->2 transition
+    [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+    // 3->0 transition
+    [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+    // 0->3 transition
+    [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+];
+
+/// Convert rotation state transition to offset table index
+const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
+    match (from_state, to_state) {
+        (0, 1) => 0,
+        (1, 0) => 1,
+        (1, 2) => 2,
+        (2, 1) => 3,
+        (2, 3) => 4,
+        (3, 2) => 5,
+        (3, 0) => 6,
+        (0, 3) => 7,
+        _ => 0, // Default fallback
     }
 }
 
@@ -185,6 +355,11 @@ pub struct WasmGameState {
     fall_speed: Duration,
     last_fall_time: Duration,
     time_provider: WasmTimeProvider,
+    tetromino_bag: WebTetrominoBag, // 7-bag実装
+    // アニメーション関連
+    clearing_lines: Vec<usize>, // 現在アニメーション中のライン
+    animation_start_time: Option<Duration>, // アニメーション開始時刻
+    animation_phase: u8, // 0: なし, 1: 点滅中, 2: 落下中
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -206,6 +381,10 @@ impl WasmGameState {
             fall_speed: FALL_SPEED_START,
             last_fall_time: current_time,
             time_provider,
+            tetromino_bag: WebTetrominoBag::new(),
+            clearing_lines: Vec::new(),
+            animation_start_time: None,
+            animation_phase: 0,
         }
     }
     
@@ -219,19 +398,45 @@ impl WasmGameState {
         self.fall_speed = FALL_SPEED_START;
         let current_time = self.time_provider.now();
         self.last_fall_time = current_time;
+        // アニメーション状態もリセット
+        self.clearing_lines.clear();
+        self.animation_start_time = None;
+        self.animation_phase = 0;
+        
+        // CLI版と同じピース初期化ロジック
+        // 1. 最初にnext_pieceのみを生成（CLI版のnew()と同じ）
+        self.current_piece = None;
+        self.next_piece = Some(self.new_random_piece());
+        // 2. spawn_pieceを呼び出してnext_piece → current_pieceの転送を行う
         self.spawn_piece();
+        
+        console_log!("Game started: current_piece from initial next_piece, new next_piece generated");
     }
     
-    /// 新しいピースを生成
-    #[wasm_bindgen]
+    /// 7-bagを使った新しいピース生成
+    fn new_random_piece(&mut self) -> SimpleTetromino {
+        let shape = self.tetromino_bag.next();
+        SimpleTetromino::from_shape(shape)
+    }
+    
+    /// 新しいピースをスポーン（CLI版と同じロジック）
     pub fn spawn_piece(&mut self) {
-        console_log!("Spawning new piece");
-        let piece = SimpleTetromino::new_random();
-        self.current_piece = Some(piece);
+        console_log!("spawn_piece called");
         
-        if self.next_piece.is_none() {
-            self.next_piece = Some(SimpleTetromino::new_random());
+        // next_pieceをcurrent_pieceにする
+        self.current_piece = self.next_piece.take();
+        // 新しいnext_pieceを生成する（7-bag使用）
+        self.next_piece = Some(self.new_random_piece());
+        
+        // current_pieceが有効な位置にあるかチェック
+        if let Some(piece) = &self.current_piece {
+            if !self.is_valid_position(piece, piece.x as i8, piece.y as i8, piece.rotation) {
+                self.game_mode = 2; // GameOver
+                console_log!("Game Over: piece cannot spawn");
+            }
         }
+        
+        console_log!("spawn_piece completed: next → current, new next generated");
     }
     
     /// 現在のスコアを取得
@@ -354,25 +559,54 @@ impl WasmGameState {
         false
     }
     
-    /// 現在のピースを回転
+    /// 現在のピースを回転（SRS準拠）
     #[wasm_bindgen]
     pub fn rotate_current_piece(&mut self, clockwise: bool) -> bool {
         if let Some(ref piece) = self.current_piece {
+            let current_rotation = piece.rotation;
             let new_rotation = if clockwise {
-                (piece.rotation + 1) % 4
+                (current_rotation + 1) % 4
             } else {
-                (piece.rotation + 3) % 4
+                (current_rotation + 3) % 4
             };
             
-            if self.is_valid_position(piece, piece.x as i8, piece.y as i8, new_rotation) {
-                if let Some(ref mut piece) = self.current_piece {
-                    piece.rotation = new_rotation;
+            // SRS wall kick offsets を試行
+            let offsets = self.get_srs_wall_kick_offsets(piece.shape, current_rotation, new_rotation);
+            
+            for &[offset_x, offset_y] in offsets {
+                let test_x = piece.x as i8 + offset_x;
+                let test_y = piece.y as i8 + offset_y;
+                
+                if self.is_valid_position(piece, test_x, test_y, new_rotation) {
+                    // 回転成功
+                    if let Some(ref mut piece) = self.current_piece {
+                        piece.rotation = new_rotation;
+                        piece.x = test_x as usize;
+                        piece.y = test_y as usize;
+                    }
+                    console_log!("SRS rotation successful: rotation {} at ({}, {})", new_rotation, test_x, test_y);
+                    return true;
                 }
-                console_log!("Rotated piece to rotation {}", new_rotation);
-                return true;
             }
+            
+            console_log!("SRS rotation failed: no valid position found");
         }
         false
+    }
+    
+    /// SRS standard wall kick offsetsを取得
+    fn get_srs_wall_kick_offsets(&self, shape: u8, from_rotation: u8, to_rotation: u8) -> &'static [[i8; 2]; 5] {
+        let index = get_transition_index(from_rotation, to_rotation);
+        
+        match shape {
+            0 => &SRS_I_OFFSETS[index], // I piece
+            1 => {
+                // O piece doesn't need wall kicks (rotates in place)
+                static O_OFFSETS: [[i8; 2]; 5] = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]];
+                &O_OFFSETS
+            }
+            _ => &SRS_JLTSZ_OFFSETS[index], // J, L, T, S, Z pieces
+        }
     }
     
     /// ハードドロップ
@@ -401,33 +635,47 @@ impl WasmGameState {
     /// ピースを固定
     #[wasm_bindgen]
     pub fn lock_piece(&mut self) {
-        if let Some(piece) = &self.current_piece {
-            // ピースをボードに配置
-            let blocks = piece.get_blocks();
+        if let Some(piece) = self.current_piece.take() {
+            // ピースをボードに配置（CLI版と同様の処理）
+            let blocks = piece.get_blocks_at_rotation(piece.rotation);
             for (dx, dy) in blocks {
                 let board_x = piece.x as i8 + dx;
                 let board_y = piece.y as i8 + dy;
                 
                 if board_x >= 0 && board_x < BOARD_WIDTH as i8 && 
                    board_y >= 0 && board_y < BOARD_HEIGHT as i8 {
+                    // CLI版と同じようにOccupied状態で配置
                     self.board[board_y as usize][board_x as usize] = Cell::Occupied(piece.color);
                 }
             }
             
-            // 新しいピースを生成
-            self.current_piece = self.next_piece.take();
-            self.next_piece = Some(SimpleTetromino::new_random());
+            console_log!("Piece locked at position ({}, {})", piece.x, piece.y);
             
-            // ライン消去チェック
+            // TODO: 隣接ブロック処理（Phase 2Cで実装予定）
+            // board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear);
+            // self.update_connected_block_counts();
+            // self.update_max_chains();
+            
+            // ライン消去チェック（アニメーション対応）
             self.clear_lines();
             
-            console_log!("Piece locked and new piece spawned");
+            // アニメーション中でなければ新しいピースをスポーン
+            if self.animation_phase == 0 {
+                self.spawn_piece();
+            }
+            
+            console_log!("Piece locked, next piece spawned or animation started");
         }
     }
     
-    /// ラインクリア処理
+    /// ラインクリア処理（アニメーション対応）
     #[wasm_bindgen]
     pub fn clear_lines(&mut self) {
+        // すでにアニメーション中の場合は何もしない
+        if self.animation_phase != 0 {
+            return;
+        }
+        
         let mut lines_to_clear = Vec::new();
         
         // 完成したラインを見つける
@@ -444,15 +692,12 @@ impl WasmGameState {
             }
         }
         
-        // ラインを消去してスコア加算
-        for &y in &lines_to_clear {
-            self.board.remove(y);
-            self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-            self.score += 100; // 基本スコア
-        }
-        
         if !lines_to_clear.is_empty() {
-            console_log!("Cleared {} lines, score: {}", lines_to_clear.len(), self.score);
+            // アニメーションを開始
+            self.clearing_lines = lines_to_clear;
+            self.animation_start_time = Some(self.time_provider.now());
+            self.animation_phase = 1; // 点滅フェーズ開始
+            console_log!("Starting line clear animation for {} lines", self.clearing_lines.len());
         }
     }
     
@@ -474,16 +719,22 @@ impl WasmGameState {
             let board_x = x + dx;
             let board_y = y + dy;
             
-            // 境界チェック
-            if board_x < 0 || board_x >= BOARD_WIDTH as i8 ||
-               board_y < 0 || board_y >= BOARD_HEIGHT as i8 {
+            // 水平境界チェック
+            if board_x < 0 || board_x >= BOARD_WIDTH as i8 {
                 return false;
             }
             
-            // 衝突チェック
-            if !matches!(self.board[board_y as usize][board_x as usize], Cell::Empty) {
+            // 下方境界チェック
+            if board_y >= BOARD_HEIGHT as i8 {
                 return false;
             }
+            
+            // 衝突チェック（ボード内の可視領域のみ）
+            if board_y >= 0 && !matches!(self.board[board_y as usize][board_x as usize], Cell::Empty) {
+                return false;
+            }
+            
+            // y < 0 (ボード上部の見えない領域) は許可（スポーン時の回転用）
         }
         
         true
@@ -514,6 +765,14 @@ impl WasmGameState {
     pub fn auto_fall(&mut self) -> bool {
         if self.game_mode != 1 { // Playingモードでない場合はスキップ
             return false;
+        }
+        
+        // アニメーション処理を実行
+        self.update_animation();
+        
+        // アニメーション中は新しいピースの処理を停止
+        if self.animation_phase != 0 {
+            return true;
         }
         
         let current_time = self.time_provider.now();
@@ -670,5 +929,65 @@ impl WasmGameState {
         } else {
             vec![]
         }
+    }
+    
+    /// アニメーション処理を実行
+    #[wasm_bindgen]
+    pub fn update_animation(&mut self) {
+        if self.animation_phase == 0 {
+            return;
+        }
+        
+        let current_time = self.time_provider.now();
+        let start_time = self.animation_start_time.unwrap();
+        let elapsed = current_time - start_time;
+        
+        if self.animation_phase == 1 {
+            // 点滅フェーズ（500ms）
+            if elapsed >= Duration::from_millis(500) {
+                // 点滅終了、実際にラインを消去
+                for &y in &self.clearing_lines {
+                    self.board.remove(y);
+                    self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+                    self.score += 100; // 基本スコア
+                }
+                
+                console_log!("Cleared {} lines, score: {}", self.clearing_lines.len(), self.score);
+                
+                // アニメーション終了
+                self.clearing_lines.clear();
+                self.animation_start_time = None;
+                self.animation_phase = 0;
+                
+                // 新しいピースをスポーン
+                self.spawn_piece();
+            }
+        }
+    }
+    
+    /// アニメーション情報を取得（JavaScript用）
+    #[wasm_bindgen]
+    pub fn get_animation_info(&self) -> Vec<i32> {
+        if self.animation_phase == 0 {
+            return vec![];
+        }
+        
+        let mut result = vec![self.animation_phase as i32];
+        
+        if let Some(start_time) = self.animation_start_time {
+            let current_time = self.time_provider.now();
+            let elapsed_ms = (current_time - start_time).as_millis() as i32;
+            result.push(elapsed_ms);
+            
+            // 点滅アニメーションの場合、対象ライン情報も追加
+            if self.animation_phase == 1 {
+                result.push(self.clearing_lines.len() as i32);
+                for &line in &self.clearing_lines {
+                    result.push(line as i32);
+                }
+            }
+        }
+        
+        result
     }
 }

@@ -918,9 +918,186 @@ Phase 1（WASM基盤とゲーム基本機能）が正常に完了し、ブラウ
 
 **現在の状態**: http://localhost:5173/ で完全にプレイ可能
 
-### 15.2 CLI vs Web版機能比較分析
+### 15.2 抽象化システムの活用状況
+
+Phase 1完了時点で、既存の抽象化レイヤーの活用度を調査した結果：
+
+#### ✅ 完全活用されている抽象化
+
+**1. TimeProvider** - 100%活用
+```rust
+time_provider: WasmTimeProvider,  // JavaScript Date.now()統合
+impl TimeProvider for WasmTimeProvider { /* 完全実装 */ }
+```
+- ゲームタイミング、アニメーション制御で完全活用
+- プラットフォーム依存性を適切に隠蔽
+
+**2. RandomProvider** - 100%活用
+```rust
+use random::{RandomProvider, create_default_random_provider};
+let mut provider = create_default_random_provider(); // ファクトリパターン
+```
+- WebRandomProvider（JavaScript Math.random()統合）
+- 7-bag実装でも適切に活用
+- SRS回転システムにも完全統合
+
+#### 🔄 部分活用されている抽象化
+
+**3. GameInput** - 70%活用
+```rust
+use game_input::GameInput; // 共通enum使用
+// ただし InputProvider trait は未使用（数値変換で代替）
+pub fn handle_input(&mut self, input_code: u8) -> bool
+```
+
+#### ❌ 未活用の抽象化
+
+**4. Renderer** - 0%活用
+- `Renderer` trait を完全にバイパス
+- JavaScript Canvas API で直接描画
+- データ転送のみでWASM側描画なし
+
+**5. Scheduler** - 0%活用
+- `Scheduler` trait 未使用
+- ブラウザのrequestAnimationFrame直接使用
+
+**6. InputProvider** - 0%活用
+- `InputProvider` trait 未使用
+- 数値コード変換で直接処理
+
+### 15.3 実装レベル評価：プロトタイプ vs 本格実装
+
+#### 📊 詳細分析結果
+
+**現状位置づけ**: **「抽象化基盤は整っているが、最小限機能実装のプロトタイプ」**
+
+| 側面 | プロトタイプ的要素 | 本格実装要素 | 比重 |
+|------|-------------------|--------------|------|
+| **機能範囲** | game_spec.mdの30%のみ実装 | 基本テトリス機能は高品質 | 70% vs 30% |
+| **抽象化活用** | 3/6の抽象化のみ活用 | TimeProvider/RandomProviderは完全活用 | 50% vs 50% |
+| **データ構造** | 単純化された構造体 | SRS回転システム等は本格実装 | 60% vs 40% |
+| **総合評価** | **プロトタイプレベル** | **部分的高品質** | **65% vs 35%** |
+
+#### 🔍 具体的な実装ギャップ
+
+**1. データ構造の簡略化**
+```rust
+// CLI版（main.rs）- フル機能
+struct GameState {
+    custom_score_system: CustomScoreSystem, // 3色別複雑スコア
+    animation: Vec<Animation>,               // 複数アニメーション並行
+    current_board_height: usize,             // 動的高さ
+}
+
+// Web版（lib.rs）- 簡易版
+struct WasmGameState {
+    score: u32,                             // 単一スコア値
+    animation_phase: u8,                    // 簡単な状態値
+    // fixed height (動的高さなし)
+}
+```
+
+**2. 機能の未実装マーカー**
+```rust
+// Web版のlock_piece()より
+// TODO: 隣接ブロック処理（Phase 2Cで実装予定）
+// board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear);
+```
+
+**3. 抽象化の不完全活用**
+```rust
+// 理想的な使用法（未実装）
+let mut input_provider = create_default_input_provider();
+let mut renderer = create_default_renderer();
+
+// 現在の実装（直接結合）
+pub fn handle_input(&mut self, input_code: u8) -> bool
+```
+
+### 15.4 CLI vs Web版機能比較分析
 
 Phase 1完了後の詳細調査により、CLIバージョンとWeb版の間に重要な機能格差が判明しました：
+
+#### 📊 機能実装状況比較マトリクス
+
+| 機能分野 | CLI版 (main.rs) | Web版 (lib.rs) | 格差レベル | game_spec.md準拠 |
+|----------|-----------------|----------------|------------|------------------|
+| **🎯 ゲーム状態管理** |
+| コアロジック | GameState (フル機能) | WasmGameState (簡易) | ⚠️ 大 | CLI: 90%, Web: 70% |
+| スコアシステム | CustomScoreSystem | u32単一値 | 🚨 致命的 | CLI: 100%, Web: 20% |
+| ボード高さ | 動的 (current_board_height) | 固定 (BOARD_HEIGHT) | ⚠️ 大 | CLI: 100%, Web: 60% |
+| **🎨 アニメーション** |
+| アニメーション | Vec<Animation> 複数並行 | animation_phase 単一 | 🚨 致命的 | CLI: 80%, Web: 30% |
+| エフェクト | フルアニメーション | 基本状態変化のみ | ⚠️ 大 | CLI: 80%, Web: 20% |
+| **🎲 テトロミノシステム** |
+| 基本操作 | 完全実装 | 完全実装 | ✅ なし | 両方: 100% |
+| SRS回転 | 完全実装 | 完全実装 | ✅ なし | 両方: 100% |
+| 7-bag | 完全実装 | 完全実装 | ✅ なし | 両方: 100% |
+| **🎯 スコアリング** |
+| 基本スコア | ✅ 実装済み | ✅ 実装済み | ✅ なし | 両方: 100% |
+| 3色システム | CustomScoreSystem | ❌ 未実装 | 🚨 致命的 | CLI: 100%, Web: 0% |
+| 隣接ブロック | board_logic連携 | TODO: Phase 2C | 🚨 致命的 | CLI: 90%, Web: 0% |
+| **🔗 依存性管理** |
+| board_logic | 完全統合 | ❌ 未統合 | 🚨 致命的 | CLI: 100%, Web: 0% |
+| render連携 | Crossterm統合 | Canvas直接 | ⚠️ 大 | CLI: 90%, Web: 70% |
+
+#### 📈 game_spec.md準拠率
+
+**CLI版準拠率: ~80%**
+- 3色スコアシステム: ✅ 完全実装
+- 隣接ブロック検出: ✅ board_logic統合
+- カスタムアニメーション: ✅ Animation enum
+- 動的フィールド: ✅ 可変高さ
+- **不足**: 一部高度なアニメーション、Solid Line詳細
+
+**Web版準拠率: ~30%**  
+- 基本テトリス: ✅ 完全実装
+- **不足**: 3色システム、隣接ブロック、高度アニメーション、動的高さ
+
+#### 🔍 重要な実装差異詳細
+
+**1. スコアシステムの根本的違い**
+```rust
+// CLI版: game_spec.md完全準拠
+struct CustomScoreSystem {
+    color_scores: [u32; 3],      // 赤・青・黄の個別スコア
+    connected_blocks: Vec<ConnectedGroup>,
+    // 複雑な計算ロジック
+}
+
+// Web版: 標準テトリス互換
+struct WasmGameState {
+    score: u32,  // 単一スコア値のみ
+    // カスタムルール未対応
+}
+```
+
+**2. アニメーションシステムの差**
+```rust
+// CLI版: 並行アニメーション対応
+enum Animation {
+    LineClear { lines: Vec<usize>, frame: u8 },
+    BlockFall { /* 詳細制御 */ },
+    ScoreDisplay { /* カスタム表示 */ },
+}
+
+// Web版: 簡易状態管理
+struct WasmGameState {
+    animation_phase: u8,  // 0=通常, 1=ライン消去中
+    // 複雑なアニメーション未対応
+}
+```
+
+**3. 依存モジュール統合度**
+```rust
+// CLI版: フル統合
+use board_logic::{find_and_connect_adjacent_blocks, process_color_groups};
+// 隣接ブロック検出とカスタムルールを完全活用
+
+// Web版: 基本機能のみ
+// board_logic統合なし
+// TODO: Phase 2Cで追加予定
+```
 
 #### 🚨 Critical未実装要素（優先度S）
 
@@ -950,112 +1127,221 @@ Phase 1完了後の詳細調査により、CLIバージョンとWeb版の間に�
 | **タイマー管理** | ✅ `TimeProvider` trait | ❌ なし | 精密制御不可 |
 | **動的ボード高さ** | ✅ `current_board_height` | ❌ 固定サイズ | 拡張性制限 |
 
-### 15.3 Phase 2推奨実装優先順序
+### 15.5 Phase 2推奨実装優先順序（修正版）
 
-#### **Phase 2A - 基本ゲーム体験改善（最優先）**
-1. **自動落下システム** - タイマーベースの重力実装
-2. **次ピース表示** - 戦略的プレイ機能
-3. **ゴーストピース** - 配置予測機能
+現状分析を踏まえ、優先度を以下のように修正します：
 
-#### **Phase 2B - ゲーム品質向上**
-4. **アニメーションシステム** - ライン消去・落下アニメ
-5. **タイマー管理システム** - 精密な時間制御
+#### **🚨 Phase 2A - 致命的機能格差解消（最優先）**
+1. **CustomScoreSystemの完全移植** - CLI版との機能パリティ確保
+2. **board_logic統合** - 隣接ブロック検出とカスタムルール
+3. **3色スコアシステム実装** - game_spec.md基本要件
+4. **動的ボード高さ** - current_board_height相当の実装
 
-#### **Phase 2C - 高度機能拡張**
-6. **色別スコアシステム** - `CustomScoreSystem`の完全移植
-7. **接続ブロックロジック** - 高度なスコアリング機能
-8. **ボード高さ動的調整** - 上級者向け機能
+#### **⚠️ Phase 2B - 抽象化完全活用（重要）**
+5. **Renderer trait Web実装** - Canvas統合の抽象化
+6. **InputProvider trait統合** - 現在の数値変換を置換
+7. **Scheduler trait実装** - requestAnimationFrame統合
+8. **Animation システム強化** - Vec<Animation>並行処理
 
-### 15.4 技術的実装ギャップ評価
+#### **📱 Phase 2C - モバイル最適化（拡張）**
+9. **タッチインターフェース** - InputProvider基盤活用
+10. **レスポンシブ描画** - Renderer基盤活用
+11. **パフォーマンス最適化** - WASM最適化
 
-#### アーキテクチャ比較
+### 15.6 技術的実装ギャップ評価
+
+#### 抽象化活用度の改善目標
+
+| 抽象化システム | 現状 | Phase 2A後 | Phase 2B後 | 技術的影響 |
+|----------------|------|-------------|-------------|------------|
+| **TimeProvider** | ✅ 100% | ✅ 100% | ✅ 100% | 維持 |
+| **RandomProvider** | ✅ 100% | ✅ 100% | ✅ 100% | 維持 |
+| **GameInput** | 🔄 70% | 🔄 70% | ✅ 100% | Phase 2B完全統合 |
+| **Renderer** | ❌ 0% | ❌ 0% | ✅ 90% | Phase 2B新規実装 |
+| **InputProvider** | ❌ 0% | ❌ 0% | ✅ 80% | Phase 2B新規実装 |
+| **Scheduler** | ❌ 0% | ❌ 0% | ✅ 70% | Phase 2B新規実装 |
+
+#### アーキテクチャ進化計画
 ```rust
-// CLI版（main.rs）- フル機能
-struct GameState {
-    fall_speed: Duration,           // ❌ Web版にない
-    current_piece: Option<Tetromino>, // ✅ Web版対応
-    next_piece: Option<Tetromino>,    // ❌ Web版で未活用
-    animation: Vec<Animation>,        // ❌ Web版にない
-    custom_score_system: CustomScoreSystem, // ❌ Web版にない
-    // ... 他多数の高度機能
+// 現状（Phase 1完了時）
+struct WasmGameState {
+    score: u32,                     // 🔄 単純
+    animation_phase: u8,            // 🔄 単純
+    // 抽象化: 2/6システム活用
 }
 
-// Web版（lib.rs）- 簡易版
+// Phase 2A完了後
 struct WasmGameState {
-    score: u32,                     // ✅ 基本スコアのみ
-    current_piece: Option<SimpleTetromino>, // ✅ 基本機能
-    next_piece: Option<SimpleTetromino>,   // ❌ 表示に未活用
-    // ❌ 高度機能が大幅に不足
+    custom_score_system: CustomScoreSystem, // ✅ CLI版パリティ
+    animations: Vec<Animation>,              // ✅ 複雑アニメ対応
+    current_board_height: usize,             // ✅ 動的高さ
+    // 抽象化: 2/6システム活用（維持）
+}
+
+// Phase 2B完了後
+struct WasmGameState {
+    // Phase 2A機能維持
+    renderer: Box<dyn Renderer>,             // ✅ 新規抽象化
+    input_provider: Box<dyn InputProvider>,  // ✅ 新規抽象化
+    scheduler: Box<dyn Scheduler>,           // ✅ 新規抽象化
+    // 抽象化: 6/6システム完全活用
 }
 ```
 
-## 16. 結論
+## 16. 結論と更新された実装戦略
 
-### 16.1 推奨アプローチの総括
+### 16.1 現状評価の総括
 
-**ハイブリッドアーキテクチャ（TypeScript + WebAssembly）**は、現在の高品質なRustコードベースを最大限活用しながら、モバイルWebに最適化された優れたユーザー体験を提供する最適解です。
+**Phase 1完了時点での詳細分析結果**：
+- **実装レベル**: Web版は「抽象化基盤付きプロトタイプ」（65% プロトタイプ / 35% 本格実装）
+- **抽象化活用**: 6システム中2システム（33%）が完全活用、4システムが未活用
+- **game_spec.md準拠**: CLI版80% vs Web版30%の大幅な格差
+- **技術債務**: 致命的なスコアシステム格差、アニメーション機能不足
 
-#### 主要な利点
-1. **既存資産の保護**: 精巧に設計されたゲームロジックとテストスイートを維持
-2. **段階的な移行**: リスクを最小化した段階的開発アプローチ
-3. **高いパフォーマンス**: WASMによる高速処理とJavaScriptによる柔軟なUI
-4. **モバイル最適化**: タッチ操作、レスポンシブデザイン、PWA対応
+### 16.2 修正された推奨アプローチ
 
-### 15.2 開発タイムライン
+**ハイブリッドアーキテクチャ（TypeScript + WebAssembly）**は依然として最適解ですが、実装戦略を以下のように修正します：
 
-**総開発期間**: 10-13週間
-- Phase 1 (基盤): 2-3週間
-- Phase 2 (レンダリング): 2-3週間  
+#### 段階的品質向上戦略
+```rust
+// Phase 1完了（現状）: プロトタイプレベル
+let quality_ratio = (65, 35); // (プロトタイプ, 本格実装)
+let abstraction_usage = 33;   // 2/6システム活用
+
+// Phase 2A目標: 機能パリティ確保
+let quality_ratio = (40, 60); // CustomScoreSystem等の統合
+let abstraction_usage = 33;    // 抽象化は維持
+
+// Phase 2B目標: 抽象化完全活用
+let quality_ratio = (20, 80); // 本格実装レベル到達
+let abstraction_usage = 100;   // 6/6システム完全活用
+```
+
+#### 主要な利点（現状分析反映版）
+1. **高品質な抽象化基盤**: TimeProvider/RandomProviderが既に完全動作
+2. **段階的品質向上**: プロトタイプから本格実装への明確な道筋
+3. **既存資産の最大活用**: CLI版の精巧なCustomScoreSystemを完全移植可能
+4. **実装格差の明確化**: 具体的な技術債務と解消計画が明確
+5. **モバイル準備済み**: 抽象化により将来のタッチ対応が容易
+
+### 16.3 修正された開発タイムライン
+
+**総開発期間**: 9-13週間（現状分析による修正）
+- ✅ Phase 1 (基盤): 完了済み
+- 🚨 Phase 2A (機能パリティ): 4-6週間 ← 最重要
+- ⚠️ Phase 2B (抽象化完全活用): 3-4週間
+- 📱 Phase 2C (モバイル最適化): 2-3週間  
 - Phase 3 (統合): 3-4週間
 - Phase 4 (最適化): 2-3週間
 
-### 16.3 推奨次のステップ（即座に開始可能）
+### 16.3 更新された推奨次ステップ（現状分析反映）
 
-#### 🎯 **最優先推奨**: 自動落下システム実装
-**理由**: 現在最も重要な機能格差。これがないと基本的なテトリス体験ができない
+#### 🚨 **最優先課題**: CustomScoreSystemの完全移植
+**理由**: CLI版との最大の機能格差。game_spec.mdの核心的要件
 
 **具体的タスク**:
-1. **Timer/Scheduler実装** (1-2日)
+1. **CustomScoreSystemの構造体移植** (2-3日)
    ```rust
-   // CLIのTimeProviderをWASM環境に移植
-   pub trait TimeProvider {
-       fn now(&self) -> Duration;
+   // main.rsからlib.rsへ移植
+   #[wasm_bindgen]
+   pub struct CustomScoreSystem {
+       color_scores: [u32; 3],      // 赤・青・黄スコア
+       connected_groups: Vec<ConnectedGroup>,
    }
    ```
 
-2. **Auto-fall Logic移植** (2-3日)
+2. **board_logic統合** (3-4日)
    ```rust
-   // main.rsのfall_speed機能をlib.rsに統合
-   fall_speed: Duration,
-   last_fall_time: Duration,
+   // 隣接ブロック検出機能の統合
+   use board_logic::{find_and_connect_adjacent_blocks, process_color_groups};
+   // 現在のTODOコメントを実装に置換
    ```
 
-3. **JavaScript Timer統合** (1-2日)
-   ```typescript
-   // TypeScriptでのゲームループ実装
-   setInterval(() => game.auto_fall(), fall_interval);
+3. **スコア計算ロジック移植** (2-3日)
+   ```rust
+   // 3色別スコア計算の完全実装
+   impl CustomScoreSystem {
+       pub fn calculate_color_score(&mut self, groups: &[ConnectedGroup]) -> [u32; 3]
+   }
    ```
 
-#### 🚀 **次のマイルストーン**: Phase 2A完全実装（2-3週間）
-- 自動落下システム ✅
-- 次ピース表示
-- ゴーストピース
+#### ⚠️ **第二優先**: アニメーションシステム強化
+**理由**: 現在animation_phase(u8)のみ。CLI版のVec<Animation>が必要
 
-#### 💡 **段階的アプローチの利点**
-- **即座の価値提供**: 各機能追加でゲーム体験が向上
-- **リスク最小化**: 小さな変更の積み重ね
-- **フィードバック取得**: 各段階でユーザーテスト可能
+**具体的タスク**:
+1. **Animation enum移植** (2-3日)
+   ```rust
+   // main.rsのAnimation enumをWASM対応
+   #[wasm_bindgen]
+   pub enum Animation {
+       LineClear { lines: Vec<usize>, frame: u8 },
+       BlockFall { /* 複雑な制御 */ },
+   }
+   ```
 
-#### 📋 **準備状況**
+2. **並行アニメーション処理** (3-4日)
+   ```rust
+   // Vec<Animation>による複数アニメーション同時実行
+   animations: Vec<Animation>,
+   animation_manager: AnimationManager,
+   ```
+
+#### 📊 **第三優先**: 抽象化レイヤー完全活用
+**理由**: 現在33%活用。モバイル対応に必須の基盤
+
+**実装順序**:
+1. **Renderer trait Web実装** (4-5日)
+   - 現在のCanvas直接描画を抽象化
+   - CLI版との描画パリティ確保
+
+2. **InputProvider trait統合** (2-3日)
+   - 現在の数値変換を置換
+   - モバイルタッチ対応準備
+
+3. **Scheduler trait実装** (1-2日)
+   - requestAnimationFrame統合
+   - 精密なタイミング制御
+
+#### 🎯 **修正されたマイルストーン計画**
+
+**Phase 2A完了目標** (4-6週間):
+- ✅ CustomScoreSystem完全移植
+- ✅ board_logic統合（隣接ブロック検出）
+- ✅ 3色スコアシステム実装
+- ✅ 動的ボード高さ対応
+- **game_spec.md準拠率**: 30% → 70%に向上
+
+**Phase 2B完了目標** (3-4週間):
+- ✅ Renderer trait Web実装
+- ✅ InputProvider trait統合
+- ✅ Animation システム強化（Vec<Animation>）
+- ✅ Scheduler trait実装
+- **抽象化活用率**: 33% → 100%に向上
+
+**Phase 2C完了目標** (2-3週間):
+- ✅ タッチインターフェース実装
+- ✅ レスポンシブ描画システム
+- ✅ パフォーマンス最適化
+- **実装品質**: プロトタイプ65% → 本格実装80%
+
+#### 💡 **技術債務解消の利点**
+- **機能パリティ**: CLI版と同等の高品質ゲーム体験
+- **拡張性確保**: 抽象化基盤により将来の機能追加が容易
+- **保守性向上**: 統一されたアーキテクチャによる開発効率
+- **品質向上**: プロトタイプから本格実装への昇格
+
+#### 📋 **現在の準備状況**
 - ✅ **開発環境**: 完全にセットアップ済み
 - ✅ **WASM基盤**: 動作確認済み
 - ✅ **基本ゲーム**: プレイ可能状態
-- ✅ **ソースコード**: CLI実装からの移植素材あり
+- ✅ **移植素材**: CLI版からの高品質実装コード
+- ✅ **抽象化基盤**: TimeProvider/RandomProvider動作確認済み
+- 🔄 **技術債務**: 特定済み、解消計画策定完了
 
-この提案により、Thud & Tileは現代的なモバイルWebアプリケーションとして生まれ変わり、より多くのユーザーに愛される製品になることが期待されます。
+この更新された実装計画により、Thud & TileのWeb版は真にgame_spec.mdに準拠した高品質なモバイルWebアプリケーションとして完成し、CLI版と同等の豊かなゲーム体験を提供できるようになります。
 
 ---
 
 **作成者**: GitHub Copilot  
-**最終更新**: 2025年10月2日（Phase 1完了後更新）  
-**バージョン**: 1.1
+**最終更新**: 2025年10月2日（詳細現状分析反映）  
+**バージョン**: 2.0

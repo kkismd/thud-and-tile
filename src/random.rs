@@ -1,6 +1,17 @@
 // Thud & Tile用のデバイス独立ランダム数生成システム
 // WASM移植のためにrand::thread_rng()からの独立を実現
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+// JavaScript Math.random()をインポート
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = Math, js_name = random)]
+    fn js_math_random() -> f64;
+}
+
 /// プラットフォーム独立なランダム数プロバイダー
 pub trait RandomProvider: Send + Sync {
     /// 指定された範囲の整数を生成
@@ -102,9 +113,10 @@ impl WebRandomProvider {
     
     /// JavaScript環境からランダムシードを取得
     fn get_random_seed() -> u64 {
-        // 本来はwasm-bindgenでJavaScript Math.random()を呼び出すが、
-        // 今は固定値で代替（将来的にはWeb Crypto APIを使用）
-        12345678901234567890u64
+        // JavaScriptのMath.random()を使用してランダムシードを生成
+        let random_value = js_math_random();
+        // 0.0-1.0の範囲を64bit整数に変換
+        (random_value * u64::MAX as f64) as u64
     }
     
     /// Xorshift64アルゴリズムで次の値を生成
@@ -123,7 +135,9 @@ impl RandomProvider for WebRandomProvider {
             return min;
         }
         let range = max - min;
-        min + (self.next_u64() as usize) % range
+        // JavaScriptのMath.random()を直接使用してより良いランダム性を確保
+        let random_value = js_math_random(); // 0.0-1.0の範囲
+        min + (random_value * range as f64) as usize
     }
     
     fn choose<'a, T>(&mut self, slice: &'a [T]) -> Option<&'a T> {
