@@ -2,9 +2,9 @@
   "session_info": {
     "date": "2025-10-02",
     "phase": "Phase 2A - Critical Features Implementation",
-    "progress": "100% complete (5/5 tasks)",
-    "current_issue": "COMPLETED: Phase 2A全ての重要機能実装完了",
-    "next_priority": "Phase 2B: Ghost piece implementation or advanced features"
+    "progress": "100% complete (6/6 tasks including ghost piece)",
+    "current_issue": "COMPLETED: Phase 2A全ての重要機能実装完了（ゴーストピース含む）",
+    "next_priority": "Phase 2B: UI/UX improvements or Phase 2C: Core Thud & Tile mechanics"
   },
   "completed_tasks": [
     {
@@ -41,6 +41,13 @@
       "details": "Next piece preview with dedicated canvas and real-time updates",
       "files_modified": ["src/lib.rs", "../thud-and-tile-web/index.html", "../thud-and-tile-web/src/main.ts"],
       "key_additions": ["get_next_piece_info() method", "get_next_piece_blocks() method", "next-piece-canvas UI", "drawNextPiece() function"]
+    },
+    {
+      "task": "Ghost Piece Implementation",
+      "status": "✅ Complete",
+      "details": "Semi-transparent ghost piece showing landing position with 30% opacity",
+      "files_modified": ["src/lib.rs", "../thud-and-tile-web/src/main.ts"],
+      "key_additions": ["calculate_ghost_position() method", "get_ghost_piece_blocks() method", "drawGhostPiece() function", "integrated ghost rendering in drawGame()"]
     }
   ],
   "resolved_issue": {
