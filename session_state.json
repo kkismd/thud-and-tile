@@ -1,10 +1,11 @@
 {
+{
   "session_info": {
     "date": "2025-10-02",
-    "phase": "Phase 2A - Critical Features Implementation",
-    "progress": "100% complete (6/6 tasks including ghost piece)",
-    "current_issue": "COMPLETED: Phase 2A全ての重要機能実装完了（ゴーストピース含む）",
-    "next_priority": "Phase 2B: UI/UX improvements or Phase 2C: Core Thud & Tile mechanics"
+    "phase": "Phase 2A Foundation - Major Bug Fixes Complete",
+    "progress": "100% complete (major bugs fixed + migration analysis updated)",
+    "current_issue": "COMPLETED: Phase 2A準備完了 - 主要バグ修正とmobile_web_migration_proposal.md分析更新",
+    "next_priority": "Phase 2A: CustomScoreSystem migration or Phase 2B: Abstraction layer completion"
   },
   "completed_tasks": [
     {
@@ -48,41 +49,91 @@
       "details": "Semi-transparent ghost piece showing landing position with 30% opacity",
       "files_modified": ["src/lib.rs", "../thud-and-tile-web/src/main.ts"],
       "key_additions": ["calculate_ghost_position() method", "get_ghost_piece_blocks() method", "drawGhostPiece() function", "integrated ghost rendering in drawGame()"]
+    },
+    {
+      "task": "SRS Rotation System Fix",
+      "status": "✅ Complete",
+      "details": "Complete SRS standard rotation with wall kick offsets for all tetromino types",
+      "files_modified": ["src/lib.rs"],
+      "key_additions": ["SRS_JLTSZ_OFFSETS", "SRS_I_OFFSETS", "get_srs_wall_kick_offsets()", "get_transition_index()", "SRS-compliant get_blocks_at_rotation()"]
+    },
+    {
+      "task": "7-bag Random Generation System",
+      "status": "✅ Complete", 
+      "details": "WebTetrominoBag implementation matching CLI version TetrominoBag behavior",
+      "files_modified": ["src/lib.rs", "src/random.rs"],
+      "key_additions": ["TetrominoShape enum", "WebTetrominoBag struct", "improved JavaScript Math.random() integration", "from_shape() constructor"]
+    },
+    {
+      "task": "Next Piece Logic Fix",
+      "status": "✅ Complete",
+      "details": "Unified next piece management logic with CLI version (next -> current -> new next pattern)",
+      "files_modified": ["src/lib.rs"],
+      "key_additions": ["new_random_piece() method", "CLI-matching spawn_piece() logic", "proper tetromino_bag integration"]
+    },
+    {
+      "task": "Spawn Rotation Bug Fix",
+      "status": "✅ Complete",
+      "details": "Allow rotation in y<0 area for proper SRS spawn behavior", 
+      "files_modified": ["src/lib.rs"],
+      "key_additions": ["is_valid_position() boundary fix", "y<0 area permission for spawning"]
+    },
+    {
+      "task": "Line Clear Animation Foundation",
+      "status": "✅ Complete",
+      "details": "Animation system foundation with blinking line clear effects",
+      "files_modified": ["src/lib.rs"],
+      "key_additions": ["clearing_lines field", "animation_start_time", "animation_phase", "update_animation()", "get_animation_info()"]
+    },
+    {
+      "task": "Migration Analysis Document Update",
+      "status": "✅ Complete",
+      "details": "Comprehensive current state analysis in mobile_web_migration_proposal.md",
+      "files_modified": ["mobile_web_migration_proposal.md"],
+      "key_additions": ["Abstraction usage analysis", "CLI vs Web comparison matrix", "Implementation gap evaluation", "Phase 2 priority revision"]
     }
   ],
   "resolved_issue": {
-    "error": "Uncaught ReferenceError: startGame is not defined + テトロミノ単一ブロック表示",
-    "location": "/thud-and-tile-web/index.html line 152 + main.ts drawTetromino function",
-    "resolution": "HTML ID修正 + WASM-TypeScript連携強化",
+    "error": "Multiple critical bugs: SRS rotation, random generation (J-piece only), next piece mismatch, spawn rotation",
+    "location": "src/lib.rs rotation system, random generation, piece management",
+    "resolution": "Complete SRS implementation + 7-bag system + unified piece logic + analysis update",
     "implemented_solution": {
-      "method": "HTML ID fix + WASM block coordinate API",
+      "method": "SRS standard compliance + CLI-Web unification + comprehensive analysis",
       "steps_completed": [
-        "✅ Changed id='start-button' to id='start-game' in HTML",
-        "✅ Removed onclick='startGame()' from HTML", 
-        "✅ Added get_current_piece_blocks() to WASM API",
-        "✅ Rewrote TypeScript rendering to draw all tetromino blocks",
-        "✅ Fixed TypeScript type safety issues"
+        "✅ Implemented SRS wall kick offsets for all tetrominoes",
+        "✅ Fixed WebTetrominoBag with JavaScript Math.random() integration", 
+        "✅ Unified next piece management with CLI version logic",
+        "✅ Fixed spawn rotation by allowing y<0 area during rotation",
+        "✅ Enhanced JavaScript random integration for better randomness",
+        "✅ Added line clear animation foundation system",
+        "✅ Updated mobile_web_migration_proposal.md with detailed current state analysis"
       ]
     }
   },
   "pending_tasks": [
     {
-      "task": "Fix startGame Error",
+      "task": "CustomScoreSystem Migration (Phase 2A Priority)",
       "priority": "🚨 Critical",
-      "estimated_time": "15 minutes",
-      "blocking": true
+      "estimated_time": "4-6 weeks",
+      "description": "Migrate CLI version's CustomScoreSystem with 3-color scoring",
+      "blocking": false,
+      "reference": "mobile_web_migration_proposal.md Phase 2A recommendations"
     },
     {
-      "task": "Next Piece Display Implementation", 
-      "priority": "🔥 High",
-      "estimated_time": "2-3 hours",
-      "components": ["Rust API", "HTML UI", "TypeScript rendering"]
+      "task": "board_logic Integration (Phase 2A Priority)", 
+      "priority": "� Critical",
+      "estimated_time": "3-4 weeks",
+      "description": "Integrate adjacent block detection and connected group logic",
+      "blocking": false,
+      "reference": "Current TODO comments in lock_piece() method"
     },
     {
-      "task": "Ghost Piece Implementation",
-      "priority": "🔥 High", 
-      "estimated_time": "2-3 hours",
-      "reference": "main.rs ghost_piece() method (lines 126-133)"
+      "task": "Abstraction Layer Completion (Phase 2B)",
+      "priority": "⚠️ High", 
+      "estimated_time": "3-4 weeks",
+      "description": "Complete Renderer, InputProvider, Scheduler trait implementations",
+      "blocking": false,
+      "components": ["Renderer trait Web implementation", "InputProvider trait integration", "Scheduler trait implementation"]
     }
   ],
   "project_structure": {
@@ -107,24 +158,40 @@
   },
   "success_criteria": {
     "auto_fall": "✅ Piece drops every 800ms automatically",
-    "next_piece_display": "⏳ Next tetromino visible in UI",
-    "ghost_piece": "⏳ Semi-transparent piece shows landing position"
+    "next_piece_display": "✅ Next tetromino visible in UI with proper 7-bag generation",
+    "ghost_piece": "✅ Semi-transparent piece shows landing position",
+    "srs_rotation": "✅ SRS standard rotation with wall kick offsets",
+    "random_generation": "✅ All 7 tetromino types appear with proper distribution",
+    "spawn_rotation": "✅ Pieces can rotate in spawn area (y<0)",
+    "line_clear_animation": "✅ Blinking animation for cleared lines",
+    "migration_analysis": "✅ Comprehensive current state analysis documented"
   },
   "debug_info": {
     "console_logs_expected": [
       "自動落下タイマー開始: 800ms間隔",
-      "自動落下実行"
+      "自動落下実行",
+      "SRS rotation successful: rotation X at (Y, Z)",
+      "spawn_piece completed: next → current, new next generated",
+      "Starting line clear animation for X lines"
     ],
     "wasm_methods_added": [
       "auto_fall() -> bool",
       "get_fall_speed_ms() -> u32", 
       "set_fall_speed_ms(ms: u32)",
-      "get_current_piece_blocks() -> Vec<i32>"
+      "get_current_piece_blocks() -> Vec<i32>",
+      "get_next_piece_blocks() -> Vec<i32>",
+      "get_ghost_piece_blocks() -> Vec<i32>",
+      "get_srs_wall_kick_offsets()",
+      "update_animation()",
+      "get_animation_info() -> Vec<i32>"
     ],
     "test_commands": [
       "gameState.get_fall_speed_ms() // should return 800",
       "gameState.auto_fall() // should return true when playing",
-      "gameState.get_current_piece_blocks() // should return [x,y,color,x,y,color,...]"
+      "gameState.get_current_piece_blocks() // should return [x,y,color,x,y,color,...]",
+      "gameState.get_next_piece_blocks() // should return next piece blocks",
+      "gameState.get_ghost_piece_blocks() // should return ghost position",
+      "gameState.get_animation_info() // should return animation state"
     ]
   },
   "development_notes": {
@@ -134,7 +201,7 @@
         "rust_backend": {
           "path": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile",
           "description": "Rust WASM バックエンド",
-          "last_commit": "1d12663 - テトロミノ描画問題修正"
+          "last_commit": "b3400ab - 主要バグ修正: SRS回転、ランダム生成、NEXTピース、移植分析更新"
         },
         "web_frontend": {
           "path": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile-web", 
@@ -152,6 +219,23 @@
       "trigger": "Rust側のWASM export関数を変更した場合",
       "command": "cd thud-and-tile && wasm-pack build --target web --out-dir ../thud-and-tile-web/pkg",
       "note": "pkg/ディレクトリの更新後、webプロジェクトも別途コミットが必要"
+    },
+    "📋 CURRENT_STATE_ANALYSIS": {
+      "implementation_level": "65% prototype / 35% production quality",
+      "abstraction_usage": "33% (2/6 systems: TimeProvider ✅, RandomProvider ✅)",
+      "game_spec_compliance": "CLI: 80%, Web: 30%",
+      "critical_gaps": [
+        "CustomScoreSystem missing (CLI has 3-color scoring)",
+        "board_logic integration missing (adjacent block detection)",
+        "Animation system simplified (animation_phase vs Vec<Animation>)",
+        "Renderer/InputProvider/Scheduler traits not used"
+      ],
+      "next_priorities": [
+        "🚨 Phase 2A: CustomScoreSystem migration",
+        "🚨 Phase 2A: board_logic integration", 
+        "⚠️ Phase 2B: Complete abstraction layer usage",
+        "📱 Phase 2C: Mobile optimization"
+      ]
     }
   }
 }
