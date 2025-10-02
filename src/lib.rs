@@ -570,3 +570,27 @@ pub fn get_version() -> String {
 pub fn get_board_dimensions() -> Vec<usize> {
     vec![BOARD_WIDTH, BOARD_HEIGHT]
 }
+
+/// 現在のテトロミノの全ブロック座標を取得
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl WasmGameState {
+    pub fn get_current_piece_blocks(&self) -> Vec<i32> {
+        if let Some(ref piece) = self.current_piece {
+            let blocks = piece.get_blocks_at_rotation(piece.rotation);
+            let mut result = Vec::new();
+            
+            for (dx, dy) in blocks {
+                let board_x = piece.x as i8 + dx;
+                let board_y = piece.y as i8 + dy;
+                result.push(board_x as i32);
+                result.push(board_y as i32);
+                result.push(piece.color as i32); // 色情報も含める
+            }
+            
+            result
+        } else {
+            vec![]
+        }
+    }
+}

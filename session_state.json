@@ -69,7 +69,7 @@
     }
   ],
   "project_structure": {
-    "rust_project": "/Users/kshimada/Documents/move_folder/src/Rust/block-down/",
+    "rust_project": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile/",
     "web_project": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile-web/",
     "key_files": {
       "src/lib.rs": "WASM API with auto-fall implementation",
