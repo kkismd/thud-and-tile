@@ -1,11 +1,10 @@
 {
-{
   "session_info": {
-    "date": "2025-10-02",
-    "phase": "Phase 2A Foundation - Major Bug Fixes Complete",
-    "progress": "100% complete (major bugs fixed + migration analysis updated)",
-    "current_issue": "COMPLETED: Phase 2A準備完了 - 主要バグ修正とmobile_web_migration_proposal.md分析更新",
-    "next_priority": "Phase 2A: CustomScoreSystem migration or Phase 2B: Abstraction layer completion"
+    "date": "2025-10-03",
+    "phase": "Phase 2A Foundation - Architecture Improvement Complete",
+    "progress": "100% complete (duplicate implementation removal + CLI logic integration + proposal analysis)",
+    "current_issue": "COMPLETED: 重複実装削除とCLI版ロジック活用によるアーキテクチャ改善、mobile_web_migration_proposal.md分析反映",
+    "next_priority": "Phase 2A Priority: Complete Line Clear System migration or Animation System migration"
   },
   "completed_tasks": [
     {
@@ -91,6 +90,14 @@
       "details": "Comprehensive current state analysis in mobile_web_migration_proposal.md",
       "files_modified": ["mobile_web_migration_proposal.md"],
       "key_additions": ["Abstraction usage analysis", "CLI vs Web comparison matrix", "Implementation gap evaluation", "Phase 2 priority revision"]
+    },
+    {
+      "task": "Duplicate Implementation Removal & CLI Logic Integration",
+      "status": "✅ Complete",
+      "details": "Removed redundant find_and_connect_adjacent_blocks and related methods, integrated existing CLI board_logic",
+      "files_modified": ["src/lib.rs"],
+      "key_additions": ["Removed duplicate find_and_connect_adjacent_blocks method", "Removed duplicate update_max_chains_for_current_board method", "Removed duplicate update_max_chains_for_cleared_lines method", "Removed unused color_to_u8 function", "Integrated crate::board_logic::find_and_connect_adjacent_blocks", "Fixed color mapping with direct match statements"],
+      "impact": "Reduced code duplication, improved maintainability by leveraging existing tested CLI implementation"
     }
   ],
   "resolved_issue": {
@@ -225,17 +232,33 @@
       "abstraction_usage": "33% (2/6 systems: TimeProvider ✅, RandomProvider ✅)",
       "game_spec_compliance": "CLI: 80%, Web: 30%",
       "critical_gaps": [
-        "CustomScoreSystem missing (CLI has 3-color scoring)",
-        "board_logic integration missing (adjacent block detection)",
-        "Animation system simplified (animation_phase vs Vec<Animation>)",
-        "Renderer/InputProvider/Scheduler traits not used"
+        "❌ Line Clear System: Web has simple animation-only vs CLI complete gray-conversion + push-down + isolated block removal",
+        "❌ Animation System: Web has animation_phase (u8) vs CLI Vec<Animation> parallel system", 
+        "❌ CustomScoreSystem missing (CLI has 3-color scoring)",
+        "❌ board_logic integration missing (adjacent block detection)",
+        "❌ Dynamic Board Height: Web fixed BOARD_HEIGHT vs CLI dynamic current_board_height",
+        "❌ Renderer/InputProvider/Scheduler traits not used"
+      ],
+      "recent_improvements": [
+        "✅ Duplicate Implementation Removal: Eliminated redundant find_and_connect_adjacent_blocks methods",
+        "✅ CLI Logic Integration: Now uses existing board_logic::find_and_connect_adjacent_blocks",
+        "✅ Code Quality: Reduced duplication, improved maintainability by leveraging tested CLI implementation"
       ],
       "next_priorities": [
+        "🚨 Phase 2A: Complete Line Clear System migration (gray conversion, push-down, isolated block removal)",
+        "🚨 Phase 2A: Animation System complete migration (Vec<Animation> parallel system)",
+        "🚨 Phase 2A: Dynamic Board Height system (current_board_height)",
         "🚨 Phase 2A: CustomScoreSystem migration",
         "🚨 Phase 2A: board_logic integration", 
         "⚠️ Phase 2B: Complete abstraction layer usage",
         "📱 Phase 2C: Mobile optimization"
-      ]
+      ],
+      "architecture_status": {
+        "code_duplication": "✅ Significantly reduced (find_and_connect_adjacent_blocks removed)",
+        "cli_integration": "✅ Improved (board_logic integration started)",
+        "maintainability": "✅ Enhanced (leveraging existing tested implementations)",
+        "feature_parity": "❌ Major gaps remain (line clear, animation, scoring systems)"
+      }
     }
   }
 }
