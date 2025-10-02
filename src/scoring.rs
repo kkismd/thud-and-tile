@@ -1,4 +1,4 @@
-use crossterm::style::Color;
+use crate::game_color::GameColor;
 use std::fmt;
 
 /// 色別のスコアとMAX-CHAINを管理する構造体
@@ -20,21 +20,21 @@ impl ColorScores {
 
     /// 指定された色のスコアを取得
     #[allow(dead_code)]
-    pub fn get(&self, color: Color) -> u32 {
+    pub fn get(&self, color: GameColor) -> u32 {
         match color {
-            Color::Cyan => self.cyan,
-            Color::Magenta => self.magenta,
-            Color::Yellow => self.yellow,
+            GameColor::Cyan => self.cyan,
+            GameColor::Magenta => self.magenta,
+            GameColor::Yellow => self.yellow,
             _ => 0, // 他の色は対象外
         }
     }
 
     /// 指定された色にスコアを加算
-    pub fn add(&mut self, color: Color, points: u32) {
+    pub fn add(&mut self, color: GameColor, points: u32) {
         match color {
-            Color::Cyan => self.cyan += points,
-            Color::Magenta => self.magenta += points,
-            Color::Yellow => self.yellow += points,
+            GameColor::Cyan => self.cyan += points,
+            GameColor::Magenta => self.magenta += points,
+            GameColor::Yellow => self.yellow += points,
             _ => {} // 他の色は何もしない
         }
     }
@@ -63,29 +63,29 @@ impl ColorMaxChains {
     }
 
     /// 指定された色の最大チェーン数を取得
-    pub fn get(&self, color: Color) -> u32 {
+    pub fn get(&self, color: GameColor) -> u32 {
         match color {
-            Color::Cyan => self.cyan,
-            Color::Magenta => self.magenta,
-            Color::Yellow => self.yellow,
+            GameColor::Cyan => self.cyan,
+            GameColor::Magenta => self.magenta,
+            GameColor::Yellow => self.yellow,
             _ => 0, // 他の色は対象外
         }
     }
 
     /// 指定された色の最大チェーン数を更新（現在の値より大きい場合のみ）
-    pub fn update_max(&mut self, color: Color, chain_count: u32) {
+    pub fn update_max(&mut self, color: GameColor, chain_count: u32) {
         match color {
-            Color::Cyan => {
+            GameColor::Cyan => {
                 if chain_count > self.cyan {
                     self.cyan = chain_count;
                 }
             }
-            Color::Magenta => {
+            GameColor::Magenta => {
                 if chain_count > self.magenta {
                     self.magenta = chain_count;
                 }
             }
-            Color::Yellow => {
+            GameColor::Yellow => {
                 if chain_count > self.yellow {
                     self.yellow = chain_count;
                 }
@@ -147,24 +147,24 @@ mod tests {
     #[test]
     fn test_color_scores_add() {
         let mut scores = ColorScores::new();
-        scores.add(Color::Cyan, 100);
-        scores.add(Color::Magenta, 200);
-        scores.add(Color::Yellow, 300);
+        scores.add(GameColor::Cyan, 100);
+        scores.add(GameColor::Magenta, 200);
+        scores.add(GameColor::Yellow, 300);
 
-        assert_eq!(scores.get(Color::Cyan), 100);
-        assert_eq!(scores.get(Color::Magenta), 200);
-        assert_eq!(scores.get(Color::Yellow), 300);
+        assert_eq!(scores.get(GameColor::Cyan), 100);
+        assert_eq!(scores.get(GameColor::Magenta), 200);
+        assert_eq!(scores.get(GameColor::Yellow), 300);
         assert_eq!(scores.total(), 600);
     }
 
     #[test]
     fn test_color_scores_ignore_invalid_colors() {
         let mut scores = ColorScores::new();
-        scores.add(Color::Red, 100); // Should be ignored
-        scores.add(Color::Blue, 200); // Should be ignored
+        scores.add(GameColor::Red, 100); // Should be ignored
+        scores.add(GameColor::Blue, 200); // Should be ignored
 
-        assert_eq!(scores.get(Color::Red), 0);
-        assert_eq!(scores.get(Color::Blue), 0);
+        assert_eq!(scores.get(GameColor::Red), 0);
+        assert_eq!(scores.get(GameColor::Blue), 0);
         assert_eq!(scores.total(), 0);
     }
 
@@ -182,24 +182,24 @@ mod tests {
         let mut max_chains = ColorMaxChains::new();
 
         // 初回設定
-        max_chains.update_max(Color::Cyan, 3);
-        max_chains.update_max(Color::Magenta, 5);
-        max_chains.update_max(Color::Yellow, 2);
+        max_chains.update_max(GameColor::Cyan, 3);
+        max_chains.update_max(GameColor::Magenta, 5);
+        max_chains.update_max(GameColor::Yellow, 2);
 
-        assert_eq!(max_chains.get(Color::Cyan), 3);
-        assert_eq!(max_chains.get(Color::Magenta), 5);
-        assert_eq!(max_chains.get(Color::Yellow), 2);
+        assert_eq!(max_chains.get(GameColor::Cyan), 3);
+        assert_eq!(max_chains.get(GameColor::Magenta), 5);
+        assert_eq!(max_chains.get(GameColor::Yellow), 2);
         assert_eq!(max_chains.max(), 5);
 
         // より小さい値では更新されない
-        max_chains.update_max(Color::Cyan, 2);
-        max_chains.update_max(Color::Magenta, 4);
-        assert_eq!(max_chains.get(Color::Cyan), 3);
-        assert_eq!(max_chains.get(Color::Magenta), 5);
+        max_chains.update_max(GameColor::Cyan, 2);
+        max_chains.update_max(GameColor::Magenta, 4);
+        assert_eq!(max_chains.get(GameColor::Cyan), 3);
+        assert_eq!(max_chains.get(GameColor::Magenta), 5);
 
         // より大きい値では更新される
-        max_chains.update_max(Color::Yellow, 8);
-        assert_eq!(max_chains.get(Color::Yellow), 8);
+        max_chains.update_max(GameColor::Yellow, 8);
+        assert_eq!(max_chains.get(GameColor::Yellow), 8);
         assert_eq!(max_chains.max(), 8);
     }
 
@@ -213,12 +213,12 @@ mod tests {
     #[test]
     fn test_custom_score_system_display() {
         let mut system = CustomScoreSystem::new();
-        system.scores.add(Color::Cyan, 200);
-        system.scores.add(Color::Magenta, 420);
-        system.scores.add(Color::Yellow, 500);
-        system.max_chains.update_max(Color::Cyan, 2);
-        system.max_chains.update_max(Color::Magenta, 4);
-        system.max_chains.update_max(Color::Yellow, 5);
+        system.scores.add(GameColor::Cyan, 200);
+        system.scores.add(GameColor::Magenta, 420);
+        system.scores.add(GameColor::Yellow, 500);
+        system.max_chains.update_max(GameColor::Cyan, 2);
+        system.max_chains.update_max(GameColor::Magenta, 4);
+        system.max_chains.update_max(GameColor::Yellow, 5);
 
         let expected = "SCORE:    1120\n  CYAN:    200\n  MAGENTA: 420\n  YELLOW:  500\n\nMAX-CHAIN: 5\n  CYAN:    2\n  MAGENTA: 4\n  YELLOW:  5";
         assert_eq!(format!("{}", system), expected);

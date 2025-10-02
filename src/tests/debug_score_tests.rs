@@ -7,23 +7,23 @@ fn debug_score_calculation() {
     state.mode = GameMode::Playing;
 
     // MAX-CHAINを手動で設定
-    state.custom_score_system.max_chains.update_max(Color::Cyan, 2);
-    state.custom_score_system.max_chains.update_max(Color::Magenta, 3);
-    state.custom_score_system.max_chains.update_max(Color::Yellow, 1);
+    state.custom_score_system.max_chains.update_max(GameColor::Cyan, 2);
+    state.custom_score_system.max_chains.update_max(GameColor::Magenta, 3);
+    state.custom_score_system.max_chains.update_max(GameColor::Yellow, 1);
 
     // 底辺ラインにシンプルなブロックを配置
     let line_y = BOARD_HEIGHT - 1;
     state.board[line_y] = vec![
-        Cell::Occupied(Color::Cyan),    // 1 × 2 × 10 = 20
-        Cell::Occupied(Color::Magenta), // 1 × 3 × 10 = 30
-        Cell::Occupied(Color::Yellow),  // 1 × 1 × 10 = 10
-        Cell::Occupied(Color::Cyan),    // 1 × 2 × 10 = 20
-        Cell::Occupied(Color::Magenta), // 1 × 3 × 10 = 30
-        Cell::Occupied(Color::Yellow),  // 1 × 1 × 10 = 10
-        Cell::Occupied(Color::Cyan),    // 1 × 2 × 10 = 20
-        Cell::Occupied(Color::Magenta), // 1 × 3 × 10 = 30
-        Cell::Occupied(Color::Yellow),  // 1 × 1 × 10 = 10
-        Cell::Occupied(Color::Cyan),    // 1 × 2 × 10 = 20
+        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
+        Cell::Occupied(GameColor::Magenta), // 1 × 3 × 10 = 30
+        Cell::Occupied(GameColor::Yellow),  // 1 × 1 × 10 = 10
+        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
+        Cell::Occupied(GameColor::Magenta), // 1 × 3 × 10 = 30
+        Cell::Occupied(GameColor::Yellow),  // 1 × 1 × 10 = 10
+        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
+        Cell::Occupied(GameColor::Magenta), // 1 × 3 × 10 = 30
+        Cell::Occupied(GameColor::Yellow),  // 1 × 1 × 10 = 10
+        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
     ];
 
     // ライン消去を実行
@@ -50,23 +50,23 @@ fn debug_connected_blocks_score_calculation() {
     println!("=== Testing Connected blocks ===");
 
     // MAX-CHAINを手動で設定
-    state.custom_score_system.max_chains.update_max(Color::Cyan, 2);
-    state.custom_score_system.max_chains.update_max(Color::Magenta, 3);
-    state.custom_score_system.max_chains.update_max(Color::Yellow, 1);
+    state.custom_score_system.max_chains.update_max(GameColor::Cyan, 2);
+    state.custom_score_system.max_chains.update_max(GameColor::Magenta, 3);
+    state.custom_score_system.max_chains.update_max(GameColor::Yellow, 1);
 
     // 底辺ラインにConnectedブロックを配置
     let line_y = BOARD_HEIGHT - 1;
     state.board[line_y] = vec![
-        Cell::Connected { color: Color::Cyan, count: 3 },      // 3 × 2 × 10 = 60
-        Cell::Connected { color: Color::Magenta, count: 2 },   // 2 × 3 × 10 = 60
-        Cell::Connected { color: Color::Yellow, count: 5 },    // 5 × 1 × 10 = 50
-        Cell::Connected { color: Color::Cyan, count: 1 },      // 1 × 2 × 10 = 20
-        Cell::Connected { color: Color::Magenta, count: 4 },   // 4 × 3 × 10 = 120
-        Cell::Connected { color: Color::Yellow, count: 7 },    // 7 × 1 × 10 = 70
-        Cell::Connected { color: Color::Cyan, count: 2 },      // 2 × 2 × 10 = 40
-        Cell::Connected { color: Color::Magenta, count: 1 },   // 1 × 3 × 10 = 30
-        Cell::Connected { color: Color::Yellow, count: 3 },    // 3 × 1 × 10 = 30
-        Cell::Connected { color: Color::Cyan, count: 6 },      // 6 × 2 × 10 = 120
+        Cell::Connected { color: GameColor::Cyan, count: 3 },      // 3 × 2 × 10 = 60
+        Cell::Connected { color: GameColor::Magenta, count: 2 },   // 2 × 3 × 10 = 60
+        Cell::Connected { color: GameColor::Yellow, count: 5 },    // 5 × 1 × 10 = 50
+        Cell::Connected { color: GameColor::Cyan, count: 1 },      // 1 × 2 × 10 = 20
+        Cell::Connected { color: GameColor::Magenta, count: 4 },   // 4 × 3 × 10 = 120
+        Cell::Connected { color: GameColor::Yellow, count: 7 },    // 7 × 1 × 10 = 70
+        Cell::Connected { color: GameColor::Cyan, count: 2 },      // 2 × 2 × 10 = 40
+        Cell::Connected { color: GameColor::Magenta, count: 1 },   // 1 × 3 × 10 = 30
+        Cell::Connected { color: GameColor::Yellow, count: 3 },    // 3 × 1 × 10 = 30
+        Cell::Connected { color: GameColor::Cyan, count: 6 },      // 6 × 2 × 10 = 120
     ];
 
     println!("\n=== Before line clear ===");

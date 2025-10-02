@@ -1,4 +1,4 @@
-use crossterm::style::Color;
+use crate::game_color::GameColor;
 use lazy_static::lazy_static;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -126,7 +126,7 @@ lazy_static! {
 pub struct Tetromino {
     pub shape: TetrominoShape, // Made public for SRS testing
     pub pos: (i8, i8),
-    blocks: Vec<((i8, i8), Color)>,
+    blocks: Vec<((i8, i8), GameColor)>,
     rotation_state: u8, // SRS rotation state: 0, 1, 2, 3
 }
 
@@ -169,7 +169,7 @@ impl Tetromino {
         }
     }
 
-    pub fn from_shape(shape: TetrominoShape, colors: [Color; 4]) -> Self {
+    pub fn from_shape(shape: TetrominoShape, colors: [GameColor; 4]) -> Self {
         let matrix = match shape {
             TetrominoShape::I => &Self::SHAPES[0],
             TetrominoShape::O => &Self::SHAPES[1],
@@ -192,7 +192,7 @@ impl Tetromino {
         }
     }
 
-    pub fn iter_blocks(&self) -> impl Iterator<Item = ((i8, i8), Color)> + '_ {
+    pub fn iter_blocks(&self) -> impl Iterator<Item = ((i8, i8), GameColor)> + '_ {
         self.blocks.iter().map(move |&((block_x, block_y), color)| {
             let pos = (self.pos.0 + block_x, self.pos.1 + block_y);
             (pos, color)
@@ -202,7 +202,7 @@ impl Tetromino {
     /// Gets the colors of the blocks in order
     /// Used for testing color consistency during rotations
     #[allow(dead_code)]
-    pub fn get_colors(&self) -> Vec<Color> {
+    pub fn get_colors(&self) -> Vec<GameColor> {
         self.blocks.iter().map(|(_, color)| *color).collect()
     }
 
@@ -303,7 +303,7 @@ impl Tetromino {
             .map(|(i, &(x, y))| {
                 let color = if self.shape == TetrominoShape::O {
                     // O-mino color rotation (clockwise)
-                    let old_colors: Vec<Color> =
+                    let old_colors: Vec<GameColor> =
                         self.blocks.iter().map(|&(_, color)| color).collect();
                     match i {
                         0 => old_colors[2], // Top-Left gets Bottom-Left's color
@@ -327,7 +327,7 @@ impl Tetromino {
 
     /// Get the color mapping for rotation transitions
     /// Maps new block index to the color from the corresponding old block
-    fn get_rotated_color_mapping(&self, new_index: usize, _from_state: u8, _to_state: u8) -> Color {
+    fn get_rotated_color_mapping(&self, new_index: usize, _from_state: u8, _to_state: u8) -> GameColor {
         // For physical rotation order, all tetrominoes use simple direct mapping
         let rotation_mapping = match self.shape {
             TetrominoShape::T => {
@@ -385,7 +385,7 @@ impl Tetromino {
             .map(|(i, &(x, y))| {
                 let color = if self.shape == TetrominoShape::O {
                     // O-mino color rotation (counter-clockwise)
-                    let old_colors: Vec<Color> =
+                    let old_colors: Vec<GameColor> =
                         self.blocks.iter().map(|&(_, color)| color).collect();
                     match i {
                         0 => old_colors[1], // Top-Left gets Top-Right's color
@@ -502,7 +502,7 @@ mod tests {
     #[test]
     fn test_new_tetromino_uses_only_three_colors() {
         let tetromino = Tetromino::new_random();
-        let allowed_colors = [Color::Cyan, Color::Magenta, Color::Yellow];
+        let allowed_colors = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
 
         for (_, color) in tetromino.iter_blocks() {
             assert!(

@@ -5,7 +5,7 @@ use crossterm::{
         PushKeyboardEnhancementFlags,
     },
     execute,
-    style::{Color, ResetColor},
+    style::{ResetColor},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{self};
@@ -13,7 +13,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 mod config;
+mod game_color;
 use config::*;
+use game_color::GameColor;
 
 mod render;
 
@@ -370,7 +372,7 @@ impl GameState {
         // Handle custom clear for non-bottom lines
         for &y in &non_bottom_lines_cleared {
             // 1. Remove isolated blocks below the cleared line.
-            board_logic::remove_isolated_blocks(self, y);
+            board_logic::remove_isolated_blocks(&mut self.board, y);
 
             // 2. Count colors before clearing lines for custom scoring
             // Use new scoring formula: block_count × MAX-CHAIN × 10 points
@@ -394,7 +396,7 @@ impl GameState {
 
             // 3. Turn the cleared line to gray (Step 5)
             for x in 0..BOARD_WIDTH {
-                self.board[y][x] = Cell::Occupied(Color::Grey);
+                self.board[y][x] = Cell::Occupied(GameColor::Grey);
             }
 
             // Trigger the push-down animation (Step 6).

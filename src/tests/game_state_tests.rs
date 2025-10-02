@@ -17,65 +17,65 @@ fn test_new_score_calculation_system() {
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Cyan, 3);
+        .update_max(GameColor::Cyan, 3);
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Magenta, 2);
+        .update_max(GameColor::Magenta, 2);
 
     // Create a line with connected blocks at the bottom
     state.board[19] = vec![
         Cell::Connected {
-            color: Color::Cyan,
+            color: GameColor::Cyan,
             count: 2,
         }, // 2 × 3 × 10 = 60 points
         Cell::Connected {
-            color: Color::Magenta,
+            color: GameColor::Magenta,
             count: 1,
         }, // 1 × 2 × 10 = 20 points
         Cell::Connected {
-            color: Color::Cyan,
+            color: GameColor::Cyan,
             count: 3,
         }, // 3 × 3 × 10 = 90 points
         Cell::Connected {
-            color: Color::Cyan,
+            color: GameColor::Cyan,
             count: 2,
         }, // 2 × 3 × 10 = 60 points
         Cell::Connected {
-            color: Color::Magenta,
+            color: GameColor::Magenta,
             count: 1,
         }, // 1 × 2 × 10 = 20 points
         Cell::Connected {
-            color: Color::Cyan,
+            color: GameColor::Cyan,
             count: 3,
         }, // 3 × 3 × 10 = 90 points
         Cell::Connected {
-            color: Color::Cyan,
+            color: GameColor::Cyan,
             count: 2,
         }, // 2 × 3 × 10 = 60 points
         Cell::Connected {
-            color: Color::Magenta,
+            color: GameColor::Magenta,
             count: 1,
         }, // 1 × 2 × 10 = 20 points
         Cell::Connected {
-            color: Color::Cyan,
+            color: GameColor::Cyan,
             count: 3,
         }, // 3 × 3 × 10 = 90 points
         Cell::Connected {
-            color: Color::Magenta,
+            color: GameColor::Magenta,
             count: 1,
         }, // 1 × 2 × 10 = 20 points
     ];
 
-    let initial_cyan_score = state.custom_score_system.scores.get(Color::Cyan);
-    let initial_magenta_score = state.custom_score_system.scores.get(Color::Magenta);
+    let initial_cyan_score = state.custom_score_system.scores.get(GameColor::Cyan);
+    let initial_magenta_score = state.custom_score_system.scores.get(GameColor::Magenta);
 
     // Trigger line clear using the clear_lines method
     state.clear_lines(&[19], &time_provider);
 
     // Verify new score calculation
-    let final_cyan_score = state.custom_score_system.scores.get(Color::Cyan);
-    let final_magenta_score = state.custom_score_system.scores.get(Color::Magenta);
+    let final_cyan_score = state.custom_score_system.scores.get(GameColor::Cyan);
+    let final_magenta_score = state.custom_score_system.scores.get(GameColor::Magenta);
 
     // Expected: Cyan = (2+3+2+3+2+3)×3×10 = 15×3×10 = 450
     // Expected: Magenta = (1+1+1+1)×2×10 = 4×2×10 = 80
@@ -93,7 +93,7 @@ fn test_connected_blocks_count_updated_after_animation_completion() {
     let mut state = GameState::new();
     state.mode = GameMode::Playing;
 
-    let test_color = Color::Red;
+    let test_color = GameColor::Red;
 
     // Set up a realistic scenario: reduced board height with solid lines at bottom
     state.current_board_height = BOARD_HEIGHT - 3; // Leave some space for solid lines
@@ -123,7 +123,7 @@ fn test_connected_blocks_count_updated_after_animation_completion() {
 
     // Turn the gray line to gray (simulating the line clear process)
     for x in 0..BOARD_WIDTH {
-        state.board[state.current_board_height - 1][x] = Cell::Occupied(Color::Grey);
+        state.board[state.current_board_height - 1][x] = Cell::Occupied(GameColor::Grey);
     }
 
     // Process the animation - this should call update_all_connected_block_counts
@@ -175,13 +175,13 @@ fn test_line_clear_triggers_blink_animation() {
 
     // Create a full line at the bottom
     for x in 0..BOARD_WIDTH {
-        state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(Color::Blue);
+        state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Create a piece to lock and trigger the line clear
     let piece = Tetromino::from_shape(
         TetrominoShape::I,
-        [Color::Red, Color::Red, Color::Red, Color::Red],
+        [GameColor::Red, GameColor::Red, GameColor::Red, GameColor::Red],
     );
     state.current_piece = Some(piece);
 
@@ -203,17 +203,17 @@ fn test_bottom_line_is_cleared_normally() {
 
     // Create a full line at the bottom
     for x in 0..BOARD_WIDTH {
-        state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(Color::Blue);
+        state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(GameColor::Blue);
     }
     // Add a marker block on the row above
-    state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Red);
+    state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(GameColor::Red);
 
     // Clear the bottom line
     let new_animations = state.clear_lines(&[BOARD_HEIGHT - 1], &time_provider);
     state.animation.extend(new_animations);
 
     // Assert that the marker block has moved down into the bottom row
-    assert_eq!(state.board[BOARD_HEIGHT - 1][0], Cell::Occupied(Color::Red));
+    assert_eq!(state.board[BOARD_HEIGHT - 1][0], Cell::Occupied(GameColor::Red));
     // Assert that the top row is now empty
     assert!(state.board[0].iter().all(|&c| c == Cell::Empty));
     // Assert custom score system - should have 10 blue blocks worth of score
@@ -234,7 +234,7 @@ fn test_cleared_non_bottom_line_turns_gray() {
 
     // Create a full line at a non-bottom row
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Call the line clear logic
@@ -243,7 +243,7 @@ fn test_cleared_non_bottom_line_turns_gray() {
 
     // Assert that the cleared line has turned gray
     for x in 0..BOARD_WIDTH {
-        assert_eq!(state.board[clear_line_y][x], Cell::Occupied(Color::Grey));
+        assert_eq!(state.board[clear_line_y][x], Cell::Occupied(GameColor::Grey));
     }
 }
 
@@ -255,7 +255,7 @@ fn test_non_bottom_clear_triggers_pushdown() {
 
     // Create a full line at a non-bottom row
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Call the line clear logic and capture the resulting animations
@@ -276,7 +276,7 @@ fn test_handle_animation_processes_line_blink() {
 
     let clear_line_y = BOARD_HEIGHT - 1;
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     state.animation.push(Animation::LineBlink {
@@ -312,7 +312,7 @@ fn test_handle_animation_processes_push_down() {
 
     let clear_line_y = BOARD_HEIGHT - 5;
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Trigger a PushDown animation
@@ -334,7 +334,7 @@ fn test_handle_animation_processes_push_down() {
     // Assert that the gray line has moved down one step
     assert_eq!(
         state.board[clear_line_y + 1][0],
-        Cell::Occupied(Color::Grey)
+        Cell::Occupied(GameColor::Grey)
     );
     assert_eq!(state.board[clear_line_y][0], Cell::Empty);
 
@@ -348,7 +348,7 @@ fn test_solid_cell_is_collision() {
     let solid_pos = (4, 5);
     state.board[solid_pos.1][solid_pos.0] = Cell::Solid;
 
-    let mut piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red; 4]);
+    let mut piece = Tetromino::from_shape(TetrominoShape::I, [GameColor::Red; 4]);
     // Position the piece to overlap with the solid cell
     piece.pos = (solid_pos.0 as i8 - 1, solid_pos.1 as i8 - 1);
 
@@ -363,7 +363,7 @@ fn test_pushdown_finishes_with_solid_line() {
 
     // Create a full line at a non-bottom row
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Trigger the line clear and subsequent pushdown animation
@@ -394,13 +394,13 @@ fn test_lock_piece_ignores_solid_lines() {
     }
     // Create an occupied line above it
     for x in 0..BOARD_WIDTH {
-        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(Color::Blue);
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Create a piece to lock and trigger the line clear
     let piece = Tetromino::from_shape(
         TetrominoShape::I,
-        [Color::Red, Color::Red, Color::Red, Color::Red],
+        [GameColor::Red, GameColor::Red, GameColor::Red, GameColor::Red],
     );
     state.current_piece = Some(piece);
 
@@ -418,7 +418,7 @@ fn test_lock_piece_ignores_solid_lines() {
     for x in 0..BOARD_WIDTH {
         assert_eq!(
             state.board[BOARD_HEIGHT - 2][x],
-            Cell::Occupied(Color::Grey)
+            Cell::Occupied(GameColor::Grey)
         );
     }
     let expected_gray_line_y = BOARD_HEIGHT - 2;
@@ -446,7 +446,7 @@ fn test_pushdown_animation_moves_line() {
 
     // Create a full line
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Trigger the animation
@@ -460,7 +460,7 @@ fn test_pushdown_animation_moves_line() {
     // Assert: The gray line has moved down one step
     assert_eq!(
         state.board[clear_line_y + 1][0],
-        Cell::Occupied(Color::Grey),
+        Cell::Occupied(GameColor::Grey),
         "Gray line should have moved down"
     );
     assert_eq!(
@@ -479,7 +479,7 @@ fn test_multiple_gray_lines_stack_and_reduce_board_height() {
     // 1. Clear a line at BOARD_HEIGHT - 5
     let clear_line_y1 = BOARD_HEIGHT - 5;
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y1][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y1][x] = Cell::Occupied(GameColor::Blue);
     }
     let new_animations = state.clear_lines(&[clear_line_y1], &time_provider);
     state.animation.extend(new_animations);
@@ -507,7 +507,7 @@ fn test_multiple_gray_lines_stack_and_reduce_board_height() {
     // 2. Clear a second line at a higher position
     let clear_line_y2 = BOARD_HEIGHT - 10;
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y2][x] = Cell::Occupied(Color::Green);
+        state.board[clear_line_y2][x] = Cell::Occupied(GameColor::Green);
     }
     let new_animations = state.clear_lines(&[clear_line_y2], &time_provider);
     state.animation.extend(new_animations);
@@ -541,7 +541,7 @@ fn test_multiple_gray_lines_stack_and_reduce_board_height() {
     );
 
     // Position a test piece to overlap with the solid lines
-    let mut colliding_piece = Tetromino::from_shape(TetrominoShape::I, [Color::Red; 4]);
+    let mut colliding_piece = Tetromino::from_shape(TetrominoShape::I, [GameColor::Red; 4]);
     colliding_piece.pos = (0, (state.current_board_height as i8) - 1); // Place it on the top solid line
     assert!(
         !state.is_valid_position(&colliding_piece),
@@ -556,12 +556,12 @@ fn test_connected_blocks_separation_after_line_clear() {
     let mut state = GameState::new();
     state.mode = GameMode::Playing;
 
-    let test_color = Color::Green;
+    let test_color = GameColor::Green;
     let clear_line_y = BOARD_HEIGHT - 5;
 
     // Create a line to clear
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Create a vertical line of connected blocks that spans across the clear line
@@ -626,7 +626,7 @@ fn test_connected_blocks_count_updated_after_bottom_line_clear() {
     let mut state = GameState::new();
     state.mode = GameMode::Playing;
 
-    let test_color = Color::Red;
+    let test_color = GameColor::Red;
 
     // Set up some solid lines at the bottom to simulate a reduced field
     state.current_board_height = BOARD_HEIGHT - 2; // Simulate field with solid lines at bottom
@@ -638,7 +638,7 @@ fn test_connected_blocks_count_updated_after_bottom_line_clear() {
     // Create a full line at the current bottom (current_board_height - 1)
     let bottom_line_y = state.current_board_height - 1;
     for x in 0..BOARD_WIDTH {
-        state.board[bottom_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[bottom_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // Place connected blocks above the line to be cleared with wrong counts
@@ -728,31 +728,31 @@ fn test_max_chain_updated_after_piece_landing() {
 
     // Create a test scenario with connected blocks
     // Place some cyan blocks in a connected pattern
-    state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Cyan);
-    state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(Color::Cyan);
-    state.board[BOARD_HEIGHT - 3][0] = Cell::Occupied(Color::Cyan);
+    state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(GameColor::Cyan);
+    state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(GameColor::Cyan);
+    state.board[BOARD_HEIGHT - 3][0] = Cell::Occupied(GameColor::Cyan);
 
     // Place some magenta blocks in a larger connected pattern
     for x in 3..=6 {
-        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(Color::Magenta);
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(GameColor::Magenta);
     }
-    state.board[BOARD_HEIGHT - 3][3] = Cell::Occupied(Color::Magenta);
+    state.board[BOARD_HEIGHT - 3][3] = Cell::Occupied(GameColor::Magenta);
 
     // Place some yellow blocks in an even larger pattern
     for x in 7..=9 {
-        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(Color::Yellow);
-        state.board[BOARD_HEIGHT - 3][x] = Cell::Occupied(Color::Yellow);
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(GameColor::Yellow);
+        state.board[BOARD_HEIGHT - 3][x] = Cell::Occupied(GameColor::Yellow);
     }
 
     // Initially, the custom score system should have zero max chains
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Cyan), 0);
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Magenta), 0);
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Yellow), 0);
+    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Cyan), 0);
+    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Magenta), 0);
+    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Yellow), 0);
 
     // Create a piece and place it to trigger a landing
     let piece = Tetromino::from_shape(
         TetrominoShape::I,
-        [Color::Cyan, Color::Cyan, Color::Cyan, Color::Cyan],
+        [GameColor::Cyan, GameColor::Cyan, GameColor::Cyan, GameColor::Cyan],
     );
     state.current_piece = Some(piece);
 
@@ -766,17 +766,17 @@ fn test_max_chain_updated_after_piece_landing() {
     // Magenta: 5 blocks connected (4 horizontal + 1 extending up)
     // Yellow: 6 blocks connected (3x2 grid)
     assert_eq!(
-        state.custom_score_system.max_chains.get(Color::Cyan),
+        state.custom_score_system.max_chains.get(GameColor::Cyan),
         4,
         "Cyan should have 4 connected blocks after I-piece lands"
     );
     assert_eq!(
-        state.custom_score_system.max_chains.get(Color::Magenta),
+        state.custom_score_system.max_chains.get(GameColor::Magenta),
         5,
         "Magenta should have 5 connected blocks"
     );
     assert_eq!(
-        state.custom_score_system.max_chains.get(Color::Yellow),
+        state.custom_score_system.max_chains.get(GameColor::Yellow),
         6,
         "Yellow should have 6 connected blocks"
     );
@@ -793,24 +793,24 @@ fn test_max_chain_only_increases_never_decreases() {
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Cyan, 8);
+        .update_max(GameColor::Cyan, 8);
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Magenta, 10);
+        .update_max(GameColor::Magenta, 10);
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Yellow, 5);
+        .update_max(GameColor::Yellow, 5);
 
     // Create a smaller connected pattern
-    state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(Color::Cyan);
-    state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(Color::Cyan);
+    state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(GameColor::Cyan);
+    state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(GameColor::Cyan);
 
     // Place a piece
     let piece = Tetromino::from_shape(
         TetrominoShape::O,
-        [Color::Cyan, Color::Cyan, Color::Cyan, Color::Cyan],
+        [GameColor::Cyan, GameColor::Cyan, GameColor::Cyan, GameColor::Cyan],
     );
     state.current_piece = Some(piece);
 
@@ -818,9 +818,9 @@ fn test_max_chain_only_increases_never_decreases() {
     state.lock_piece(&time_provider);
 
     // Max chains should not decrease even if current connected count is smaller
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Cyan), 8); // Should remain 8, not decrease to smaller count
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Magenta), 10); // Should remain unchanged
-    assert_eq!(state.custom_score_system.max_chains.get(Color::Yellow), 5); // Should remain unchanged
+    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Cyan), 8); // Should remain 8, not decrease to smaller count
+    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Magenta), 10); // Should remain unchanged
+    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Yellow), 5); // Should remain unchanged
 }
 
 #[test]
@@ -833,34 +833,34 @@ fn test_color_score_updated_after_line_clear() {
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Cyan, 2);
+        .update_max(GameColor::Cyan, 2);
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Magenta, 3);
+        .update_max(GameColor::Magenta, 3);
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Yellow, 1);
+        .update_max(GameColor::Yellow, 1);
 
     // Initially, all color scores should be zero
-    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 0);
-    assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 0);
-    assert_eq!(state.custom_score_system.scores.get(Color::Yellow), 0);
+    assert_eq!(state.custom_score_system.scores.get(GameColor::Cyan), 0);
+    assert_eq!(state.custom_score_system.scores.get(GameColor::Magenta), 0);
+    assert_eq!(state.custom_score_system.scores.get(GameColor::Yellow), 0);
     assert_eq!(state.custom_score_system.scores.total(), 0);
 
     // Create a line with mixed colors to clear
     let clear_line_y = BOARD_HEIGHT - 1;
-    state.board[clear_line_y][0] = Cell::Occupied(Color::Cyan); // 1×2×10 = 20
-    state.board[clear_line_y][1] = Cell::Occupied(Color::Cyan); // 1×2×10 = 20
-    state.board[clear_line_y][2] = Cell::Occupied(Color::Magenta); // 1×3×10 = 30
-    state.board[clear_line_y][3] = Cell::Occupied(Color::Magenta); // 1×3×10 = 30
-    state.board[clear_line_y][4] = Cell::Occupied(Color::Magenta); // 1×3×10 = 30
-    state.board[clear_line_y][5] = Cell::Occupied(Color::Yellow); // 1×1×10 = 10
-    state.board[clear_line_y][6] = Cell::Occupied(Color::Yellow); // 1×1×10 = 10
-    state.board[clear_line_y][7] = Cell::Occupied(Color::Cyan); // 1×2×10 = 20
-    state.board[clear_line_y][8] = Cell::Occupied(Color::Magenta); // 1×3×10 = 30
-    state.board[clear_line_y][9] = Cell::Occupied(Color::Yellow); // 1×1×10 = 10
+    state.board[clear_line_y][0] = Cell::Occupied(GameColor::Cyan); // 1×2×10 = 20
+    state.board[clear_line_y][1] = Cell::Occupied(GameColor::Cyan); // 1×2×10 = 20
+    state.board[clear_line_y][2] = Cell::Occupied(GameColor::Magenta); // 1×3×10 = 30
+    state.board[clear_line_y][3] = Cell::Occupied(GameColor::Magenta); // 1×3×10 = 30
+    state.board[clear_line_y][4] = Cell::Occupied(GameColor::Magenta); // 1×3×10 = 30
+    state.board[clear_line_y][5] = Cell::Occupied(GameColor::Yellow); // 1×1×10 = 10
+    state.board[clear_line_y][6] = Cell::Occupied(GameColor::Yellow); // 1×1×10 = 10
+    state.board[clear_line_y][7] = Cell::Occupied(GameColor::Cyan); // 1×2×10 = 20
+    state.board[clear_line_y][8] = Cell::Occupied(GameColor::Magenta); // 1×3×10 = 30
+    state.board[clear_line_y][9] = Cell::Occupied(GameColor::Yellow); // 1×1×10 = 10
 
     // Clear the line (this should be treated as bottom line clear)
     let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
@@ -871,17 +871,17 @@ fn test_color_score_updated_after_line_clear() {
     // Magenta: 4 blocks × MAX-CHAIN(3) × 10 = 120 points
     // Yellow: 3 blocks × MAX-CHAIN(1) × 10 = 30 points
     assert_eq!(
-        state.custom_score_system.scores.get(Color::Cyan),
+        state.custom_score_system.scores.get(GameColor::Cyan),
         60,
         "Cyan should have 60 points from 3 blocks × 2 MAX-CHAIN × 10"
     );
     assert_eq!(
-        state.custom_score_system.scores.get(Color::Magenta),
+        state.custom_score_system.scores.get(GameColor::Magenta),
         120,
         "Magenta should have 120 points from 4 blocks × 3 MAX-CHAIN × 10"
     );
     assert_eq!(
-        state.custom_score_system.scores.get(Color::Yellow),
+        state.custom_score_system.scores.get(GameColor::Yellow),
         30,
         "Yellow should have 30 points from 3 blocks × 1 MAX-CHAIN × 10"
     );
@@ -899,26 +899,26 @@ fn test_color_score_accumulates_across_multiple_clears() {
     state.mode = GameMode::Playing;
 
     // Set initial scores
-    state.custom_score_system.scores.add(Color::Cyan, 5);
-    state.custom_score_system.scores.add(Color::Magenta, 10);
+    state.custom_score_system.scores.add(GameColor::Cyan, 5);
+    state.custom_score_system.scores.add(GameColor::Magenta, 10);
 
     // Set MAX-CHAIN values for calculation
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Cyan, 2);
+        .update_max(GameColor::Cyan, 2);
     state
         .custom_score_system
         .max_chains
-        .update_max(Color::Yellow, 1);
+        .update_max(GameColor::Yellow, 1);
 
     // Create a line with blocks to clear
     let clear_line_y = BOARD_HEIGHT - 1;
     for x in 0..5 {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Cyan);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Cyan);
     }
     for x in 5..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Yellow);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Yellow);
     }
 
     // Clear the line
@@ -929,8 +929,8 @@ fn test_color_score_accumulates_across_multiple_clears() {
     // Cyan: 5 (initial) + (5 blocks × 2 MAX-CHAIN × 10) = 5 + 100 = 105
     // Magenta: 10 (initial) + 0 (new) = 10
     // Yellow: 0 (initial) + (5 blocks × 1 MAX-CHAIN × 10) = 0 + 50 = 50
-    assert_eq!(state.custom_score_system.scores.get(Color::Cyan), 105);
-    assert_eq!(state.custom_score_system.scores.get(Color::Magenta), 10);
-    assert_eq!(state.custom_score_system.scores.get(Color::Yellow), 50);
+    assert_eq!(state.custom_score_system.scores.get(GameColor::Cyan), 105);
+    assert_eq!(state.custom_score_system.scores.get(GameColor::Magenta), 10);
+    assert_eq!(state.custom_score_system.scores.get(GameColor::Yellow), 50);
     assert_eq!(state.custom_score_system.scores.total(), 165);
 }

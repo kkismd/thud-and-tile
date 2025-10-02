@@ -1,7 +1,7 @@
 // SRS回転システム テスト
 use super::*;
 use crate::tetromino::TetrominoShape;
-use crossterm::style::Color;
+use crate::game_color::GameColor;
 
 #[test]
 fn test_basic_rotation() {
@@ -11,7 +11,7 @@ fn test_basic_rotation() {
 
 #[test]
 fn test_tetromino_initial_rotation_state() {
-    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let colors = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow, GameColor::Green];
     let piece = Tetromino::from_shape(TetrominoShape::T, colors);
     assert_eq!(
         piece.get_rotation_state(),
@@ -22,7 +22,7 @@ fn test_tetromino_initial_rotation_state() {
 
 #[test]
 fn test_clockwise_rotation_state_cycle() {
-    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let colors = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow, GameColor::Green];
     let mut piece = Tetromino::from_shape(TetrominoShape::T, colors);
 
     // Test complete rotation cycle: 0 -> 1 -> 2 -> 3 -> 0
@@ -43,7 +43,7 @@ fn test_clockwise_rotation_state_cycle() {
 
 #[test]
 fn test_counter_clockwise_rotation_state_cycle() {
-    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let colors = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow, GameColor::Green];
     let mut piece = Tetromino::from_shape(TetrominoShape::T, colors);
 
     // Test counter-clockwise cycle: 0 -> 3 -> 2 -> 1 -> 0
@@ -64,7 +64,7 @@ fn test_counter_clockwise_rotation_state_cycle() {
 
 #[test]
 fn test_basic_wall_kick_functionality() {
-    let colors = [Color::Cyan, Color::Magenta, Color::Yellow, Color::Green];
+    let colors = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow, GameColor::Green];
     let mut piece = Tetromino::from_shape(TetrominoShape::I, colors);
 
     // I型を壁際に配置
@@ -85,7 +85,7 @@ fn test_basic_wall_kick_functionality() {
 
 #[test]
 fn test_physical_rotation_produces_movement() {
-    let colors = [Color::Yellow, Color::Cyan, Color::Magenta, Color::Green];
+    let colors = [GameColor::Yellow, GameColor::Cyan, GameColor::Magenta, GameColor::Green];
     let piece = Tetromino::from_shape(TetrominoShape::T, colors);
 
     let initial_blocks: Vec<_> = piece.iter_blocks().collect();
@@ -118,7 +118,7 @@ fn test_physical_rotation_produces_movement() {
 #[test]
 fn test_color_physical_rotation_detailed() {
     // Phase 5: 色の物理的回転の詳細テスト
-    let colors = [Color::Red, Color::Green, Color::Blue, Color::Yellow];
+    let colors = [GameColor::Red, GameColor::Green, GameColor::Blue, GameColor::Yellow];
     let piece = Tetromino::from_shape(TetrominoShape::T, colors);
 
     // T-mino初期状態: [(1,0), (0,1), (1,1), (2,1)]の色を確認

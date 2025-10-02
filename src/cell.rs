@@ -1,11 +1,11 @@
-use crossterm::style::Color;
+use crate::game_color::GameColor;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Cell {
     Empty,
-    Occupied(Color),
+    Occupied(GameColor),
     Solid,
-    Connected { color: Color, count: u8 },
+    Connected { color: GameColor, count: u8 },
 }
 
 impl std::fmt::Debug for Cell {
@@ -24,12 +24,12 @@ pub type Board = Vec<Vec<Cell>>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::style::Color;
+    use crate::game_color::GameColor;
 
     #[test]
     fn test_connected_cell_debug_output() {
         let cell = Cell::Connected {
-            color: Color::Red,
+            color: GameColor::Red,
             count: 5,
         };
         // This test will fail initially because the default Debug output is different.

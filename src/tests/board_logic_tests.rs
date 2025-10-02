@@ -10,19 +10,19 @@ fn test_isolated_blocks_are_removed_on_non_bottom_clear() {
 
     // 1. Create a full line at a non-bottom row
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
 
     // 2. Place an isolated block and a non-isolated group below the line
     let isolated_block_pos = (5, clear_line_y + 2);
-    state.board[isolated_block_pos.1][isolated_block_pos.0] = Cell::Occupied(Color::Red);
+    state.board[isolated_block_pos.1][isolated_block_pos.0] = Cell::Occupied(GameColor::Red);
 
     let non_isolated_group_pos1 = (2, clear_line_y + 3);
     let non_isolated_group_pos2 = (3, clear_line_y + 3);
     state.board[non_isolated_group_pos1.1][non_isolated_group_pos1.0] =
-        Cell::Occupied(Color::Green);
+        Cell::Occupied(GameColor::Green);
     state.board[non_isolated_group_pos2.1][non_isolated_group_pos2.0] =
-        Cell::Occupied(Color::Green);
+        Cell::Occupied(GameColor::Green);
 
     // 3. Call the line clear logic
     let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
@@ -61,12 +61,12 @@ fn test_counts_connected_blocks() {
         (3, cleared_line_y + 3),
     ];
     for &(x, y) in &green_group {
-        board[y][x] = Cell::Occupied(Color::Green);
+        board[y][x] = Cell::Occupied(GameColor::Green);
     }
 
     // Setup a single isolated red block
     let red_block = (7, cleared_line_y + 1);
-    board[red_block.1][red_block.0] = Cell::Occupied(Color::Red);
+    board[red_block.1][red_block.0] = Cell::Occupied(GameColor::Red);
 
     let mut results = board_logic::count_connected_blocks(&board, cleared_line_y);
     results.sort_by_key(|k| (k.0.1, k.0.0)); // Sort for consistent order
@@ -86,7 +86,7 @@ fn test_counts_connected_blocks() {
 #[test]
 fn test_newly_landed_block_connects_to_existing_connected_block() {
     let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-    let test_color = Color::Red;
+    let test_color = GameColor::Red;
 
     // 既存のConnectedブロックを配置
     board[BOARD_HEIGHT - 1][0] = Cell::Connected {
@@ -117,7 +117,7 @@ fn test_connected_blocks_count_after_lock_piece() {
     let mut state = GameState::new();
     state.mode = GameMode::Playing;
 
-    let test_color = Color::Red;
+    let test_color = GameColor::Red;
 
     // Scenario 1: Two adjacent blocks
     // Place two adjacent blocks at the bottom
@@ -148,7 +148,7 @@ fn test_connected_blocks_count_after_lock_piece() {
     state.board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
 
     // Scenario 2: Multiple connected blocks (e.g., 2x2 square)
-    let square_color = Color::Green;
+    let square_color = GameColor::Green;
     state.board[BOARD_HEIGHT - 2][0] = Cell::Occupied(square_color);
     state.board[BOARD_HEIGHT - 2][1] = Cell::Occupied(square_color);
     state.board[BOARD_HEIGHT - 1][0] = Cell::Occupied(square_color);
@@ -182,7 +182,7 @@ fn test_connected_blocks_count_after_lock_piece() {
     state.board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
 
     // Scenario 3: Single isolated block
-    let isolated_color = Color::Blue;
+    let isolated_color = GameColor::Blue;
     state.board[BOARD_HEIGHT - 1][5] = Cell::Occupied(isolated_color);
 
     let dummy_piece_3 = Tetromino::from_shape(TetrominoShape::I, [isolated_color; 4]);

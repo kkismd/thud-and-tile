@@ -1,16 +1,18 @@
 use crossterm::{
     cursor::MoveTo,
     execute,
-    style::{Color, Print, ResetColor, SetForegroundColor},
+    style::{Print, ResetColor, SetForegroundColor},
     terminal,
 };
 use std::io::{self, Write};
 
 use crate::cell::Cell;
 use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
+use crate::game_color::GameColor;
 use std::time::Duration;
 
-use crate::GameState; // Import GameState from crate root
+use crate::GameState; // Import GameState from main.rs
+use crate::GameMode;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Animation {
@@ -28,8 +30,8 @@ pub enum Animation {
 pub trait Renderer {
     fn clear_screen(&mut self) -> io::Result<()>;
     fn move_to(&mut self, x: u16, y: u16) -> io::Result<()>;
-    fn set_foreground_color(&mut self, color: Color) -> io::Result<()>;
-    fn set_background_color(&mut self, color: Color) -> io::Result<()>; // Add this line
+    fn set_foreground_color(&mut self, color: GameColor) -> io::Result<()>;
+    fn set_background_color(&mut self, color: GameColor) -> io::Result<()>; // Add this line
     fn print(&mut self, s: &str) -> io::Result<()>;
     fn reset_color(&mut self) -> io::Result<()>;
     fn flush(&mut self) -> io::Result<()>;
@@ -56,13 +58,13 @@ impl Renderer for CrosstermRenderer {
         execute!(self.stdout, MoveTo(x, y))
     }
 
-    fn set_foreground_color(&mut self, color: Color) -> io::Result<()> {
-        execute!(self.stdout, SetForegroundColor(color))
+    fn set_foreground_color(&mut self, color: GameColor) -> io::Result<()> {
+        execute!(self.stdout, SetForegroundColor(color.into()))
     }
 
-    fn set_background_color(&mut self, color: Color) -> io::Result<()> {
+    fn set_background_color(&mut self, color: GameColor) -> io::Result<()> {
         // Add this method
-        execute!(self.stdout, crossterm::style::SetBackgroundColor(color))
+        execute!(self.stdout, crossterm::style::SetBackgroundColor(color.into()))
     }
 
     fn print(&mut self, s: &str) -> io::Result<()> {
@@ -81,7 +83,7 @@ impl Renderer for CrosstermRenderer {
 #[cfg(test)]
 pub mod mock_renderer {
     use super::Renderer;
-    use crossterm::style::Color;
+    use crate::game_color::GameColor;
     use std::cell::RefCell;
     use std::io;
     use std::rc::Rc;
@@ -90,8 +92,8 @@ pub mod mock_renderer {
     pub enum RenderCommand {
         ClearScreen,
         MoveTo(u16, u16),
-        SetForegroundColor(Color),
-        SetBackgroundColor(Color), // Add this line
+        SetForegroundColor(GameColor),
+        SetBackgroundColor(GameColor), // Add this line
         Print(String),
         ResetColor,
         Flush,
@@ -120,14 +122,14 @@ pub mod mock_renderer {
             Ok(())
         }
 
-        fn set_foreground_color(&mut self, color: Color) -> io::Result<()> {
+        fn set_foreground_color(&mut self, color: GameColor) -> io::Result<()> {
             self.commands
                 .borrow_mut()
                 .push(RenderCommand::SetForegroundColor(color));
             Ok(())
         }
 
-        fn set_background_color(&mut self, color: Color) -> io::Result<()> {
+        fn set_background_color(&mut self, color: GameColor) -> io::Result<()> {
             // Add this method
             self.commands
                 .borrow_mut()
@@ -161,14 +163,14 @@ mod tests {
     use crate::GameState;
     use crate::cell::Cell;
     use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
-    use crossterm::style::Color;
+    use crate::game_color::GameColor;
     use std::time::Duration;
 
     #[test]
     fn test_connected_blocks_blink_during_line_clear_animation() {
         let mut mock_renderer = mock_renderer::MockRenderer::new();
         let mut state = GameState::new();
-        state.mode = crate::GameMode::Playing;
+        state.mode = GameMode::Playing;
 
         // Setup a board with a line to clear and connected blocks
         let clear_line_y = BOARD_HEIGHT - 2;
@@ -177,11 +179,11 @@ mod tests {
 
         // Create a full line to be cleared
         for x in 0..BOARD_WIDTH {
-            state.board[clear_line_y][x] = Cell::Occupied(Color::Blue);
+            state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
         }
         // Place a connected block on the line to be cleared
         state.board[connected_block_y][connected_block_x] = Cell::Connected {
-            color: Color::Green,
+            color: GameColor::Green,
             count: 1,
         };
 
@@ -251,12 +253,12 @@ mod tests {
                 }
             }
             if found_move_to_on
-                && matches!(command, RenderCommand::SetBackgroundColor(Color::Green))
+                && matches!(command, RenderCommand::SetBackgroundColor(GameColor::Green))
             {
-                // Check for SetBackgroundColor(Color::Green) followed by SetForegroundColor(Color::Black) and Print(count)
+                // Check for SetBackgroundColor(GameColor::Green) followed by SetForegroundColor(GameColor::Black) and Print(count)
                 let mut iter = commands_on.iter().skip_while(|&c| c != command).skip(1);
                 if let Some(RenderCommand::SetForegroundColor(fg_color)) = iter.next() {
-                    if *fg_color == Color::Black {
+                    if *fg_color == GameColor::Black {
                         if let Some(RenderCommand::Print(s)) = iter.next() {
                             // The connected block in the test has count 1
                             if s == " 1" {
@@ -282,9 +284,9 @@ mod tests {
     fn test_render_connected_block_with_count() {
         let mut mock_renderer = mock_renderer::MockRenderer::new();
         let mut state = GameState::new();
-        state.mode = crate::GameMode::Playing;
+        state.mode = GameMode::Playing;
 
-        let test_color = Color::Red;
+        let test_color = GameColor::Red;
         let test_count = 5;
         let block_x = 3;
         let block_y = 5;
@@ -311,7 +313,7 @@ mod tests {
         let expected_commands_sequence = vec![
             RenderCommand::MoveTo(expected_x, expected_y),
             RenderCommand::SetBackgroundColor(test_color),
-            RenderCommand::SetForegroundColor(Color::Black),
+            RenderCommand::SetForegroundColor(GameColor::Black),
             RenderCommand::Print(format!("{:>2}", test_count)),
             RenderCommand::ResetColor,
         ];
@@ -347,10 +349,10 @@ pub fn draw_title_screen<R: Renderer>(renderer: &mut R) -> io::Result<()> {
     let quit_x = (BOARD_WIDTH * 2 + 3 - quit_msg.len()) as u16 / 2;
     let quit_y = (BOARD_HEIGHT / 2) as u16 + 1;
 
-    renderer.set_foreground_color(Color::Yellow)?;
+    renderer.set_foreground_color(GameColor::Yellow)?;
     renderer.move_to(title_x, title_y)?;
     renderer.print(title)?;
-    renderer.set_foreground_color(Color::White)?;
+    renderer.set_foreground_color(GameColor::White)?;
     renderer.move_to(start_x, start_y)?;
     renderer.print(start_msg)?;
     renderer.move_to(quit_x, quit_y)?;
@@ -361,14 +363,14 @@ pub fn draw_title_screen<R: Renderer>(renderer: &mut R) -> io::Result<()> {
 
 fn draw_connected_cell<R: Renderer>(
     renderer: &mut R,
-    color: Color,
+    color: GameColor,
     count: u8,
     x: u16,
     y: u16,
 ) -> io::Result<()> {
     renderer.move_to(x, y)?;
     renderer.set_background_color(color)?;
-    renderer.set_foreground_color(Color::Black)?;
+    renderer.set_foreground_color(GameColor::Black)?;
     renderer.print(&format!("{:>2}", count))?;
     renderer.reset_color()?;
     Ok(())
@@ -384,13 +386,13 @@ pub fn draw<R: Renderer>(
     }
 
     match state.mode {
-        crate::GameMode::Title => { /* Do nothing, handled by draw_title_screen */ }
-        crate::GameMode::Playing => {
-            if prev_state.mode != crate::GameMode::Playing {
+        GameMode::Title => { /* Do nothing, handled by draw_title_screen */ }
+        GameMode::Playing => {
+            if prev_state.mode != GameMode::Playing {
                 // Redraw the whole game screen
                 renderer.clear_screen()?;
                 // Redraw static elements
-                renderer.set_foreground_color(Color::Grey)?;
+                renderer.set_foreground_color(GameColor::Grey)?;
                 renderer.move_to(0, 0)?;
                 renderer.print("┌")?;
                 renderer.move_to((BOARD_WIDTH * 2) as u16 + 1, 0)?;
@@ -413,7 +415,7 @@ pub fn draw<R: Renderer>(
                 }
                 renderer.reset_color()?;
                 let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
-                renderer.set_foreground_color(Color::White)?;
+                renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 2)?;
                 renderer.print("SCORE:     0     ")?;
                 renderer.move_to(ui_x, 3)?;
@@ -460,7 +462,7 @@ pub fn draw<R: Renderer>(
                 .iter()
                 .find(|a| matches!(a, Animation::LineBlink { .. }))
             {
-                Some((lines, *count))
+                Some((lines, count))
             } else {
                 None
             };
@@ -481,7 +483,7 @@ pub fn draw<R: Renderer>(
                         };
 
                     // Redraw if the blink on/off state has changed, or if animation just started.
-                    if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(&0) % 2 != count % 2)
+                    if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(&0) % 2 != *count % 2)
                     {
                         for x in 0..BOARD_WIDTH {
                             renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
@@ -536,7 +538,7 @@ pub fn draw<R: Renderer>(
                                 renderer.reset_color()?;
                             }
                             Cell::Solid => {
-                                renderer.set_foreground_color(Color::Grey)?;
+                                renderer.set_foreground_color(GameColor::Grey)?;
                                 renderer.print("[]")?;
                                 renderer.reset_color()?;
                             }
@@ -582,7 +584,7 @@ pub fn draw<R: Renderer>(
 
             // Display custom score system instead of simple score/lines
             if prev_state.custom_score_system != state.custom_score_system {
-                renderer.set_foreground_color(Color::White)?;
+                renderer.set_foreground_color(GameColor::White)?;
 
                 // Display total score
                 renderer.move_to(ui_x, 2)?;
@@ -660,7 +662,7 @@ pub fn draw<R: Renderer>(
 
             // 現在のNEXTミノを描画
             if let Some(next_piece) = &state.next_piece {
-                renderer.set_foreground_color(Color::White)?;
+                renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 12)?;
                 renderer.print("NEXT:")?; // "NEXT:" ラベル
 
@@ -675,12 +677,12 @@ pub fn draw<R: Renderer>(
                 }
             }
         }
-        crate::GameMode::GameOver => {
-            if prev_state.mode != crate::GameMode::GameOver {
+        GameMode::GameOver => {
+            if prev_state.mode != GameMode::GameOver {
                 let msg = "GAME OVER";
                 let x = (BOARD_WIDTH * 2 + 3 - msg.len()) as u16 / 2;
                 let y = (BOARD_HEIGHT / 2) as u16;
-                renderer.set_foreground_color(Color::Red)?;
+                renderer.set_foreground_color(GameColor::Red)?;
                 renderer.move_to(x, y)?;
                 renderer.print(msg)?;
             }
