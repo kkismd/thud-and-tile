@@ -2,13 +2,13 @@
 // 重要な問題のみをテストする簡潔版
 
 use crate::tetromino::{Tetromino, TetrominoShape};
-use crossterm::style::Color;
+use crate::game_color::GameColor;
 
 /// O型テトロミノの特殊な色回転ロジックをテスト
 /// O型のみが独自の色回転パターンを持つため、このテストは意味がある
 #[test]
 fn test_o_mino_color_rotation_consistency() {
-    let colors = [Color::Red, Color::Blue, Color::Green, Color::Yellow];
+    let colors = [GameColor::Red, GameColor::Blue, GameColor::Green, GameColor::Yellow];
     let o_piece = Tetromino::from_shape(TetrominoShape::O, colors);
 
     // O型は特別な色回転ロジックを持つ
@@ -44,7 +44,7 @@ fn test_o_mino_color_rotation_consistency() {
 /// これが今回発見・修正した重要な問題のコアテスト
 #[test]
 fn test_t_mino_physical_rotation_color_movement() {
-    let colors = [Color::Yellow, Color::Cyan, Color::Magenta, Color::Green];
+    let colors = [GameColor::Yellow, GameColor::Cyan, GameColor::Magenta, GameColor::Green];
     let mut t_piece = Tetromino::from_shape(TetrominoShape::T, colors);
     t_piece.pos = (2, 2); // 中央に配置
 
@@ -95,7 +95,7 @@ fn test_t_mino_physical_rotation_color_movement() {
 #[test]
 fn test_other_mino_physical_rotation_sample() {
     // I-minoを代表例として使用
-    let colors = [Color::Red, Color::Blue, Color::Green, Color::Yellow];
+    let colors = [GameColor::Red, GameColor::Blue, GameColor::Green, GameColor::Yellow];
     let mut i_piece = Tetromino::from_shape(TetrominoShape::I, colors);
     i_piece.pos = (2, 2);
 

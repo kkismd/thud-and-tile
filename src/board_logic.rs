@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-use crate::GameState;
 use crate::cell::{Board, Cell};
 use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
 
@@ -136,12 +135,12 @@ pub fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Poin
     results
 }
 
-pub fn remove_isolated_blocks(state: &mut GameState, cleared_line_y: usize) {
+pub fn remove_isolated_blocks(board: &mut Board, cleared_line_y: usize) {
     let mut blocks_to_remove = Vec::new();
 
     for y in (cleared_line_y + 1)..BOARD_HEIGHT {
         for x in 0..BOARD_WIDTH {
-            if let Some(color) = match state.board[y][x] {
+            if let Some(color) = match board[y][x] {
                 Cell::Occupied(c) => Some(c),
                 Cell::Connected { color: c, count: _ } => Some(c),
                 _ => None,
@@ -160,7 +159,7 @@ pub fn remove_isolated_blocks(state: &mut GameState, cleared_line_y: usize) {
                         && ny >= 0
                         && ny < BOARD_HEIGHT as i8
                     {
-                        let neighbor_color = match state.board[ny as usize][nx as usize] {
+                        let neighbor_color = match board[ny as usize][nx as usize] {
                             Cell::Occupied(c) => Some(c),
                             Cell::Connected { color: c, count: _ } => Some(c),
                             _ => None,
@@ -182,6 +181,6 @@ pub fn remove_isolated_blocks(state: &mut GameState, cleared_line_y: usize) {
     }
 
     for (x, y) in blocks_to_remove {
-        state.board[y][x] = Cell::Empty;
+        board[y][x] = Cell::Empty;
     }
 }

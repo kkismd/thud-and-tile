@@ -1,19 +1,25 @@
 use crossterm::{
     cursor::{Hide, Show},
     event::{
-        self, Event, KeyCode, KeyEventKind, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
+        KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
         PushKeyboardEnhancementFlags,
     },
     execute,
-    style::{Color, ResetColor},
+    style::{ResetColor},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{self};
-use std::thread;
 use std::time::{Duration, Instant};
 
 mod config;
+mod game_color;
+mod game_input;
+mod random;
+mod scheduler;
 use config::*;
+use game_color::GameColor;
+use game_input::{GameInput, InputProvider, CrosstermInputProvider};
+use scheduler::{Scheduler, create_default_scheduler};
 
 mod render;
 
@@ -370,7 +376,7 @@ impl GameState {
         // Handle custom clear for non-bottom lines
         for &y in &non_bottom_lines_cleared {
             // 1. Remove isolated blocks below the cleared line.
-            board_logic::remove_isolated_blocks(self, y);
+            board_logic::remove_isolated_blocks(&mut self.board, y);
 
             // 2. Count colors before clearing lines for custom scoring
             // Use new scoring formula: block_count × MAX-CHAIN × 10 points
@@ -394,7 +400,7 @@ impl GameState {
 
             // 3. Turn the cleared line to gray (Step 5)
             for x in 0..BOARD_WIDTH {
-                self.board[y][x] = Cell::Occupied(Color::Grey);
+                self.board[y][x] = Cell::Occupied(GameColor::Grey);
             }
 
             // Trigger the push-down animation (Step 6).
@@ -411,35 +417,34 @@ impl GameState {
         new_animations
     }
 
-    fn handle_input(&mut self, key_event: event::KeyEvent) {
+    fn handle_input(&mut self, input: GameInput) {
         if self.current_piece.is_none() {
             return;
         }
         let mut piece = self.current_piece.clone().unwrap();
 
-        match key_event.code {
-            KeyCode::Left => piece = piece.moved(-1, 0),
-            KeyCode::Right => piece = piece.moved(1, 0),
-            KeyCode::Down => {
-                if key_event.modifiers.contains(event::KeyModifiers::SHIFT) {
-                    // Hard Drop
-                    while self.is_valid_position(&piece.moved(0, 1)) {
-                        piece = piece.moved(0, 1);
-                    }
-                } else {
-                    // Clockwise Rotation
-                    piece = piece.rotated();
+        match input {
+            GameInput::MoveLeft => piece = piece.moved(-1, 0),
+            GameInput::MoveRight => piece = piece.moved(1, 0),
+            GameInput::HardDrop => {
+                // Hard Drop: 即座に着地
+                while self.is_valid_position(&piece.moved(0, 1)) {
+                    piece = piece.moved(0, 1);
                 }
             }
-            KeyCode::Up => {
+            GameInput::RotateClockwise => {
+                // Clockwise Rotation
+                piece = piece.rotated();
+            }
+            GameInput::RotateCounterClockwise => {
                 // Counter-Clockwise Rotation
                 piece = piece.rotated_counter_clockwise();
             }
-            KeyCode::Char(' ') => {
+            GameInput::SoftDrop => {
                 // Soft Drop
                 piece = piece.moved(0, 1);
             }
-            _ => return,
+            _ => return, // その他の入力は無視
         }
 
         if self.is_valid_position(&piece) {
@@ -579,6 +584,8 @@ fn main() -> io::Result<()> {
     terminal::enable_raw_mode()?;
 
     let time_provider = SystemTimeProvider::new();
+    let mut input_provider = CrosstermInputProvider::new();
+    let scheduler = create_default_scheduler();
     let mut state = GameState::new();
     let mut prev_state = state.clone();
     let mut last_fall = time_provider.now();
@@ -593,18 +600,16 @@ fn main() -> io::Result<()> {
 
         match state.mode {
             GameMode::Title => {
-                if event::poll(Duration::from_millis(100))? {
-                    if let Event::Key(key) = event::read()? {
-                        if key.kind == KeyEventKind::Press {
-                            match key.code {
-                                KeyCode::Enter => {
-                                    state = GameState::new();
-                                    state.mode = GameMode::Playing;
-                                    state.spawn_piece();
-                                }
-                                KeyCode::Char('q') => break,
-                                _ => {}
+                if input_provider.poll_input(100)? {
+                    if let Some(input) = input_provider.read_input()? {
+                        match input {
+                            GameInput::Restart => {
+                                state = GameState::new();
+                                state.mode = GameMode::Playing;
+                                state.spawn_piece();
                             }
+                            GameInput::Quit => break,
+                            _ => {}
                         }
                     }
                 }
@@ -617,19 +622,14 @@ fn main() -> io::Result<()> {
                 }
 
                 // 入力処理 (ノンブロッキング)
-                let mut last_key_event: Option<event::KeyEvent> = None;
-                while event::poll(Duration::ZERO)? {
-                    if let Event::Key(key) = event::read()? {
-                        if key.kind == KeyEventKind::Press {
-                            last_key_event = Some(key);
+                let inputs = input_provider.read_all_pending()?;
+                for input in inputs {
+                    match input {
+                        GameInput::Quit => {
+                            state.mode = GameMode::GameOver;
+                            break;
                         }
-                    }
-                }
-                if let Some(key_event) = last_key_event {
-                    if key_event.code == KeyCode::Char('q') {
-                        state.mode = GameMode::GameOver;
-                    } else {
-                        state.handle_input(key_event);
+                        _ => state.handle_input(input),
                     }
                 }
 
@@ -649,17 +649,18 @@ fn main() -> io::Result<()> {
                 }
 
                 // ループの速度を調整
-                thread::sleep(Duration::from_millis(16));
+                scheduler.wait_for_next_frame();
             }
             GameMode::GameOver => {
-                if event::poll(Duration::from_millis(50))? {
-                    if let Event::Key(key) = event::read()? {
-                        if key.code == KeyCode::Char('q') {
-                            break;
-                        }
-                        if key.code == KeyCode::Enter {
-                            state = GameState::new();
-                            render::draw_title_screen(&mut renderer)?;
+                if input_provider.poll_input(50)? {
+                    if let Some(input) = input_provider.read_input()? {
+                        match input {
+                            GameInput::Quit => break,
+                            GameInput::Restart => {
+                                state = GameState::new();
+                                render::draw_title_screen(&mut renderer)?;
+                            }
+                            _ => {}
                         }
                     }
                 }
