@@ -138,10 +138,10 @@ impl GameState {
         self.next_piece = Some(Tetromino::new_random());
 
         // current_pieceが有効な位置にあるかチェック
-        if let Some(piece) = &self.current_piece
-            && !self.is_valid_position(piece)
-        {
-            self.mode = GameMode::GameOver;
+        if let Some(piece) = &self.current_piece {
+            if !self.is_valid_position(piece) {
+                self.mode = GameMode::GameOver;
+            }
         }
     }
 
@@ -272,18 +272,19 @@ impl GameState {
                                 && ny < self.current_board_height as i8
                             {
                                 let (nx_usize, ny_usize) = (nx as usize, ny as usize);
-                                if !visited[ny_usize][nx_usize]
-                                    && let Some(neighbor_color) =
-                                        match self.board[ny_usize][nx_usize] {
-                                            Cell::Occupied(c) => Some(c),
-                                            Cell::Connected { color: c, count: _ } => Some(c),
-                                            _ => None,
+                                if !visited[ny_usize][nx_usize] {
+                                    let neighbor_color = match self.board[ny_usize][nx_usize] {
+                                        Cell::Occupied(c) => Some(c),
+                                        Cell::Connected { color: c, count: _ } => Some(c),
+                                        _ => None,
+                                    };
+                                    if let Some(neighbor_color) = neighbor_color {
+                                        if neighbor_color == color {
+                                            visited[ny_usize][nx_usize] = true;
+                                            queue.push_back((nx_usize, ny_usize));
+                                            component.push((nx_usize, ny_usize));
                                         }
-                                    && neighbor_color == color
-                                {
-                                    visited[ny_usize][nx_usize] = true;
-                                    queue.push_back((nx_usize, ny_usize));
-                                    component.push((nx_usize, ny_usize));
+                                    }
                                 }
                             }
                         }
@@ -592,18 +593,19 @@ fn main() -> io::Result<()> {
 
         match state.mode {
             GameMode::Title => {
-                if event::poll(Duration::from_millis(100))?
-                    && let Event::Key(key) = event::read()?
-                    && key.kind == KeyEventKind::Press
-                {
-                    match key.code {
-                        KeyCode::Enter => {
-                            state = GameState::new();
-                            state.mode = GameMode::Playing;
-                            state.spawn_piece();
+                if event::poll(Duration::from_millis(100))? {
+                    if let Event::Key(key) = event::read()? {
+                        if key.kind == KeyEventKind::Press {
+                            match key.code {
+                                KeyCode::Enter => {
+                                    state = GameState::new();
+                                    state.mode = GameMode::Playing;
+                                    state.spawn_piece();
+                                }
+                                KeyCode::Char('q') => break,
+                                _ => {}
+                            }
                         }
-                        KeyCode::Char('q') => break,
-                        _ => {}
                     }
                 }
             }
@@ -617,10 +619,10 @@ fn main() -> io::Result<()> {
                 // 入力処理 (ノンブロッキング)
                 let mut last_key_event: Option<event::KeyEvent> = None;
                 while event::poll(Duration::ZERO)? {
-                    if let Event::Key(key) = event::read()?
-                        && key.kind == KeyEventKind::Press
-                    {
-                        last_key_event = Some(key);
+                    if let Event::Key(key) = event::read()? {
+                        if key.kind == KeyEventKind::Press {
+                            last_key_event = Some(key);
+                        }
                     }
                 }
                 if let Some(key_event) = last_key_event {
@@ -650,15 +652,15 @@ fn main() -> io::Result<()> {
                 thread::sleep(Duration::from_millis(16));
             }
             GameMode::GameOver => {
-                if event::poll(Duration::from_millis(50))?
-                    && let Event::Key(key) = event::read()?
-                {
-                    if key.code == KeyCode::Char('q') {
-                        break;
-                    }
-                    if key.code == KeyCode::Enter {
-                        state = GameState::new();
-                        render::draw_title_screen(&mut renderer)?;
+                if event::poll(Duration::from_millis(50))? {
+                    if let Event::Key(key) = event::read()? {
+                        if key.code == KeyCode::Char('q') {
+                            break;
+                        }
+                        if key.code == KeyCode::Enter {
+                            state = GameState::new();
+                            render::draw_title_screen(&mut renderer)?;
+                        }
                     }
                 }
             }

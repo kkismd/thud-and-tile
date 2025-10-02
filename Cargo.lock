@@ -239,7 +239,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tetripush"
+name = "thumper-blocks"
 version = "0.1.0"
 dependencies = [
  "crossterm",

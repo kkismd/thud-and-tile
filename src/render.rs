@@ -334,7 +334,7 @@ mod tests {
 
 pub fn draw_title_screen<R: Renderer>(renderer: &mut R) -> io::Result<()> {
     renderer.clear_screen()?;
-    let title = "TETRIPUSH";
+    let title = "THUMPERBLOCKS";
     let start_msg = "Press Enter to Start";
     let quit_msg = "Press 'q' to Quit";
 
@@ -433,23 +433,23 @@ pub fn draw<R: Renderer>(
             }
 
             // --- 消去フェーズ ---
-            if let Some(ghost) = &prev_state.ghost_piece()
-                && Some(ghost) != prev_state.current_piece.as_ref()
-            {
-                for ((x, y), _) in ghost.iter_blocks() {
-                    if y >= 0 {
-                        renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
-                        renderer.print("  ")?;
+            if let Some(ghost) = &prev_state.ghost_piece() {
+                if Some(ghost) != prev_state.current_piece.as_ref() {
+                    for ((x, y), _) in ghost.iter_blocks() {
+                        if y >= 0 {
+                            renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
+                            renderer.print("  ")?;
+                        }
                     }
                 }
             }
-            if let Some(piece) = &prev_state.current_piece
-                && prev_state.animation.is_empty()
-            {
-                for ((x, y), _) in piece.iter_blocks() {
-                    if y >= 0 {
-                        renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
-                        renderer.print("  ")?;
+            if let Some(piece) = &prev_state.current_piece {
+                if prev_state.animation.is_empty() {
+                    for ((x, y), _) in piece.iter_blocks() {
+                        if y >= 0 {
+                            renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
+                            renderer.print("  ")?;
+                        }
                     }
                 }
             }
@@ -467,19 +467,18 @@ pub fn draw<R: Renderer>(
 
             for (y, row) in state.board.iter().enumerate() {
                 // Handle blinking lines
-                if let Some((blinking_lines, count)) = blink_state
-                    && blinking_lines.contains(&y)
-                {
-                    let prev_anim_count = if let Some(Animation::LineBlink { count, .. }) =
-                        prev_state
-                            .animation
-                            .iter()
-                            .find(|a| matches!(a, Animation::LineBlink { .. }))
-                    {
-                        Some(count)
-                    } else {
-                        None
-                    };
+                if let Some((blinking_lines, count)) = blink_state {
+                    if blinking_lines.contains(&y) {
+                        let prev_anim_count = if let Some(Animation::LineBlink { count, .. }) =
+                            prev_state
+                                .animation
+                                .iter()
+                                .find(|a| matches!(a, Animation::LineBlink { .. }))
+                        {
+                            Some(count)
+                        } else {
+                            None
+                        };
 
                     // Redraw if the blink on/off state has changed, or if animation just started.
                     if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(&0) % 2 != count % 2)
@@ -511,6 +510,7 @@ pub fn draw<R: Renderer>(
                     }
                     continue; // Done with this row
                 }
+            }
 
                 // Default drawing for non-blinking lines
                 for (x, &cell) in row.iter().enumerate() {
@@ -554,15 +554,15 @@ pub fn draw<R: Renderer>(
                 }
             }
 
-            if let Some(ghost) = &state.ghost_piece()
-                && Some(ghost) != state.current_piece.as_ref()
-            {
-                for ((x, y), color) in ghost.iter_blocks() {
-                    // color を取得
-                    if y >= 0 && state.board[y as usize][x as usize] == Cell::Empty {
-                        renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
-                        renderer.set_foreground_color(color)?;
-                        renderer.print("::")?;
+            if let Some(ghost) = &state.ghost_piece() {
+                if Some(ghost) != state.current_piece.as_ref() {
+                    for ((x, y), color) in ghost.iter_blocks() {
+                        // color を取得
+                        if y >= 0 && state.board[y as usize][x as usize] == Cell::Empty {
+                            renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
+                            renderer.set_foreground_color(color)?;
+                            renderer.print("::")?;
+                        }
                     }
                 }
             }
@@ -646,15 +646,15 @@ pub fn draw<R: Renderer>(
             let next_piece_offset_y = 14; // NEXT:ラベルの下
 
             // 以前のNEXTミノをクリア
-            if let Some(prev_next_piece) = &prev_state.next_piece
-                && prev_state.next_piece != state.next_piece
-            {
-                // NEXTミノが変更された場合、以前の位置をクリア
-                for ((x, y), _) in prev_next_piece.iter_blocks() {
-                    let draw_x = next_piece_offset_x + (x as u16 * 2);
-                    let draw_y = next_piece_offset_y + y as u16;
-                    renderer.move_to(draw_x, draw_y)?;
-                    renderer.print("  ")?;
+            if let Some(prev_next_piece) = &prev_state.next_piece {
+                if prev_state.next_piece != state.next_piece {
+                    // NEXTミノが変更された場合、以前の位置をクリア
+                    for ((x, y), _) in prev_next_piece.iter_blocks() {
+                        let draw_x = next_piece_offset_x + (x as u16 * 2);
+                        let draw_y = next_piece_offset_y + y as u16;
+                        renderer.move_to(draw_x, draw_y)?;
+                        renderer.print("  ")?;
+                    }
                 }
             }
 

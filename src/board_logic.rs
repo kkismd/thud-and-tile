@@ -42,17 +42,19 @@ pub fn find_and_connect_adjacent_blocks(board: &mut Board, lines_to_clear: &[usi
                             if lines_to_clear.contains(&ny_usize) {
                                 continue;
                             }
-                            if !visited[ny_usize][nx_usize]
-                                && let Some(neighbor_color) = match board[ny_usize][nx_usize] {
+                            if !visited[ny_usize][nx_usize] {
+                                let neighbor_color = match board[ny_usize][nx_usize] {
                                     Cell::Occupied(c) => Some(c),
                                     Cell::Connected { color: c, count: _ } => Some(c),
                                     _ => None,
+                                };
+                                if let Some(neighbor_color) = neighbor_color {
+                                    if neighbor_color == color {
+                                        visited[ny_usize][nx_usize] = true;
+                                        queue.push_back((nx_usize, ny_usize));
+                                        component.push((nx_usize, ny_usize));
+                                    }
                                 }
-                                && neighbor_color == color
-                            {
-                                visited[ny_usize][nx_usize] = true;
-                                queue.push_back((nx_usize, ny_usize));
-                                component.push((nx_usize, ny_usize));
                             }
                         }
                     }
@@ -105,17 +107,19 @@ pub fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Poin
                     for (nx, ny) in neighbors {
                         if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8 {
                             let (nx_usize, ny_usize) = (nx as usize, ny as usize);
-                            if !visited[ny_usize][nx_usize]
-                                && let Some(neighbor_color) = match board[ny_usize][nx_usize] {
+                            if !visited[ny_usize][nx_usize] {
+                                let neighbor_color = match board[ny_usize][nx_usize] {
                                     Cell::Occupied(c) => Some(c),
                                     Cell::Connected { color: c, count: _ } => Some(c),
                                     _ => None,
+                                };
+                                if let Some(neighbor_color) = neighbor_color {
+                                    if neighbor_color == color {
+                                        visited[ny_usize][nx_usize] = true;
+                                        queue.push_back((nx_usize, ny_usize));
+                                        component.push((nx_usize, ny_usize));
+                                    }
                                 }
-                                && neighbor_color == color
-                            {
-                                visited[ny_usize][nx_usize] = true;
-                                queue.push_back((nx_usize, ny_usize));
-                                component.push((nx_usize, ny_usize));
                             }
                         }
                     }
@@ -155,15 +159,18 @@ pub fn remove_isolated_blocks(state: &mut GameState, cleared_line_y: usize) {
                         && nx < BOARD_WIDTH as i8
                         && ny >= 0
                         && ny < BOARD_HEIGHT as i8
-                        && let Some(neighbor_color) = match state.board[ny as usize][nx as usize] {
+                    {
+                        let neighbor_color = match state.board[ny as usize][nx as usize] {
                             Cell::Occupied(c) => Some(c),
                             Cell::Connected { color: c, count: _ } => Some(c),
                             _ => None,
+                        };
+                        if let Some(neighbor_color) = neighbor_color {
+                            if neighbor_color == color {
+                                is_isolated = false;
+                                break;
+                            }
                         }
-                        && neighbor_color == color
-                    {
-                        is_isolated = false;
-                        break;
                     }
                 }
 

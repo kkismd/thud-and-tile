@@ -1,11 +1,11 @@
-# TETRIPUSH モバイルWeb移植アーキテクチャ提案書
+# ThumperBlocks モバイルWeb移植アーキテクチャ提案書
 
 **作成日**: 2025年10月2日  
-**対象**: TETRIPUSHゲーム（Rust CLI版）のモバイルWebアプリケーション移植
+**対象**: ThumperBlocksゲーム（Rust CLI版）のモバイルWebアプリケーション移植
 
 ## 1. エグゼクティブサマリー
 
-本提案書では、現在のRustターミナルベースのTETRIPUSHゲームを、モバイルWebアプリケーションに移植するための包括的なアーキテクチャ設計と実装戦略を提示します。
+本提案書では、現在のRustターミナルベースのThumperBlocksゲームを、モバイルWebアプリケーションに移植するための包括的なアーキテクチャ設計と実装戦略を提示します。
 
 ### 主要な推奨事項
 - **ハイブリッドアーキテクチャ**：TypeScript + WebAssembly
@@ -16,7 +16,7 @@
 ## 2. 現在のプロジェクト分析
 
 ### 2.1 プロジェクト概要
-- **プロジェクト名**: TETRIPUSH
+- **プロジェクト名**: ThumperBlocks
 - **現在の技術**: Rust + crossterm（ターミナルUI）
 - **特徴**: 独自のブロック連結システムと色別スコア管理
 
@@ -289,7 +289,7 @@ export class TouchController {
 ### 6.2 プロジェクト構造
 
 ```
-tetripush-web/
+thumperblocks-web/
 ├── rust-core/              # WASMコア (既存Rustコードベース)
 │   ├── src/
 │   │   ├── lib.rs
@@ -497,8 +497,8 @@ impl GameEngine {
 
 ```json
 {
-  "name": "TETRIPUSH",
-  "short_name": "TETRIPUSH",
+  "name": "ThumperBlocks",
+  "short_name": "ThumperBlocks",
   "description": "モバイル最適化されたパズルゲーム",
   "start_url": "/",
   "display": "standalone",
@@ -525,12 +525,12 @@ impl GameEngine {
 
 ```javascript
 // キャッシュ戦略
-const CACHE_NAME = 'tetripush-v1';
+const CACHE_NAME = 'thumperblocks-v1';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
   '/static/css/main.css',
-  '/static/wasm/tetripush_bg.wasm'
+  '/static/wasm/thumperblocks_bg.wasm'
 ];
 
 // オフライン対応
@@ -711,7 +711,7 @@ jobs:
 3. **デザインシステム**: UIコンポーネントとスタイルガイド策定
 4. **開発環境構築**: CI/CDパイプラインとテスト環境準備
 
-この提案により、TETRIPUSHは現代的なモバイルWebアプリケーションとして生まれ変わり、より多くのユーザーに愛される製品になることが期待されます。
+この提案により、ThumperBlocksは現代的なモバイルWebアプリケーションとして生まれ変わり、より多くのユーザーに愛される製品になることが期待されます。
 
 ---
 
