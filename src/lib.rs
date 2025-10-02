@@ -593,4 +593,38 @@ impl WasmGameState {
             vec![]
         }
     }
+
+    /// 次のテトロミノの情報を取得 [x, y, rotation, color, shape]
+    pub fn get_next_piece_info(&self) -> Vec<i32> {
+        if let Some(ref piece) = self.next_piece {
+            vec![
+                piece.x as i32,
+                piece.y as i32, 
+                piece.rotation as i32,
+                piece.color as i32,
+                piece.shape as i32
+            ]
+        } else {
+            vec![]
+        }
+    }
+
+    /// 次のテトロミノの全ブロック座標を取得（プレビュー用）
+    pub fn get_next_piece_blocks(&self) -> Vec<i32> {
+        if let Some(ref piece) = self.next_piece {
+            let blocks = piece.get_blocks_at_rotation(piece.rotation);
+            let mut result = Vec::new();
+            
+            for (dx, dy) in blocks {
+                // 次ピース表示用なので固定位置（0,0基準）で座標を返す
+                result.push(dx as i32);
+                result.push(dy as i32);
+                result.push(piece.color as i32);
+            }
+            
+            result
+        } else {
+            vec![]
+        }
+    }
 }
