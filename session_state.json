@@ -2,9 +2,9 @@
   "session_info": {
     "date": "2025-10-02",
     "phase": "Phase 2A - Critical Features Implementation",
-    "progress": "60% complete (3/5 tasks)",
-    "current_issue": "startGame function not accessible from HTML",
-    "next_priority": "Fix startGame error, then implement next piece display"
+    "progress": "80% complete (4/5 tasks)",
+    "current_issue": "RESOLVED: テトロミノ描画とstartGameエラー修正完了",
+    "next_priority": "Implement next piece display"
   },
   "completed_tasks": [
     {
@@ -27,26 +27,29 @@
       "details": "setInterval-based game loop with WASM function calls",
       "files_modified": ["../thud-and-tile-web/src/main.ts"],
       "key_additions": ["autoFallInterval", "startAutoFall()", "stopAutoFall()"]
+    },
+    {
+      "task": "Critical Bug Fixes",
+      "status": "✅ Complete",
+      "details": "Fixed startGame error and tetromino rendering (single block -> full shape)",
+      "files_modified": ["../thud-and-tile-web/index.html", "../thud-and-tile-web/src/main.ts", "src/lib.rs"],
+      "key_additions": ["get_current_piece_blocks() method", "improved rendering logic", "HTML button ID fix"]
     }
   ],
-  "current_issue": {
-    "error": "Uncaught ReferenceError: startGame is not defined",
-    "location": "/thud-and-tile-web/index.html line 152",
-    "cause": "HTML onclick calls function in module scope, not global scope",
-    "solutions": [
-      {
-        "method": "Fix HTML ID mismatch (recommended)",
-        "steps": [
-          "Change id='start-button' to id='start-game' in HTML",
-          "Remove onclick='startGame()' from HTML",
-          "TypeScript event listener already configured for id='start-game'"
-        ]
-      },
-      {
-        "method": "Expose function globally (quick fix)",
-        "steps": ["Add (window as any).startGame = startGame; to main.ts"]
-      }
-    ]
+  "resolved_issue": {
+    "error": "Uncaught ReferenceError: startGame is not defined + テトロミノ単一ブロック表示",
+    "location": "/thud-and-tile-web/index.html line 152 + main.ts drawTetromino function",
+    "resolution": "HTML ID修正 + WASM-TypeScript連携強化",
+    "implemented_solution": {
+      "method": "HTML ID fix + WASM block coordinate API",
+      "steps_completed": [
+        "✅ Changed id='start-button' to id='start-game' in HTML",
+        "✅ Removed onclick='startGame()' from HTML", 
+        "✅ Added get_current_piece_blocks() to WASM API",
+        "✅ Rewrote TypeScript rendering to draw all tetromino blocks",
+        "✅ Fixed TypeScript type safety issues"
+      ]
+    }
   },
   "pending_tasks": [
     {
@@ -101,11 +104,40 @@
     "wasm_methods_added": [
       "auto_fall() -> bool",
       "get_fall_speed_ms() -> u32", 
-      "set_fall_speed_ms(ms: u32)"
+      "set_fall_speed_ms(ms: u32)",
+      "get_current_piece_blocks() -> Vec<i32>"
     ],
     "test_commands": [
       "gameState.get_fall_speed_ms() // should return 800",
-      "gameState.auto_fall() // should return true when playing"
+      "gameState.auto_fall() // should return true when playing",
+      "gameState.get_current_piece_blocks() // should return [x,y,color,x,y,color,...]"
     ]
+  },
+  "development_notes": {
+    "⚠️  IMPORTANT_GIT_SETUP": {
+      "description": "このプロジェクトは2つの独立したGitリポジトリで構成されています",
+      "repositories": {
+        "rust_backend": {
+          "path": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile",
+          "description": "Rust WASM バックエンド",
+          "last_commit": "1d12663 - テトロミノ描画問題修正"
+        },
+        "web_frontend": {
+          "path": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile-web", 
+          "description": "TypeScript/Vite フロントエンド",
+          "last_commit": "1a27321 - 初回コミット"
+        }
+      },
+      "commit_workflow": {
+        "step1": "Rust変更時: cd thud-and-tile && git add . && git commit -m '...'",
+        "step2": "WASM変更時: wasm-pack build --target web --out-dir ../thud-and-tile-web/pkg",
+        "step3": "Web変更時: cd ../thud-and-tile-web && git add . && git commit -m '...'"
+      }
+    },
+    "🔧 WASM_REBUILD_REQUIRED": {
+      "trigger": "Rust側のWASM export関数を変更した場合",
+      "command": "cd thud-and-tile && wasm-pack build --target web --out-dir ../thud-and-tile-web/pkg",
+      "note": "pkg/ディレクトリの更新後、webプロジェクトも別途コミットが必要"
+    }
   }
 }
