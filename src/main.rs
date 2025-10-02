@@ -15,9 +15,11 @@ use std::time::{Duration, Instant};
 mod config;
 mod game_color;
 mod game_input;
+mod random;
 use config::*;
 use game_color::GameColor;
 use game_input::{GameInput, InputProvider, CrosstermInputProvider};
+use random::{RandomProvider, create_default_random_provider};
 
 mod render;
 

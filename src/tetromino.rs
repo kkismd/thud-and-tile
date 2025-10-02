@@ -1,8 +1,6 @@
 use crate::game_color::GameColor;
+use crate::random::{RandomProvider, create_default_random_provider};
 use lazy_static::lazy_static;
-use rand::SeedableRng;
-use rand::rngs::StdRng;
-use rand::{self, seq::SliceRandom};
 use std::sync::Mutex;
 
 use crate::config::{BOARD_WIDTH, COLOR_PALETTE};
@@ -98,21 +96,22 @@ impl TetrominoShape {
 
 pub struct TetrominoBag {
     bag: Vec<TetrominoShape>,
-    rng: StdRng,
+    random_provider: crate::random::RandomProviderImpl,
 }
 
 impl TetrominoBag {
     pub fn new() -> Self {
         let mut bag = TetrominoShape::all_shapes();
-        let mut rng = StdRng::from_entropy(); // Use from_entropy for production, fixed seed for testing if needed
-        bag.shuffle(&mut rng);
-        TetrominoBag { bag, rng }
+        let mut random_provider = create_default_random_provider();
+        
+        random_provider.shuffle(&mut bag);
+        TetrominoBag { bag, random_provider }
     }
 
     pub fn next(&mut self) -> TetrominoShape {
         if self.bag.is_empty() {
             self.bag = TetrominoShape::all_shapes();
-            self.bag.shuffle(&mut self.rng);
+            self.random_provider.shuffle(&mut self.bag);
         }
         self.bag.pop().unwrap()
     }
@@ -136,12 +135,12 @@ impl Tetromino {
 
         // Loop until a valid coloring is found
         loop {
-            let mut rng = rand::thread_rng();
+            let mut provider = create_default_random_provider();
             let colors = [
-                *COLOR_PALETTE.choose(&mut rng).unwrap(),
-                *COLOR_PALETTE.choose(&mut rng).unwrap(),
-                *COLOR_PALETTE.choose(&mut rng).unwrap(),
-                *COLOR_PALETTE.choose(&mut rng).unwrap(),
+                *provider.choose(&COLOR_PALETTE).unwrap(),
+                *provider.choose(&COLOR_PALETTE).unwrap(),
+                *provider.choose(&COLOR_PALETTE).unwrap(),
+                *provider.choose(&COLOR_PALETTE).unwrap(),
             ];
 
             let tetromino = Self::from_shape(shape, colors);
@@ -466,15 +465,14 @@ mod tests {
 
     #[test]
     fn test_new_random_uses_7_bag_system() {
-        use rand::SeedableRng;
-        use rand::rngs::StdRng;
+        use crate::random::{RandomProviderImpl, DeterministicRandomProvider};
 
-        let rng = StdRng::seed_from_u64(123);
+        let deterministic_provider = DeterministicRandomProvider::new(vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7]);
         let mut test_bag = TetrominoBag {
             bag: TetrominoShape::all_shapes(),
-            rng: rng,
+            random_provider: RandomProviderImpl::Deterministic(deterministic_provider),
         };
-        test_bag.bag.shuffle(&mut test_bag.rng);
+        test_bag.random_provider.shuffle(&mut test_bag.bag);
 
         let mut generated_shapes = Vec::new();
         for _ in 0..14 {
