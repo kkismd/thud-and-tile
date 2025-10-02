@@ -237,7 +237,15 @@ export class TouchController {
 
 #### Phase 1: 基盤構築 (2-3週間)
 **目標**: WASM環境とTypeScriptプロジェクトの基盤構築
+**重要**: 調査で判明した技術的債務への対応を含む
 
+**前提作業（調査結果対応）**:
+- [ ] Color型の抽象化（crossterm::style::Color除去）
+- [ ] Input抽象化の拡張（crossterm::event除去）
+- [ ] RandomProvider trait実装（thread_rng対応）
+- [ ] メインループのプラットフォーム抽象化
+
+**WASM基盤構築**:
 - [ ] wasm-packビルド環境構築
 - [ ] TypeScriptプロジェクト初期化（Vite）
 - [ ] 基本的なWASMバインディング作成
@@ -343,9 +351,188 @@ thumperblocks-web/
 └── README.md
 ```
 
-## 7. 技術的課題と解決策
+## 7. WASM移植における技術的課題と対策
 
-### 7.1 crossterm依存の除去
+### 7.1 現在のコードベース分析結果
+
+#### 🚨 **重大な懸念事項**
+
+##### **1. Crossterm依存 - 完全にWASM非対応**
+- **影響範囲**: 全モジュール（main.rs, render.rs, cell.rs, scoring.rs, tetromino.rs）
+- **具体的問題**:
+  - `crossterm::style::Color`がコア型として全体に露出
+  - ターミナル操作（execute!, event::poll, event::read）
+  - stdin/stdout操作
+- **対策**: 独自Color enum + Renderer trait活用
+
+##### **2. Thread操作 - WASM制限あり**
+- **影響箇所**: `main.rs:652` - `thread::sleep(Duration::from_millis(16))`
+- **対策**: `requestAnimationFrame`への置き換え
+
+##### **3. ランダム数生成 - 制限あり**
+- **影響箇所**: `tetromino.rs:139` - `rand::thread_rng()`
+- **対策**: Web Crypto APIまたはseeded RNG
+
+#### ⚠️ **中程度の懸念事項**
+
+##### **4. I/O操作**
+- **影響箇所**: `render.rs`, `main.rs` - `std::io::*`使用
+- **対策**: Web APIへの変換
+
+##### **5. lazy_static使用**
+- **影響箇所**: `tetromino.rs` - WASMでのstatic初期化
+- **対策**: `once_cell`または`std::sync::OnceLock`
+
+#### ✅ **良好な設計（活用可能）**
+
+##### **6. 既に抽象化済みの箇所**
+- **TimeProvider trait**: 時間管理が既に抽象化済み
+- **Renderer trait**: 描画システムが抽象化済み
+- **ゲームロジック**: 環境に依存しない純粋なロジック
+
+### 7.2 具体的な移植課題
+
+#### **課題1: Color型の抽象化**
+```rust
+// 現在の問題
+use crossterm::style::Color;  // WASMで使用不可
+
+// 解決案: 独自Color enum
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GameColor {
+    Cyan,
+    Magenta, 
+    Yellow,
+    Grey,
+    Red,
+    Green,
+    Blue,
+    White,
+    Black,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl From<GameColor> for crossterm::style::Color {
+    fn from(color: GameColor) -> Self { /* ... */ }
+}
+```
+
+#### **課題2: イベント処理の抽象化**
+```rust
+// 現在の問題
+use crossterm::event::{self, Event, KeyCode};
+
+// 解決案: 独自Input enum
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GameInput {
+    MoveLeft,
+    MoveRight,
+    RotateClockwise,
+    RotateCounterClockwise,
+    SoftDrop,
+    HardDrop,
+    Quit,
+    Restart,
+}
+
+pub trait InputProvider {
+    fn poll_input(&mut self) -> Option<GameInput>;
+}
+```
+
+#### **課題3: メインループの抽象化**
+```rust
+// 現在の問題
+thread::sleep(Duration::from_millis(16));
+
+// 解決案: プラットフォーム固有実装
+#[cfg(target_arch = "wasm32")]
+pub fn schedule_next_frame<F>(callback: F) 
+where F: FnOnce() + 'static
+{
+    use wasm_bindgen::prelude::*;
+    
+    #[wasm_bindgen]
+    extern "C" {
+        fn requestAnimationFrame(closure: &Closure<dyn FnMut()>);
+    }
+    
+    let closure = Closure::once_into_js(callback);
+    requestAnimationFrame(&closure);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn schedule_next_frame<F>(callback: F) 
+where F: FnOnce() + 'static
+{
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(16));
+        callback();
+    });
+}
+```
+
+#### **課題4: ランダム数生成の統一**
+```rust
+// 解決案: 環境対応RNG
+pub trait RandomProvider {
+    fn gen_range(&mut self, min: usize, max: usize) -> usize;
+    fn shuffle<T>(&mut self, slice: &mut [T]);
+}
+
+#[cfg(target_arch = "wasm32")]
+pub struct WebRandomProvider {
+    // Web Crypto API使用
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub struct StdRandomProvider {
+    rng: rand::rngs::ThreadRng,
+}
+```
+
+### 7.3 移植優先順位
+
+1. **Color型の独立化** (最重要・影響範囲大)
+2. **イベント抽象化の拡張** (重要・入力処理)
+3. **ランダム数生成の抽象化** (中程度・ゲーム機能)
+4. **メインループの抽象化** (中程度・パフォーマンス)
+5. **I/O操作の置き換え** (低・エラー処理のみ)
+
+### 7.4 移植戦略
+
+#### **段階的移植アプローチ**
+1. **Phase 0: デバイス独立化 (1-2週間)**
+   - Color型抽象化
+   - Input抽象化拡張
+   - Random provider抽象化
+   
+2. **Phase 1: WASM基盤 (2-3週間)**
+   - wasm-bindgen統合
+   - 基本バインディング作成
+   - テスト環境構築
+
+3. **Phase 2-4: 既存計画継続**
+
+この段階的アプローチにより、既存の高品質なゲームロジックを維持しながら、確実にWASM移植を実現できます。
+
+## 8. 技術的課題と解決策（更新版）
+
+### 8.1 調査結果に基づく詳細分析
+
+#### **クリティカルな問題**
+上記のWASM移植調査により、以下の技術的債務が明確になりました：
+
+1. **Crossterm の完全依存**: 全モジュールで`crossterm::style::Color`を使用
+2. **Thread操作**: メインループでの`thread::sleep`使用  
+3. **Random生成**: `rand::thread_rng()`のWASM非対応使用
+
+#### **既存の良好な設計**
+- **Renderer trait**: 既に描画が抽象化済み
+- **TimeProvider trait**: 時間管理が抽象化済み
+- **ゲームロジック**: 環境に依存しない設計
+
+### 8.2 crossterm依存の段階的除去
 
 **課題**: ターミナル専用ライブラリへの強い依存  
 **解決策**: 抽象化されたインターフェースの導入
