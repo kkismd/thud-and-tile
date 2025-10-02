@@ -9,17 +9,17 @@ use crossterm::{
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{self};
-use std::thread;
 use std::time::{Duration, Instant};
 
 mod config;
 mod game_color;
 mod game_input;
 mod random;
+mod scheduler;
 use config::*;
 use game_color::GameColor;
 use game_input::{GameInput, InputProvider, CrosstermInputProvider};
-use random::{RandomProvider, create_default_random_provider};
+use scheduler::{Scheduler, create_default_scheduler};
 
 mod render;
 
@@ -585,6 +585,7 @@ fn main() -> io::Result<()> {
 
     let time_provider = SystemTimeProvider::new();
     let mut input_provider = CrosstermInputProvider::new();
+    let scheduler = create_default_scheduler();
     let mut state = GameState::new();
     let mut prev_state = state.clone();
     let mut last_fall = time_provider.now();
@@ -648,7 +649,7 @@ fn main() -> io::Result<()> {
                 }
 
                 // ループの速度を調整
-                thread::sleep(Duration::from_millis(16));
+                scheduler.wait_for_next_frame();
             }
             GameMode::GameOver => {
                 if input_provider.poll_input(50)? {

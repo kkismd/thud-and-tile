@@ -91,8 +91,6 @@ impl InputProvider for CrosstermInputProvider {
     }
     
     fn read_all_pending(&mut self) -> io::Result<Vec<GameInput>> {
-        use std::time::Duration;
-        
         let mut inputs = Vec::new();
         
         // 待機中の全入力を読み取り
