@@ -52,25 +52,34 @@ impl Scheduler for WebScheduler {
         // 現在は簡単な実装として何もしない（busy wait回避）
         // 本格的なWASM実装では、requestAnimationFrameやsetTimeoutを使用
         
-        // 簡易的な実装：ビジーウェイトで時間を消費
-        let start = web_sys::window()
-            .unwrap()
-            .performance()
-            .unwrap()
-            .now();
-        
-        let target_ms = duration.as_millis() as f64;
-        
-        loop {
-            let now = web_sys::window()
+        #[cfg(all(target_arch = "wasm32", feature = "wasm", not(test)))]
+        {
+            // 簡易的な実装：ビジーウェイトで時間を消費
+            let start = web_sys::window()
                 .unwrap()
                 .performance()
                 .unwrap()
                 .now();
             
-            if now - start >= target_ms {
-                break;
+            let target_ms = duration.as_millis() as f64;
+            
+            loop {
+                let now = web_sys::window()
+                    .unwrap()
+                    .performance()
+                    .unwrap()
+                    .now();
+                
+                if now - start >= target_ms {
+                    break;
+                }
             }
+        }
+        
+        #[cfg(any(not(target_arch = "wasm32"), test, not(feature = "wasm")))]
+        {
+            // テスト環境では何もしない（瞬時に完了）
+            let _duration = duration; // 使用していることを示す
         }
     }
 }

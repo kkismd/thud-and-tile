@@ -1,0 +1,37 @@
+{
+  "name": "thud-and-tile-tests",
+  "version": "0.1.0",
+  "description": "テスト自動化およびCI/CD統合スクリプト for Thud & Tile",
+  "scripts": {
+    "test": "./run_tests.sh",
+    "test:native": "cargo test --lib",
+    "test:wasm": "wasm-pack test --node --features wasm-test --no-default-features",
+    "test:wasm-browser": "wasm-pack test --headless --chrome --features wasm-test --no-default-features",
+    "build:wasm": "wasm-pack build --features wasm",
+    "build:native": "cargo build",
+    "build:all": "npm run build:native && npm run build:wasm",
+    "clean": "cargo clean && rm -rf pkg/",
+    "fmt": "cargo fmt",
+    "clippy": "cargo clippy -- -D warnings",
+    "audit": "cargo audit",
+    "bench": "cargo bench",
+    "doc": "cargo doc --open"
+  },
+  "keywords": [
+    "rust",
+    "wasm",
+    "tetris",
+    "game",
+    "webassembly"
+  ],
+  "author": "Thud & Tile Development Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/thud-and-tile.git"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

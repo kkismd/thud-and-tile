@@ -4,12 +4,31 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-// JavaScript Math.random()をインポート
-#[cfg(target_arch = "wasm32")]
+// JavaScript Math.random()をインポート（ブラウザ環境のみ）
+#[cfg(all(target_arch = "wasm32", feature = "wasm", not(test)))]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = Math, js_name = random)]
     fn js_math_random() -> f64;
+}
+
+// Node.js環境またはテスト環境でのポリフィル
+#[cfg(any(
+    all(target_arch = "wasm32", not(feature = "wasm")), 
+    all(target_arch = "wasm32", test)
+))]
+pub fn js_math_random() -> f64 {
+    // Node.js環境では決定論的なランダム値を生成
+    use std::cell::RefCell;
+    thread_local! {
+        static SEED: RefCell<u64> = RefCell::new(12345);
+    }
+    
+    SEED.with(|s| {
+        let mut seed = s.borrow_mut();
+        *seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
+        (*seed % (1u64 << 31)) as f64 / (1u64 << 31) as f64
+    })
 }
 
 /// プラットフォーム独立なランダム数プロバイダー
@@ -111,12 +130,21 @@ impl WebRandomProvider {
         }
     }
     
-    /// JavaScript環境からランダムシードを取得
+    /// JavaScript環境からランダムシードを取得（テスト時は固定値）
     fn get_random_seed() -> u64 {
-        // JavaScriptのMath.random()を使用してランダムシードを生成
-        let random_value = js_math_random();
-        // 0.0-1.0の範囲を64bit整数に変換
-        (random_value * u64::MAX as f64) as u64
+        #[cfg(all(target_arch = "wasm32", not(test)))]
+        {
+            // JavaScriptのMath.random()を使用してランダムシードを生成
+            let random_value = js_math_random();
+            // 0.0-1.0の範囲を64bit整数に変換
+            (random_value * u64::MAX as f64) as u64
+        }
+        
+        #[cfg(any(not(target_arch = "wasm32"), test))]
+        {
+            // テスト環境や非WASM環境では固定シードを使用
+            12345u64
+        }
     }
     
     /// Xorshift64アルゴリズムで次の値を生成
@@ -135,9 +163,20 @@ impl RandomProvider for WebRandomProvider {
             return min;
         }
         let range = max - min;
-        // JavaScriptのMath.random()を直接使用してより良いランダム性を確保
-        let random_value = js_math_random(); // 0.0-1.0の範囲
-        min + (random_value * range as f64) as usize
+        
+        #[cfg(all(target_arch = "wasm32", not(test)))]
+        {
+            // JavaScriptのMath.random()を直接使用してより良いランダム性を確保
+            let random_value = js_math_random(); // 0.0-1.0の範囲
+            min + (random_value * range as f64) as usize
+        }
+        
+        #[cfg(any(not(target_arch = "wasm32"), test))]
+        {
+            // テスト環境では線形合同法で疑似ランダム
+            let random_value = self.next_u64() as f64 / u64::MAX as f64;
+            min + (random_value * range as f64) as usize
+        }
     }
     
     fn choose<'a, T>(&mut self, slice: &'a [T]) -> Option<&'a T> {

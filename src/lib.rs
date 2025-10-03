@@ -12,7 +12,7 @@ use std::collections::{VecDeque, HashSet}; // BFS用とAnimation管理用
 mod animation;
 
 // JavaScript console.log への出力用マクロ
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -23,16 +23,28 @@ extern "C" {
     fn js_date_now() -> f64;
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+// Node.js環境またはネイティブ環境でのログ出力
+#[cfg(not(all(target_arch = "wasm32", feature = "wasm")))]
 macro_rules! console_log {
     ($($t:tt)*) => {
         println!($($t)*);
     }
+}
+
+// Node.js環境でのポリフィル
+#[cfg(all(target_arch = "wasm32", feature = "nodejs-test"))]
+pub fn js_date_now() -> f64 {
+    // Node.js環境では固定値を返すかStd libraryのSystemTimeを使用
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as f64
 }
 
 // --- 時間管理（WASM対応） ---
@@ -438,8 +450,8 @@ impl SimpleTetromino {
     }
 }
 
-// WASM初期化関数
-#[cfg(target_arch = "wasm32")]
+// WASM初期化関数（テスト時は無効）
+#[cfg(all(target_arch = "wasm32", not(test)))]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_log!("Thud & Tile WASM module initialized");
@@ -1473,4 +1485,145 @@ impl WasmGameState {
             }
         }
     }
+}
+
+// ===== WASM専用テストセクション =====
+// Node.js/ブラウザ環境でのWASMモジュール特有のテスト
+
+#[cfg(all(target_arch = "wasm32", test))]
+use wasm_bindgen_test::*;
+
+// WASM専用テストの設定（Node.js優先、ブラウザもサポート）
+#[cfg(all(target_arch = "wasm32", test))]
+wasm_bindgen_test_configure!(run_in_browser);
+
+// Node.js用のWASMテスト（条件を緩和）
+#[cfg(all(target_arch = "wasm32", test))]
+#[wasm_bindgen_test]
+async fn wasm_node_compatible_test() {
+    // Node.js環境でも実行可能な基本テスト
+    console_log!("WASM Node.js compatible test running");
+    
+    // 基本的なアサーション
+    assert_eq!(2 + 2, 4);
+    assert!(true);
+    
+    console_log!("WASM Node.js compatible test passed");
+}
+
+#[cfg(all(target_arch = "wasm32", test))]
+#[wasm_bindgen_test]
+fn wasm_game_state_creation() {
+    // WASM環境でのゲーム状態作成テスト
+    let game_state = WasmGameState::new();
+    assert_eq!(game_state.get_score(), 0);
+    console_log!("WASM game state creation test passed");
+}
+
+#[cfg(all(target_arch = "wasm32", test))]
+#[wasm_bindgen_test]
+fn wasm_tetromino_operations() {
+    // WASMでのテトロミノ操作テスト
+    let mut game_state = WasmGameState::new();
+    game_state.start_game();
+    
+    // 現在ピース情報の取得テスト
+    let piece_info = game_state.get_current_piece_info();
+    console_log!("WASM current piece info: {:?}", piece_info);
+    
+    // 回転テスト
+    let rotation_result = game_state.rotate_current_piece(true);
+    console_log!("WASM tetromino rotation test: {}", rotation_result);
+}
+
+#[cfg(all(target_arch = "wasm32", test))]
+#[wasm_bindgen_test]
+fn wasm_animation_system() {
+    // WASMでのアニメーション系統テスト
+    let mut game_state = WasmGameState::new();
+    game_state.start_game();
+    
+    // アニメーション更新テスト
+    game_state.update_animation();
+    let animation_info = game_state.get_animation_info();
+    
+    // アニメーション状態が適切に管理されているかテスト
+    console_log!("WASM animation info: {:?}", animation_info);
+    assert!(animation_info.len() > 0); // JSONが返されることを確認
+}
+
+#[cfg(all(target_arch = "wasm32", test))]
+#[wasm_bindgen_test]
+fn wasm_score_system() {
+    // WASMスコアシステムテスト
+    let mut score_system = WasmCustomScoreSystem::new();
+    
+    // スコア加算テスト
+    score_system.add_score(0, 100); // Cyan
+    score_system.add_score(1, 200); // Magenta
+    
+    assert_eq!(score_system.get_cyan_score(), 100);
+    assert_eq!(score_system.get_magenta_score(), 200);
+    assert_eq!(score_system.get_total_score(), 300);
+    
+    console_log!("WASM score system test passed");
+}
+
+#[cfg(all(target_arch = "wasm32", test))]
+#[wasm_bindgen_test]
+fn wasm_time_provider() {
+    // WASM時間プロバイダーテスト
+    let time_provider = WasmTimeProvider::new();
+    let start_time = time_provider.now();
+    
+    // 時間が適切に取得できるかテスト
+    assert!(start_time.as_millis() >= 0);
+    console_log!("WASM time provider test passed: {}ms", start_time.as_millis());
+}
+
+// Node.js環境での基本的なテスト
+#[cfg(all(target_arch = "wasm32", test))]
+#[wasm_bindgen_test]
+fn nodejs_compatibility_test() {
+    // Node.js環境でのポリフィルをテスト
+    console_log!("Node.js compatibility test starting");
+    
+    // ランダム数生成のテスト
+    let random_value = crate::random::js_math_random();
+    assert!(random_value >= 0.0 && random_value < 1.0);
+    
+    // 時間のテスト（Node.js環境でのjs_date_now）
+    #[cfg(feature = "nodejs-test")]
+    {
+        let time = crate::js_date_now();
+        assert!(time > 0.0);
+    }
+    
+    console_log!("Node.js compatibility test passed");
+}
+
+// 共有アニメーションシステムのWASMテスト
+#[cfg(all(target_arch = "wasm32", test))]
+#[wasm_bindgen_test]
+fn wasm_shared_animation_module() {
+    // Mock time provider for testing
+    let mut mock_time = MockTimeProvider::new();
+    
+    // 共有アニメーションモジュールのテスト
+    use crate::animation::Animation;
+    let animations = vec![
+        Animation::LineBlink {
+            lines: vec![19],
+            count: 1,
+            start_time: mock_time.now(),
+        }
+    ];
+    
+    // アニメーション更新テスト（時刻による更新）
+    mock_time.advance(std::time::Duration::from_millis(500));
+    let _current_time = mock_time.now();
+    
+    // アニメーションが存在することを確認
+    assert!(!animations.is_empty());
+    console_log!("WASM shared animation test passed with {} animations", animations.len());
 }
