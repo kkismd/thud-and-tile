@@ -27,7 +27,6 @@ pub struct AnimationResult {
     pub continuing_animations: Vec<Animation>,
     pub completed_line_blinks: Vec<Vec<usize>>, // 完了したLineBlink のラインリスト
     pub completed_push_downs: Vec<usize>,       // 完了したPush Down のgray_line_y
-    pub new_push_downs: Vec<Animation>,         // 新しく開始されるPush Down
 }
 
 impl AnimationResult {
@@ -36,12 +35,13 @@ impl AnimationResult {
             continuing_animations: Vec::new(),
             completed_line_blinks: Vec::new(),
             completed_push_downs: Vec::new(),
-            new_push_downs: Vec::new(),
         }
     }
 }
 
 /// アニメーション更新処理（CLI版とWASM版共通）
+/// 注意: この関数はLineBlink完了時にcompleted_line_blinksのみを返します。
+/// PushDownアニメーションの生成は呼び出し元で底辺ライン判定を行った後に実行してください。
 pub fn update_animations(
     animations: &mut Vec<Animation>,
     current_time: Duration,
@@ -56,16 +56,11 @@ pub fn update_animations(
                 let steps_elapsed = elapsed.as_millis() / blink_step.as_millis();
                 
                 if steps_elapsed >= BLINK_COUNT_MAX as u128 {
-                    // LineBlink完了 → Push Down開始
+                    // LineBlink完了 → 呼び出し元で底辺ライン判定を実行
                     result.completed_line_blinks.push(lines.clone());
                     
-                    // 各ラインにPush Downアニメーションを作成
-                    for &line_y in &lines {
-                        result.new_push_downs.push(Animation::PushDown {
-                            gray_line_y: line_y,
-                            start_time: current_time,
-                        });
-                    }
+                    // PushDownアニメーションの生成は呼び出し元に委託
+                    // （CLI版: 底辺ライン判定後に非底辺ラインのみPushDown作成）
                 } else {
                     // LineBlink継続
                     result.continuing_animations.push(Animation::LineBlink {
@@ -91,9 +86,6 @@ pub fn update_animations(
             }
         }
     }
-    
-    // 新しいPush Downアニメーションを追加
-    result.continuing_animations.extend(result.new_push_downs.clone());
     
     result
 }

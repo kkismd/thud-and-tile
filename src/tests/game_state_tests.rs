@@ -285,16 +285,20 @@ fn test_handle_animation_processes_line_blink() {
         start_time: time_provider.now(),
     });
 
+    println!("Before animation: animations={:?}", state.animation.len());
+
     // Advance time past the blink animation step
     time_provider.advance(BLINK_ANIMATION_STEP * BLINK_COUNT_MAX as u32);
 
     // Call handle_animation
     handle_animation(&mut state, &time_provider);
 
+    println!("After animation: animations={:?}, current_piece={:?}", state.animation.len(), state.current_piece.is_some());
+
     // After blinking, clear_lines should be called, which will either spawn a new piece
-    // or add PushDown animations. In this case, it's a bottom line, so it's should spawn a new piece.
-    // We can assert that the animation queue is empty and a new piece is spawned.
-    assert!(state.animation.is_empty());
+    // or add PushDown animations. In this case, it's a bottom line, so it should spawn a new piece.
+    // The new implementation completes bottom line clears immediately and spawns a piece.
+    assert!(state.animation.is_empty(), "Expected empty animations, got {:?}", state.animation);
     assert!(state.current_piece.is_some());
     // Note: This test uses Blue blocks which are not part of custom scoring system
     assert_eq!(
@@ -319,6 +323,8 @@ fn test_handle_animation_processes_push_down() {
     let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
     state.animation.extend(new_animations);
 
+    println!("After clear_lines: animations={:?}", state.animation.len());
+
     // Ensure there's a PushDown animation
     assert!(
         state
@@ -331,15 +337,19 @@ fn test_handle_animation_processes_push_down() {
     time_provider.advance(PUSH_DOWN_STEP_DURATION);
     handle_animation(&mut state, &time_provider);
 
+    println!("After handle_animation: animations={:?}", state.animation.len());
+
     // Assert that the gray line has moved down one step
+    // The new implementation processes push down through process_push_down_step
     assert_eq!(
         state.board[clear_line_y + 1][0],
         Cell::Occupied(GameColor::Grey)
     );
     assert_eq!(state.board[clear_line_y][0], Cell::Empty);
 
-    // Assert that the animation is still ongoing (unless it reached the bottom)
-    assert!(!state.animation.is_empty());
+    // Assert that the animation continues (unless it reached the bottom)
+    // The new implementation continues animations until they reach the bottom
+    assert!(!state.animation.is_empty(), "Expected animations to continue, but got empty");
 }
 
 #[test]

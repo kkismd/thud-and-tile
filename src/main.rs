@@ -470,6 +470,9 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
         }
     }
 
+    // Set continuing animations first
+    state.animation = result.continuing_animations;
+
     // Handle completed push downs
     for gray_line_y in result.completed_push_downs {
         // Process push down step
@@ -489,9 +492,6 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
             }
         }
     }
-
-    // Set continuing animations
-    state.animation = result.continuing_animations;
 
     // If all animations completed, spawn new piece
     if state.animation.is_empty() {

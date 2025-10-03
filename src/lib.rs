@@ -1123,27 +1123,25 @@ impl WasmGameState {
             let (bottom_lines_cleared, non_bottom_lines_cleared) = 
                 animation::process_line_clear(&mut self.board, self.current_board_height, &completed_lines);
 
-            // Bottom lines の標準テトリス消去処理
-            for &line_y in &bottom_lines_cleared {
-                // スコア計算はlock_piece()で既に実行済み
-            }
-
-            // Bottom lines 処理後の連結ブロック更新と新ピーススポーン
+            // Bottom lines の標準テトリス消去処理（PushDownアニメーションなし）
             if !bottom_lines_cleared.is_empty() {
                 self.update_all_connected_block_counts();
                 self.spawn_piece();
                 console_log!("Bottom line clear: {} lines cleared", bottom_lines_cleared.len());
             }
 
-            // Non-bottom lines の孤立ブロック除去処理
+            // Non-bottom lines のPushDownアニメーション開始
             for &y in &non_bottom_lines_cleared {
                 // 1. 孤立ブロック除去（CLI版互換）
                 crate::board_logic::remove_isolated_blocks(&mut self.board, y);
 
-                // 2. スコア計算はlock_piece()で既に実行済み
+                // 2. PushDownアニメーション開始（greyライン化は既にprocess_line_clearで実行済み）
+                self.animation.push(animation::Animation::PushDown {
+                    gray_line_y: y,
+                    start_time: current_time,
+                });
             }
 
-            // Non-bottom lines をグレー化（既に共通モジュールで処理済み）
             console_log!("Line clear animation completed: {} bottom, {} non-bottom", 
                 bottom_lines_cleared.len(), non_bottom_lines_cleared.len());
         }
