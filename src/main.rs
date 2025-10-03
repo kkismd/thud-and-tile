@@ -91,14 +91,14 @@ use tetromino::Tetromino;
 
 mod board_logic;
 
+use animation::{Animation, update_animations, process_push_down_step, PushDownStepResult}; // 共通アニメーション関数
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GameMode {
     Title,
     Playing,
     GameOver,
 }
-
-use crate::render::Animation; // Use Animation from render module
 
 #[derive(Clone, Debug, PartialEq)]
 struct GameState {
@@ -419,123 +419,82 @@ impl GameState {
     }
 }
 
-fn handle_line_blink_animation(
-    state: &mut GameState,
-    time_provider: &dyn TimeProvider,
-    anim: Animation,
-) -> Vec<Animation> {
-    let mut still_animating = Vec::new();
-    if let Animation::LineBlink {
-        lines,
-        count: _,
-        start_time,
-    } = anim
-    {
-        let now = time_provider.now();
-        let steps_done =
-            ((now - start_time).as_millis() / BLINK_ANIMATION_STEP.as_millis()) as usize;
-
-        if steps_done >= BLINK_COUNT_MAX {
-            // Blinking finished, trigger the next stage (clearing)
-            still_animating.extend(state.clear_lines(&lines, time_provider));
-        } else {
-            // Continue blinking
-            still_animating.push(Animation::LineBlink {
-                lines,
-                count: steps_done,
-                start_time,
-            });
-        }
-    }
-    still_animating
-}
-
-fn handle_push_down_animation(
-    state: &mut GameState,
-    time_provider: &dyn TimeProvider,
-    anim: Animation,
-) -> (Vec<Animation>, bool) {
-    let mut still_animating = Vec::new();
-    let mut finished = false;
-    if let Animation::PushDown {
-        gray_line_y,
-        start_time,
-    } = anim
-    {
-        let now = time_provider.now();
-        if now - start_time >= PUSH_DOWN_STEP_DURATION {
-            let target_y = gray_line_y + 1;
-
-            // Check if the animation should finish
-            if target_y >= state.current_board_height || state.board[target_y][0] == Cell::Solid {
-                // Finalize the line as Solid
-                for x in 0..BOARD_WIDTH {
-                    state.board[gray_line_y][x] = Cell::Solid;
-                }
-                state.current_board_height = state.current_board_height.saturating_sub(1);
-                // Note: Scoring now handled immediately when lines are cleared, not after animation
-
-                // Update connected block counts after animation completion (Bug fix)
-                // This ensures that after line clear animations complete, the connected blocks
-                // are properly recounted to reflect any changes in connectivity
-                // Use full board update since animation affects the entire board structure
-                state.update_all_connected_block_counts();
-                finished = true;
-                // Do not push the animation back
-            } else {
-                // Move the gray line and everything above it down by removing the line below it
-                // and inserting a new empty line at the top.
-                state.board.remove(target_y);
-                state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-
-                // Push the animation back with updated state
-                still_animating.push(Animation::PushDown {
-                    gray_line_y: target_y,
-                    start_time: now, // Reset timer for the next step
-                });
-            }
-        } else {
-            // Not time to move yet, keep it in the queue
-            still_animating.push(Animation::PushDown {
-                gray_line_y,
-                start_time,
-            });
-        }
-    }
-    (still_animating, finished)
-}
-
 fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     if state.animation.is_empty() {
         return;
     }
 
-    let mut still_animating_this_cycle = Vec::new();
-    let mut animations_finished_this_cycle = false;
+    // Use the common animation update logic from animation.rs
+    let current_time = time_provider.now();
+    let result = update_animations(&mut state.animation, current_time);
 
-    // Take ownership to process
-    for anim in std::mem::take(&mut state.animation) {
-        match anim {
-            Animation::LineBlink { .. } => {
-                still_animating_this_cycle.extend(handle_line_blink_animation(
-                    state,
-                    time_provider,
-                    anim,
-                ));
+    // Handle completed line clears
+    for completed_lines in result.completed_line_blinks {
+        // Process line clear using shared logic
+        let (bottom_lines_cleared, non_bottom_lines_cleared) = completed_lines.iter()
+            .partition::<Vec<_>, _>(|&&line_y| line_y == state.current_board_height - 1);
+
+        // Handle bottom lines (standard Tetris clear)
+        if !bottom_lines_cleared.is_empty() {
+            let num_cleared = bottom_lines_cleared.len();
+            let mut sorted_lines: Vec<usize> = bottom_lines_cleared.into_iter().cloned().collect();
+            sorted_lines.sort_by(|a, b| b.cmp(a));
+
+            for &line_y in &sorted_lines {
+                state.board.remove(line_y);
             }
-            Animation::PushDown { .. } => {
-                let (remaining_animations, finished) =
-                    handle_push_down_animation(state, time_provider, anim);
-                still_animating_this_cycle.extend(remaining_animations);
-                animations_finished_this_cycle = finished;
+            for _ in 0..num_cleared {
+                state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+            }
+
+            // Update connected block counts after bottom line clear
+            state.update_all_connected_block_counts();
+            state.spawn_piece();
+        }
+
+        // Handle non-bottom lines (custom clear with gray conversion)
+        for &y in non_bottom_lines_cleared {
+            // Remove isolated blocks
+            board_logic::remove_isolated_blocks(&mut state.board, y);
+
+            // Turn line to gray
+            for x in 0..BOARD_WIDTH {
+                state.board[y][x] = Cell::Occupied(GameColor::Grey);
+            }
+
+            // Trigger push-down animation
+            state.animation.push(Animation::PushDown {
+                gray_line_y: y,
+                start_time: current_time,
+            });
+        }
+    }
+
+    // Handle completed push downs
+    for gray_line_y in result.completed_push_downs {
+        // Process push down step
+        match process_push_down_step(&mut state.board, &mut state.current_board_height, gray_line_y) {
+            PushDownStepResult::Completed => {
+                // Push down completed, potentially spawn new piece
+                if state.animation.is_empty() {
+                    state.spawn_piece();
+                }
+            }
+            PushDownStepResult::Moved { new_gray_line_y } => {
+                // Continue push down animation at new position
+                state.animation.push(Animation::PushDown {
+                    gray_line_y: new_gray_line_y,
+                    start_time: current_time,
+                });
             }
         }
     }
 
-    state.animation = still_animating_this_cycle;
+    // Set continuing animations
+    state.animation = result.continuing_animations;
 
-    // Spawn a new piece only if all animations have completed in this cycle.
-    if animations_finished_this_cycle && state.animation.is_empty() {
+    // If all animations completed, spawn new piece
+    if state.animation.is_empty() {
         state.spawn_piece();
     }
 }

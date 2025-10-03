@@ -13,19 +13,7 @@ use std::time::Duration;
 
 use crate::GameState; // Import GameState from main.rs
 use crate::GameMode;
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Animation {
-    LineBlink {
-        lines: Vec<usize>,
-        count: usize,
-        start_time: Duration,
-    },
-    PushDown {
-        gray_line_y: usize,
-        start_time: Duration,
-    },
-}
+use crate::animation::Animation; // 共通Animationを使用
 
 pub trait Renderer {
     fn clear_screen(&mut self) -> io::Result<()>;

@@ -8,7 +8,7 @@ use crate::scoring::ColorMaxChains; // MaxChainsの正しい型名
 use std::time::Duration;
 
 /// アニメーションの種類
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Animation {
     LineBlink {
         lines: Vec<usize>,
