@@ -10,3 +10,7 @@ wasm-opt = ["-O", "-g"]
 
 [package.metadata.wasm-pack.profile.test]
 wasm-opt = false
+
+# テスト時にバイナリターゲットを除外
+[package.metadata.wasm-pack.profile.test.targets]
+exclude = ["thud-and-tile"]

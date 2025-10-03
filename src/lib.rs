@@ -1493,7 +1493,7 @@ impl WasmGameState {
 #[cfg(all(target_arch = "wasm32", test))]
 use wasm_bindgen_test::*;
 
-// WASM専用テストの設定（Node.js優先、ブラウザもサポート）
+// WASM専用テストの設定（Headless Chrome対応）
 #[cfg(all(target_arch = "wasm32", test))]
 wasm_bindgen_test_configure!(run_in_browser);
 
