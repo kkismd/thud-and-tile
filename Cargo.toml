@@ -6,6 +6,12 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+# Native環境のみでbinターゲットを有効化
+[[bin]]
+name = "thud-and-tile"
+path = "src/main.rs"
+required-features = ["native-bin"]
+
 [dependencies]
 rand = "0.8.5"
 lazy_static = "1.4.0"

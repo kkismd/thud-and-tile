@@ -126,7 +126,7 @@ use random::{RandomProvider, create_default_random_provider};
 use cell::Cell;
 use scoring::CustomScoreSystem;
 use tetromino::get_srs_wall_kick_offsets_by_shape; // CLI版のSRS関数をimport
-use animation::{Animation, update_animations, process_push_down_step, PushDownStepResult, calculate_line_clear_score, process_line_clear};
+use animation::{Animation, calculate_line_clear_score, process_line_clear};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -796,109 +796,46 @@ impl WasmGameState {
             
             console_log!("Piece locked at position ({}, {})", piece.x, piece.y);
             
-            // CLI版と同じ隣接ブロック処理を使用
-            crate::board_logic::find_and_connect_adjacent_blocks(&mut self.board, &[]);
+            // CLI版と同じライン消去検出とアニメーション処理
+            // 1. 完成ラインを検出（CLI版と同じロジック）
+            let mut lines_to_clear: Vec<usize> = self.board[0..self.current_board_height]
+                .iter()
+                .enumerate()
+                .filter(|(_, row)| {
+                    row.iter().all(|&cell| {
+                        matches!(cell, Cell::Occupied(_)) 
+                            || matches!(cell, Cell::Connected { color: _, count: _ })
+                    })
+                })
+                .map(|(y, _)| y)
+                .collect();
+            lines_to_clear.sort_by(|a, b| b.cmp(a)); // CLI版と同じソート
+
+            // 2. CLI版と同じ隣接ブロック処理（消去前に実行）
+            crate::board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear);
             
-            // CLI版と同じconnected block counts更新
+            // 3. CLI版と同じconnected block counts更新
             self.update_connected_block_counts();
             
-            // CLI版と同じmax_chains更新
+            // 4. CLI版と同じmax_chains更新
             self.update_max_chains();
             
-            // ライン消去チェック（アニメーション対応）
-            self.clear_lines();
-            
-            // アニメーション中でなければ新しいピースをスポーン
-            if self.animation.is_empty() {
+            // 5. ライン消去処理とアニメーション開始
+            if !lines_to_clear.is_empty() {
+                let start_time = self.time_provider.now();
+                let line_blink_animation = animation::Animation::LineBlink {
+                    lines: lines_to_clear.clone(),
+                    count: 0,
+                    start_time,
+                };
+                self.animation.push(line_blink_animation);
+                console_log!("Starting line clear animation for {} lines", lines_to_clear.len());
+            } else {
+                // ラインクリアなしの場合、すぐに新しいピースをスポーン
                 self.spawn_piece();
             }
             
             console_log!("Piece locked, next piece spawned or animation started");
-        }
-    }
-    
-    /// ラインクリア処理（CLI版互換の高度な実装）
-    #[wasm_bindgen]
-    pub fn clear_lines(&mut self) {
-        // すでにアニメーション中の場合は何もしない
-        if !self.animation.is_empty() {
-            return;
-        }
-        
-        let mut lines_to_clear = Vec::new();
-        
-        // 完成したラインを見つける（CLI版と同じ動的高さ制限）
-        for y in 0..self.current_board_height {
-            let mut line_complete = true;
-            for x in 0..BOARD_WIDTH {
-                if matches!(self.board[y][x], Cell::Empty) {
-                    line_complete = false;
-                    break;
-                }
-            }
-            if line_complete {
-                lines_to_clear.push(y);
-            }
-        }
-        
-        if !lines_to_clear.is_empty() {
-            self.clear_lines_advanced(&lines_to_clear);
-        }
-    }
-    
-    /// CLI版互換の高度なライン削除処理（共通モジュール使用）
-    fn clear_lines_advanced(&mut self, lines: &[usize]) {
-        // 共通モジュールのライン消去処理を使用
-        let (bottom_lines_cleared, non_bottom_lines_cleared) = 
-            animation::process_line_clear(&mut self.board, self.current_board_height, lines);
-
-        // Bottom lines のスコア計算
-        for &line_y in &bottom_lines_cleared {
-            let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.inner.max_chains);
-            for (color, points) in scores {
-                self.custom_score_system.inner.scores.add(color, points);
-            }
-        }
-
-        // Bottom lines の処理は既に共通モジュールで完了
-        if !bottom_lines_cleared.is_empty() {
-            // 連結ブロックカウント更新
-            self.update_all_connected_block_counts();
-
-            // 新しいピースをスポーン（アニメーションなし）
-            self.spawn_piece();
-            
-            console_log!("Bottom line clear: {} lines cleared", bottom_lines_cleared.len());
-        }
-
-        // Non-bottom lines のスコア計算とアニメーション開始
-        for &y in &non_bottom_lines_cleared {
-            // 1. 孤立ブロック除去
-            self.remove_isolated_blocks(y);
-
-            // 2. スコア計算（グレー化前に実行）
-            let scores = animation::calculate_line_clear_score(&self.board, y, &self.custom_score_system.inner.max_chains);
-            for (color, points) in scores {
-                self.custom_score_system.inner.scores.add(color, points);
-            }
-            
-            console_log!("Non-bottom line clear: line {} marked for animation", y);
-        }
-
-        // アニメーション開始
-        if !non_bottom_lines_cleared.is_empty() {
-            let start_time = self.time_provider.now();
-            let line_blink_animation = animation::Animation::LineBlink {
-                lines: non_bottom_lines_cleared,
-                count: 0,
-                start_time,
-            };
-            self.animation.push(line_blink_animation);
-            console_log!("Starting line clear animation for {} lines", 
-                if let animation::Animation::LineBlink { lines, .. } = &self.animation[0] { lines.len() } else { 0 });
-        } else if bottom_lines_cleared.is_empty() {
-            // どちらのラインもクリアされなかった場合、新しいピースをスポーン
-            self.spawn_piece();
         }
     }
     
@@ -1166,10 +1103,14 @@ impl WasmGameState {
         // 共通アニメーション処理モジュールを使用
         let result = animation::update_animations(&mut self.animation, current_time);
         
-        // LineBlink完了によるPush Down開始処理
+        // LineBlink完了によるライン消去とPush Down開始処理（CLI版互換）
         for completed_lines in result.completed_line_blinks {
-            // ライン消去前のスコア計算
-            for &line_y in &completed_lines {
+            // CLI版と同じ処理順序：bottom/non-bottomに分離してライン消去処理
+            let (bottom_lines_cleared, non_bottom_lines_cleared) = 
+                animation::process_line_clear(&mut self.board, self.current_board_height, &completed_lines);
+
+            // Bottom lines の標準テトリス消去とスコア計算
+            for &line_y in &bottom_lines_cleared {
                 let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.inner.max_chains);
                 for (color, points) in scores {
                     let color_index = match color {
@@ -1181,13 +1122,35 @@ impl WasmGameState {
                     self.custom_score_system.add_score(color_index, points);
                 }
             }
-            
-            // ライン をグレー化（Push Downアニメーション準備）
-            for &line_y in &completed_lines {
-                for x in 0..BOARD_WIDTH {
-                    self.board[line_y][x] = Cell::Occupied(GameColor::Grey);
+
+            // Bottom lines 処理後の連結ブロック更新と新ピーススポーン
+            if !bottom_lines_cleared.is_empty() {
+                self.update_all_connected_block_counts();
+                self.spawn_piece();
+                console_log!("Bottom line clear: {} lines cleared", bottom_lines_cleared.len());
+            }
+
+            // Non-bottom lines の孤立ブロック除去とスコア計算
+            for &y in &non_bottom_lines_cleared {
+                // 1. 孤立ブロック除去（CLI版互換）
+                crate::board_logic::remove_isolated_blocks(&mut self.board, y);
+
+                // 2. スコア計算（グレー化前に実行）
+                let scores = animation::calculate_line_clear_score(&self.board, y, &self.custom_score_system.inner.max_chains);
+                for (color, points) in scores {
+                    let color_index = match color {
+                        GameColor::Cyan => 0,
+                        GameColor::Magenta => 1,
+                        GameColor::Yellow => 2,
+                        _ => 0,
+                    };
+                    self.custom_score_system.add_score(color_index, points);
                 }
             }
+
+            // Non-bottom lines をグレー化（既に共通モジュールで処理済み）
+            console_log!("Line clear animation completed: {} bottom, {} non-bottom", 
+                bottom_lines_cleared.len(), non_bottom_lines_cleared.len());
         }
         
         // Push Down完了処理
@@ -1335,62 +1298,6 @@ impl WasmGameState {
         results
     }
     
-    /// CLI版のremove_isolated_blocks相当の実装（内部実装のみ）
-    /// cleared_line_y より下の行で、隣接する同色ブロックがない孤立ブロックを除去
-    fn remove_isolated_blocks(&mut self, cleared_line_y: usize) {
-        let mut blocks_to_remove = Vec::new();
-
-        for y in (cleared_line_y + 1)..self.current_board_height {
-            for x in 0..BOARD_WIDTH {
-                let color = match self.board[y][x] {
-                    Cell::Occupied(c) => Some(c),
-                    Cell::Connected { color: c, count: _ } => Some(c),
-                    _ => None,
-                };
-                
-                if let Some(color) = color {
-                    let mut is_isolated = true;
-                    let neighbors = [
-                        (x as i8 - 1, y as i8),
-                        (x as i8 + 1, y as i8),
-                        (x as i8, y as i8 - 1),
-                        (x as i8, y as i8 + 1),
-                    ];
-
-                    for (nx, ny) in neighbors {
-                        if nx >= 0
-                            && nx < BOARD_WIDTH as i8
-                            && ny >= 0
-                            && (ny as usize) < self.current_board_height
-                        {
-                            let neighbor_color = match self.board[ny as usize][nx as usize] {
-                                Cell::Occupied(c) => Some(c),
-                                Cell::Connected { color: c, count: _ } => Some(c),
-                                _ => None,
-                            };
-                            if let Some(neighbor_color) = neighbor_color {
-                                if neighbor_color == color {
-                                    is_isolated = false;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if is_isolated {
-                        blocks_to_remove.push((x, y));
-                    }
-                }
-            }
-        }
-
-        // 孤立ブロックを削除
-        for (x, y) in blocks_to_remove {
-            self.board[y][x] = Cell::Empty;
-            console_log!("Removed isolated block at ({}, {})", x, y);
-        }
-    }
-    
     /// 全ボードの連結ブロック数を更新（CLI版のupdate_all_connected_block_counts相当）
     fn update_all_connected_block_counts(&mut self) {
         // 一度すべてのConnected cellをOccupied cellに戻す
@@ -1493,9 +1400,11 @@ impl WasmGameState {
 #[cfg(all(target_arch = "wasm32", test))]
 use wasm_bindgen_test::*;
 
-// WASM専用テストの設定（Headless Chrome対応）
-#[cfg(all(target_arch = "wasm32", test))]
+// WASM専用テストの設定（フィーチャーに応じて環境を切り替え）
+#[cfg(all(target_arch = "wasm32", test, feature = "wasm-test"))]
 wasm_bindgen_test_configure!(run_in_browser);
+
+// Node.jsテストはデフォルト設定（設定なし）を使用
 
 // Node.js用のWASMテスト（条件を緩和）
 #[cfg(all(target_arch = "wasm32", test))]

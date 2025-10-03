@@ -324,8 +324,7 @@
         "✅ Code Quality: Reduced duplication, improved maintainability by leveraging tested CLI implementation"
       ],
       "next_priorities": [
-        "� Phase 2A補完: Node.js WASMテスト環境を活用したCI/CD pipeline構築",
-        "�🚨 Phase 2A: Complete Line Clear System migration (gray conversion, push-down, isolated block removal)",
+        "🚨 Phase 2A: Complete Line Clear System migration (gray conversion, push-down, isolated block removal)",
         "🚨 Phase 2A: Animation System complete migration (Vec<Animation> parallel system)",
         "🚨 Phase 2A: Dynamic Board Height system (current_board_height)",
         "🚨 Phase 2A: CustomScoreSystem migration",
@@ -333,8 +332,22 @@
         "⚠️ Phase 2B: Complete abstraction layer usage",
         "📱 Phase 2C: Mobile optimization"
       ],
+      "pending_items": [
+        {
+          "item": "Node.js WASM時間API互換性修正",
+          "status": "⏸️ Pending",
+          "priority": "低優先度",
+          "details": "Node.js環境でSystemTime::now()がパニックする問題。3/8テスト成功、5/8テストが時間関連で失敗",
+          "current_state": "基本的なWASMテスト基盤は動作中、--no-default-featuresが鍵",
+          "solution_approach": "js_date_now() polyfillの条件付きコンパイル修正",
+          "test_commands": [
+            "✅ cargo test (ネイティブ: 65/65テスト成功)",
+            "⚠️ wasm-pack test --node --features nodejs-test --no-default-features (3/8テスト成功)"
+          ]
+        }
+      ],
       "architecture_status": {
-        "testing_infrastructure": "✅ Complete (Node.js互換WASMテスト環境実装済み)",
+        "testing_infrastructure": "⚠️ Partial (ネイティブ完全、Node.js基本動作、時間API課題)",
         "cross_platform_testing": "✅ Enabled (browser/Node.js両対応)",
         "code_duplication": "✅ Significantly reduced (find_and_connect_adjacent_blocks removed)",
         "cli_integration": "✅ Improved (board_logic integration started)",
