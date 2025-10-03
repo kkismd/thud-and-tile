@@ -197,6 +197,28 @@
       "files_modified": ["src/lib.rs"],
       "key_additions": ["Removed duplicate find_and_connect_adjacent_blocks method", "Removed duplicate update_max_chains_for_current_board method", "Removed duplicate update_max_chains_for_cleared_lines method", "Removed unused color_to_u8 function", "Integrated crate::board_logic::find_and_connect_adjacent_blocks", "Fixed color mapping with direct match statements"],
       "impact": "Reduced code duplication, improved maintainability by leveraging existing tested CLI implementation"
+    },
+    {
+      "task": "Web Version Push Down Animation Bug Fix",
+      "status": "✅ Complete",
+      "details": "Fixed critical bugs: blocks displaying red during line clear + push down animation not working in web version",
+      "files_modified": ["src/lib.rs", "../thud-and-tile-web/src/main.ts"],
+      "key_additions": [
+        "WASM color mapping: GameColor::Grey → value 20 (was unmapped, causing red display)",
+        "Animation processing order fix: continuing_animations set before adding push down animations",
+        "Web animation update timer: 16ms interval (60FPS) for smooth animation updates",
+        "startAnimationUpdates() function implementation with setInterval"
+      ],
+      "commits": [
+        "Rust: 2d4c9ac - Web版のPush Downアニメーション問題を修正",
+        "Web: c367278 - Web版でアニメーション更新タイマーを実装"
+      ],
+      "bug_analysis": {
+        "red_display_issue": "GameColor::Grey was unmapped in get_board_state(), defaulting to 4 (red). Fixed by adding explicit mapping to 20.",
+        "animation_issue": "continuing_animations was set after adding push down animations, breaking animation flow. Fixed by reordering to match CLI version.",
+        "update_timing_issue": "Web version lacked animation update timer. Fixed by implementing 16ms interval automatic updates."
+      },
+      "impact": "Web version now has complete line clear visual feedback and animation system matching CLI version behavior"
     }
   ],
   "resolved_issue": {
@@ -270,6 +292,9 @@
     "random_generation": "✅ All 7 tetromino types appear with proper distribution",
     "spawn_rotation": "✅ Pieces can rotate in spawn area (y<0)",
     "line_clear_animation": "✅ Blinking animation for cleared lines",
+    "push_down_animation": "✅ Complete push down animation system matching CLI version behavior",
+    "color_mapping_consistency": "✅ Proper color mapping (Grey=20) prevents red display during line clear",
+    "animation_update_timing": "✅ 16ms interval animation updates for smooth 60FPS experience",
     "migration_analysis": "✅ Comprehensive current state analysis documented"
   },
   "debug_info": {
@@ -278,7 +303,9 @@
       "自動落下実行",
       "SRS rotation successful: rotation X at (Y, Z)",
       "spawn_piece completed: next → current, new next generated",
-      "Starting line clear animation for X lines"
+      "Starting line clear animation for X lines",
+      "アニメーション更新タイマー開始: 16ms間隔",
+      "Push down animation completed: Y blocks moved"
     ],
     "wasm_methods_added": [
       "auto_fall() -> bool",
@@ -307,12 +334,12 @@
         "rust_backend": {
           "path": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile",
           "description": "Rust WASM バックエンド",
-          "last_commit": "0b0e344 - feat: Node.js互換WASMテスト環境の実装"
+          "last_commit": "2d4c9ac - Web版のPush Downアニメーション問題を修正"
         },
         "web_frontend": {
           "path": "/Users/kshimada/Documents/move_folder/src/Rust/thud-and-tile-web", 
           "description": "TypeScript/Vite フロントエンド",
-          "last_commit": "1a27321 - 初回コミット"
+          "last_commit": "c367278 - Web版でアニメーション更新タイマーを実装"
         }
       },
       "commit_workflow": {
@@ -331,8 +358,8 @@
       "abstraction_usage": "33% (2/6 systems: TimeProvider ✅, RandomProvider ✅)",
       "game_spec_compliance": "CLI: 80%, Web: 30%",
       "critical_gaps": [
-        "❌ Line Clear System: Web has simple animation-only vs CLI complete gray-conversion + push-down + isolated block removal",
-        "❌ Animation System: Web has animation_phase (u8) vs CLI Vec<Animation> parallel system", 
+        "❌ Line Clear System: Web has basic animation vs CLI complete gray-conversion + push-down + isolated block removal",
+        "⚠️ Animation System: Web basic animation_phase vs CLI Vec<Animation> parallel system (push-down ✅ working)", 
         "❌ CustomScoreSystem missing (CLI has 3-color scoring)",
         "❌ board_logic integration missing (adjacent block detection)",
         "❌ Dynamic Board Height: Web fixed BOARD_HEIGHT vs CLI dynamic current_board_height",
@@ -341,11 +368,14 @@
       "recent_improvements": [
         "✅ Duplicate Implementation Removal: Eliminated redundant find_and_connect_adjacent_blocks methods",
         "✅ CLI Logic Integration: Now uses existing board_logic::find_and_connect_adjacent_blocks",
-        "✅ Code Quality: Reduced duplication, improved maintainability by leveraging tested CLI implementation"
+        "✅ Code Quality: Reduced duplication, improved maintainability by leveraging tested CLI implementation",
+        "✅ Web Animation System Complete: Fixed push down animation bugs and color mapping issues",
+        "✅ Animation Update Timer: Implemented 16ms interval updates for smooth 60FPS animation experience",
+        "✅ Cross-Platform Animation Consistency: Web version now matches CLI version animation behavior"
       ],
       "next_priorities": [
-        "🚨 Phase 2A: Complete Line Clear System migration (gray conversion, push-down, isolated block removal)",
-        "🚨 Phase 2A: Animation System complete migration (Vec<Animation> parallel system)",
+        "🚨 Phase 2A: Complete Line Clear System migration (gray conversion, isolated block removal)",
+        "⚠️ Phase 2A: Animation System full migration (Vec<Animation> parallel system - push-down ✅ working)",
         "🚨 Phase 2A: Dynamic Board Height system (current_board_height)",
         "🚨 Phase 2A: CustomScoreSystem migration",
         "🚨 Phase 2A: board_logic integration", 

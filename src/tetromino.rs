@@ -312,22 +312,8 @@ impl Tetromino {
             .iter()
             .enumerate()
             .map(|(i, &(x, y))| {
-                let color = if self.shape == TetrominoShape::O {
-                    // O-mino color rotation (clockwise)
-                    let old_colors: Vec<GameColor> =
-                        self.blocks.iter().map(|&(_, color)| color).collect();
-                    match i {
-                        0 => old_colors[2], // Top-Left gets Bottom-Left's color
-                        1 => old_colors[0], // Top-Right gets Top-Left's color
-                        2 => old_colors[3], // Bottom-Left gets Bottom-Right's color
-                        3 => old_colors[1], // Bottom-Right gets Top-Right's color
-                        _ => unreachable!(),
-                    }
-                } else {
-                    // For non-O pieces: use clockwise rotation mapping
-                    // Map each new position to the color from the corresponding old position
-                    self.get_rotated_color_mapping(i, self.rotation_state, next_rotation_state)
-                };
+                // All pieces use the same rotation mapping: colors follow blocks
+                let color = self.get_rotated_color_mapping(i, self.rotation_state, next_rotation_state);
                 ((x, y), color)
             })
             .collect();
@@ -337,39 +323,11 @@ impl Tetromino {
     }
 
     /// Get the color mapping for rotation transitions
-    /// Maps new block index to the color from the corresponding old block
+    /// With physical rotation order in SHAPES, all tetrominoes use direct 1:1 mapping
     fn get_rotated_color_mapping(&self, new_index: usize, _from_state: u8, _to_state: u8) -> GameColor {
-        // For physical rotation order, all tetrominoes use simple direct mapping
-        let rotation_mapping = match self.shape {
-            TetrominoShape::T => {
-                // T-mino with physical rotation order - colors follow blocks naturally
-                [0, 1, 2, 3]
-            }
-            TetrominoShape::I => {
-                // I-mino with physical rotation order - colors follow blocks naturally
-                [0, 1, 2, 3]
-            }
-            TetrominoShape::L => {
-                // L-mino with physical rotation order - colors follow blocks naturally
-                [0, 1, 2, 3]
-            }
-            TetrominoShape::J => {
-                // J-mino with physical rotation order - colors follow blocks naturally
-                [0, 1, 2, 3]
-            }
-            TetrominoShape::S => {
-                // S-mino with physical rotation order - colors follow blocks naturally
-                [0, 1, 2, 3]
-            }
-            TetrominoShape::Z => {
-                // Z-mino with physical rotation order - colors follow blocks naturally
-                [0, 1, 2, 3]
-            }
-            _ => [0, 1, 2, 3], // O-mino and fallback
-        };
-
-        let old_index = rotation_mapping[new_index];
-        self.blocks[old_index].1
+        // All tetrominoes use direct mapping due to physical rotation order in SHAPES
+        // Colors follow blocks naturally through the rotation sequence
+        self.blocks[new_index].1
     }
 
     pub fn rotated_counter_clockwise(&self) -> Self {
@@ -394,21 +352,8 @@ impl Tetromino {
             .iter()
             .enumerate()
             .map(|(i, &(x, y))| {
-                let color = if self.shape == TetrominoShape::O {
-                    // O-mino color rotation (counter-clockwise)
-                    let old_colors: Vec<GameColor> =
-                        self.blocks.iter().map(|&(_, color)| color).collect();
-                    match i {
-                        0 => old_colors[1], // Top-Left gets Top-Right's color
-                        1 => old_colors[3], // Top-Right gets Bottom-Right's color
-                        2 => old_colors[0], // Bottom-Left gets Top-Left's color
-                        3 => old_colors[2], // Bottom-Right gets Bottom-Left's color
-                        _ => unreachable!(),
-                    }
-                } else {
-                    // Keep original color for same block index
-                    self.blocks[i].1
-                };
+                // All pieces use the same rotation mapping: colors follow blocks
+                let color = self.get_rotated_color_mapping(i, self.rotation_state, next_rotation_state);
                 ((x, y), color)
             })
             .collect();
@@ -425,12 +370,12 @@ impl Tetromino {
             [(3, 2), (2, 2), (1, 2), (0, 2)], // State 2: horizontal - A,B,C,D (continue rotation)
             [(1, 0), (1, 1), (1, 2), (1, 3)], // State 3: vertical - D,C,B,A (back to original)
         ],
-        // O - No rotation, same for all states
+        // O - SRS standard coordinates with True Rotation (wobble effect)
         [
-            [(1, 1), (2, 1), (1, 2), (2, 2)],
-            [(1, 1), (2, 1), (1, 2), (2, 2)],
-            [(1, 1), (2, 1), (1, 2), (2, 2)],
-            [(1, 1), (2, 1), (1, 2), (2, 2)],
+            [(1, 1), (2, 1), (1, 2), (2, 2)], // State 0: TL,TR,BL,BR - A,B,C,D
+            [(2, 1), (2, 2), (1, 1), (1, 2)], // State 1: clockwise rotation - B,D,A,C
+            [(2, 2), (1, 2), (2, 1), (1, 1)], // State 2: 180 degree rotation - D,C,B,A
+            [(1, 2), (1, 1), (2, 2), (2, 1)], // State 3: counter-clockwise - C,A,D,B
         ],
         // T - SRS standard coordinates with physical rotation order
         [

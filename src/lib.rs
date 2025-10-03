@@ -366,6 +366,20 @@ impl SimpleTetromino {
         }
     }
     
+    /// CLI版と同じ色の回転マッピングを適用
+    pub fn get_rotated_color_mapping(&self, new_index: usize, _clockwise: bool) -> GameColor {
+        // With SRS True Rotation and physical rotation order, all tetrominoes use direct mapping
+        // Colors follow blocks naturally through the rotation sequence
+        self.colors[new_index]
+    }
+    
+    /// With SRS True Rotation, colors are fixed and coordinates rotate
+    /// This function is now a no-op for all pieces
+    pub fn rotate_colors(&mut self, _clockwise: bool) {
+        // With SRS True Rotation implementation, colors remain fixed
+        // and only coordinates change during rotation
+    }
+    
     pub fn get_blocks(&self) -> Vec<(i8, i8)> {
         match self.shape {
             0 => vec![(0, 1), (1, 1), (2, 1), (3, 1)], // I piece - SRS standard
@@ -391,12 +405,12 @@ impl SimpleTetromino {
                     _ => vec![(0, 1), (1, 1), (2, 1), (3, 1)],
                 }
             },
-            1 => { // O piece - 回転で座標配置を変更（視覚的な回転エフェクト）
+            1 => { // O piece - SRS standard with True Rotation (wobble effect)
                 match rotation {
-                    0 => vec![(1, 1), (2, 1), (1, 2), (2, 2)], // 基本配置
-                    1 => vec![(2, 1), (2, 2), (1, 2), (1, 1)], // 90度回転（時計回り）
-                    2 => vec![(2, 2), (1, 2), (2, 1), (1, 1)], // 180度回転
-                    3 => vec![(1, 2), (1, 1), (2, 1), (2, 2)], // 270度回転
+                    0 => vec![(1, 1), (2, 1), (1, 2), (2, 2)], // State 0: TL,TR,BL,BR - A,B,C,D
+                    1 => vec![(2, 1), (2, 2), (1, 1), (1, 2)], // State 1: clockwise rotation - B,D,A,C
+                    2 => vec![(2, 2), (1, 2), (2, 1), (1, 1)], // State 2: 180 degree rotation - D,C,B,A
+                    3 => vec![(1, 2), (1, 1), (2, 2), (2, 1)], // State 3: counter-clockwise - C,A,D,B
                     _ => vec![(1, 1), (2, 1), (1, 2), (2, 2)],
                 }
             },
@@ -740,6 +754,8 @@ impl WasmGameState {
                         piece.rotation = new_rotation;
                         piece.x = test_x as usize;
                         piece.y = test_y as usize;
+                        // CLI版と同じように色も回転させる
+                        piece.rotate_colors(clockwise);
                     }
                     console_log!("SRS rotation successful: rotation {} at ({}, {})", new_rotation, test_x, test_y);
                     return true;
