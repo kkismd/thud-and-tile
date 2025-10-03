@@ -40,6 +40,7 @@ pub struct UnifiedGameController {
     time_provider: Box<dyn TimeProvider>,
     last_update: Duration,
     needs_render: bool,
+    should_exit: bool,
     
     // タイマーID管理
     auto_fall_timer_id: Option<u32>,
@@ -61,6 +62,7 @@ impl UnifiedGameController {
             time_provider,
             last_update: current_time,
             needs_render: false,
+            should_exit: false,
             auto_fall_timer_id: None,
             render_timer_id: Some(render_timer_id),
             animation_timer_id: None,
@@ -126,9 +128,18 @@ impl UnifiedGameController {
         self.engine.get_game_state()
     }
     
+    /// アプリケーション終了が要求されているかチェック
+    pub fn should_exit(&self) -> bool {
+        self.should_exit
+    }
+    
     /// エンジンイベントの処理
     fn handle_engine_event(&mut self, event: GameEvent) {
         match event {
+            GameEvent::StartAutoFall => {
+                let fall_speed = Duration::from_millis(1000); // 1秒間隔
+                self.start_game(fall_speed);
+            }
             GameEvent::GameOver => {
                 // 自動落下タイマーを停止
                 if let Some(id) = self.auto_fall_timer_id {
@@ -136,10 +147,15 @@ impl UnifiedGameController {
                     self.auto_fall_timer_id = None;
                 }
             }
+            GameEvent::ApplicationExit => {
+                self.should_exit = true;
+            }
             GameEvent::ScoreUpdate => {
                 self.needs_render = true;
             }
-            _ => {}
+            _ => {
+                // その他のイベントは現在未対応
+            }
         }
     }
 }
