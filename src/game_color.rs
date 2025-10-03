@@ -48,6 +48,28 @@ impl GameColor {
             GameColor::DarkCyan => (0, 128, 128),
         }
     }
+    
+    /// 数値IDを取得（WASM用）
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            GameColor::Cyan => 1,
+            GameColor::Magenta => 2,
+            GameColor::Yellow => 3,
+            GameColor::Grey => 4,
+            GameColor::Red => 5,
+            GameColor::Green => 6,
+            GameColor::Blue => 7,
+            GameColor::White => 8,
+            GameColor::Black => 9,
+            GameColor::DarkGrey => 10,
+            GameColor::DarkRed => 11,
+            GameColor::DarkGreen => 12,
+            GameColor::DarkBlue => 13,
+            GameColor::DarkYellow => 14,
+            GameColor::DarkMagenta => 15,
+            GameColor::DarkCyan => 16,
+        }
+    }
 
     /// CSS色名を取得（Web用）
     pub fn to_css_name(&self) -> &'static str {

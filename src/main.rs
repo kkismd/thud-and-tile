@@ -17,66 +17,47 @@ mod game_input;
 mod random;
 mod scheduler;
 mod animation; // 共通アニメーション処理モジュール
+mod game_core; // 共通ゲームコア
+mod unified_scheduler; // 統一タイマー管理
+mod unified_engine; // 統一ゲームエンジン
+mod test_time_provider; // テスト用TimeProvider
+mod cli_game_engine; // CLI版ゲームエンジン
 use config::*;
 use game_color::GameColor;
 use game_input::{GameInput, InputProvider, CrosstermInputProvider};
 use scheduler::{Scheduler, create_default_scheduler};
+use unified_scheduler::{TimeProvider, NativeTimeProvider}; // 統一TimeProvider使用
+use unified_engine::UnifiedGameController;
+use cli_game_engine::CliGameEngine;
 
-mod render;
-
-// --- 時間管理 ---
-pub trait TimeProvider {
-    fn now(&self) -> Duration;
-}
-
-pub struct SystemTimeProvider {
-    start: Instant,
-}
-
-impl SystemTimeProvider {
-    pub fn new() -> Self {
-        Self {
-            start: Instant::now(),
-        }
-    }
-}
-
-impl Default for SystemTimeProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TimeProvider for SystemTimeProvider {
-    fn now(&self) -> Duration {
-        self.start.elapsed()
-    }
-}
-
+// テスト用のMockTimeProvider互換性エイリアス  
 #[cfg(test)]
-pub struct MockTimeProvider {
+pub use test_time_provider::ControllableTimeProvider as MockTimeProvider;
+pub struct TestTimeProvider {
     current_time: Duration,
 }
 
 #[cfg(test)]
-impl MockTimeProvider {
+impl TestTimeProvider {
     pub fn new() -> Self {
         Self {
-            current_time: Duration::from_secs(0),
+            current_time: Duration::ZERO,
         }
     }
-
+    
     pub fn advance(&mut self, duration: Duration) {
         self.current_time += duration;
     }
 }
 
 #[cfg(test)]
-impl TimeProvider for MockTimeProvider {
+impl TimeProvider for TestTimeProvider {
     fn now(&self) -> Duration {
         self.current_time
     }
 }
+
+mod render;
 
 // --- データ構造 ---
 
@@ -94,14 +75,14 @@ mod board_logic;
 use animation::{Animation, update_animations, process_push_down_step, PushDownStepResult}; // 共通アニメーション関数
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum GameMode {
+pub enum GameMode { // test_adapter用にpublicにする
     Title,
     Playing,
     GameOver,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct GameState {
+pub struct GameState { // test_adapter用にpublicにする
     mode: GameMode,
     board: Board,
     current_piece: Option<Tetromino>,
@@ -536,102 +517,68 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     }
 }
 
-fn main() -> io::Result<()> {
+/// 統一アーキテクチャベースのメイン関数（将来的にはこちらがメインに）
+fn main_unified() -> io::Result<()> {
     let mut renderer = render::CrosstermRenderer::new();
-    execute!(renderer.stdout, EnterAlternateScreen, Hide)?;
     execute!(
         renderer.stdout,
+        EnterAlternateScreen,
+        Hide,
         PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES)
     )?;
     terminal::enable_raw_mode()?;
 
-    let time_provider = SystemTimeProvider::new();
+    // 統一アーキテクチャでゲームを初期化
+    let time_provider = Box::new(NativeTimeProvider::new());
+    let engine = Box::new(CliGameEngine::new());
+    let mut controller = UnifiedGameController::new(engine, time_provider);
+    
     let mut input_provider = CrosstermInputProvider::new();
-    let scheduler = create_default_scheduler();
-    let mut state = GameState::new();
-    let mut prev_state = state.clone();
-    let mut last_fall = time_provider.now();
-
+    
     render::draw_title_screen(&mut renderer)?;
 
     loop {
-        if state.mode != GameMode::Title {
-            render::draw(&mut renderer, &prev_state, &state)?;
+        // イベント駆動更新
+        let update_result = controller.update();
+        
+        // 入力処理（ノンブロッキング）
+        let inputs = input_provider.read_all_pending()?;
+        for input in inputs {
+            if input == GameInput::Quit {
+                break;  // メインループから脱出
+            }
+            controller.handle_input(input);
         }
-        prev_state = state.clone();
-
-        match state.mode {
-            GameMode::Title => {
-                if input_provider.poll_input(100)? {
-                    if let Some(input) = input_provider.read_input()? {
-                        match input {
-                            GameInput::Restart => {
-                                state = GameState::new();
-                                state.mode = GameMode::Playing;
-                                state.spawn_piece();
-                            }
-                            GameInput::Quit => break,
-                            _ => {}
-                        }
-                    }
+        
+        // 描画処理
+        if update_result.needs_render {
+            match update_result.game_mode {
+                0 => render::draw_title_screen(&mut renderer)?, // Title
+                1 => {
+                    // Playing - 現在の実装では詳細な描画は後で実装
+                    render::draw_title_screen(&mut renderer)?;
                 }
+                2 => {
+                    // GameOver - 現在の実装では詳細な描画は後で実装
+                    render::draw_title_screen(&mut renderer)?;
+                }
+                _ => {}
             }
-            GameMode::Playing => {
-                // アニメーション処理
-                if !state.animation.is_empty() {
-                    handle_animation(&mut state, &time_provider);
-                    continue;
-                }
-
-                // 入力処理 (ノンブロッキング)
-                let inputs = input_provider.read_all_pending()?;
-                for input in inputs {
-                    match input {
-                        GameInput::Quit => {
-                            state.mode = GameMode::GameOver;
-                            break;
-                        }
-                        _ => state.handle_input(input),
-                    }
-                }
-
-                // 落下処理
-                if time_provider.now() - last_fall >= state.fall_speed {
-                    if let Some(piece) = &state.current_piece {
-                        let moved_down = piece.moved(0, 1);
-                        if state.is_valid_position(&moved_down) {
-                            state.current_piece = Some(moved_down);
-                        } else {
-                            state.lock_piece(&time_provider);
-                        }
-                    } else {
-                        state.spawn_piece();
-                    }
-                    last_fall = time_provider.now();
-                }
-
-                // ループの速度を調整
-                scheduler.wait_for_next_frame();
-            }
-            GameMode::GameOver => {
-                if input_provider.poll_input(50)? {
-                    if let Some(input) = input_provider.read_input()? {
-                        match input {
-                            GameInput::Quit => break,
-                            GameInput::Restart => {
-                                state = GameState::new();
-                                render::draw_title_screen(&mut renderer)?;
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
+            controller.render_complete();
         }
+        
+        // CPU負荷軽減のための最小スリープ
+        std::thread::sleep(Duration::from_millis(16)); // ~60fps
     }
+    
     execute!(renderer.stdout, PopKeyboardEnhancementFlags)?;
     execute!(renderer.stdout, Show, LeaveAlternateScreen, ResetColor)?;
     terminal::disable_raw_mode()
+}
+
+fn main() -> io::Result<()> {
+    // 統一アーキテクチャのテスト
+    main_unified()
 }
 
 #[cfg(test)]

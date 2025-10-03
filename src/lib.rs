@@ -10,6 +10,11 @@ use std::collections::{VecDeque, HashSet}; // BFS用とAnimation管理用
 
 // 共通モジュールのimport
 mod animation;
+mod game_core; // 共通ゲームコア
+mod unified_scheduler; // 統一タイマー管理
+mod unified_engine; // 統一ゲームエンジン
+mod test_time_provider; // テスト用TimeProvider
+mod wasm_game_engine; // WASM版ゲームエンジン
 
 // JavaScript console.log への出力用マクロ
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
@@ -22,6 +27,10 @@ extern "C" {
     #[wasm_bindgen(js_namespace = Date, js_name = now)]
     fn js_date_now() -> f64;
 }
+
+// テスト用のMockTimeProvider互換性エイリアス  
+#[cfg(test)]
+pub use test_time_provider::ControllableTimeProvider as MockTimeProvider;
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 macro_rules! console_log {
@@ -47,67 +56,6 @@ pub fn js_date_now() -> f64 {
         .as_millis() as f64
 }
 
-// --- 時間管理（WASM対応） ---
-pub trait TimeProvider {
-    fn now(&self) -> Duration;
-}
-
-#[cfg(target_arch = "wasm32")]
-pub struct WasmTimeProvider {
-    start_time: f64,
-}
-
-#[cfg(target_arch = "wasm32")]
-impl WasmTimeProvider {
-    pub fn new() -> Self {
-        Self {
-            start_time: js_date_now(),
-        }
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl Default for WasmTimeProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl TimeProvider for WasmTimeProvider {
-    fn now(&self) -> Duration {
-        let current_time = js_date_now();
-        let elapsed_ms = current_time - self.start_time;
-        Duration::from_millis(elapsed_ms as u64)
-    }
-}
-
-// テスト用モック（WASM環境でも使用可能）
-#[cfg(test)]
-pub struct MockTimeProvider {
-    current_time: Duration,
-}
-
-#[cfg(test)]
-impl MockTimeProvider {
-    pub fn new() -> Self {
-        Self {
-            current_time: Duration::from_secs(0),
-        }
-    }
-
-    pub fn advance(&mut self, duration: Duration) {
-        self.current_time += duration;
-    }
-}
-
-#[cfg(test)]
-impl TimeProvider for MockTimeProvider {
-    fn now(&self) -> Duration {
-        self.current_time
-    }
-}
-
 // モジュールのインポート
 mod config;
 mod game_color;
@@ -127,6 +75,10 @@ use cell::Cell;
 use scoring::CustomScoreSystem;
 use tetromino::get_srs_wall_kick_offsets_by_shape; // CLI版のSRS関数をimport
 use animation::{Animation, calculate_line_clear_score, process_line_clear};
+use unified_scheduler::TimeProvider; // 統一TimeProvider使用
+
+#[cfg(target_arch = "wasm32")]
+use unified_scheduler::WasmTimeProvider;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
