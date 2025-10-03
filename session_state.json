@@ -36,10 +36,13 @@
     },
     {
       "task": "Animation System Complete Migration",
-      "priority": "medium", 
-      "estimated_effort": "medium",
-      "cli_reusability": "medium",
-      "notes": "Web version lacks animation phases and timing control present in CLI version"
+      "priority": "urgent", 
+      "estimated_effort": "low",
+      "cli_reusability": "high",
+      "notes": "DISCOVERED: WASM版が既にanimation::update_animations()共通モジュール使用済み。CLI版が独自実装で取り残され状態。逆方向統合（CLI→共通モジュール）が必要",
+      "status": "ready_for_implementation",
+      "discovery_date": "2024-10-03",
+      "technical_debt": "CLI版が手動animation処理、WASM版が共通化済みという逆転状況"
     },
     {
       "task": "Complete Line Clear System Migration", 
@@ -47,6 +50,15 @@
       "estimated_effort": "medium",
       "cli_reusability": "high",
       "notes": "COMPLETED: CLI's connected block system, isolated block removal, and advanced scoring migrated to Web version"
+    },
+    {
+      "task": "Custom Score System Complete Integration", 
+      "priority": "completed",
+      "estimated_effort": "medium",
+      "cli_reusability": "high",
+      "notes": "COMPLETED: 色別スコア計算とMAX-CHAIN統合完了。CLI版とWASM版でlock_piece()でのスコア計算タイミング統一実現",
+      "completion_date": "2024-10-03",
+      "details": "CLI版main.rsとWASM版lib.rsでcalculate_line_clear_score()共通関数使用、アニメーション時ではなくlock_piece()時にスコア計算実行"
     }
   ],
   "technical_notes": {

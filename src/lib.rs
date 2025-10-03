@@ -820,7 +820,21 @@ impl WasmGameState {
             // 4. CLI版と同じmax_chains更新
             self.update_max_chains();
             
-            // 5. ライン消去処理とアニメーション開始
+            // 5. Calculate scores for lines to be cleared (before starting animation)
+            for &line_y in &lines_to_clear {
+                let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.inner.max_chains);
+                for (color, points) in scores {
+                    let color_index = match color {
+                        GameColor::Cyan => 0,
+                        GameColor::Magenta => 1,
+                        GameColor::Yellow => 2,
+                        _ => 0,
+                    };
+                    self.custom_score_system.add_score(color_index, points);
+                }
+            }
+            
+            // 6. ライン消去処理とアニメーション開始
             if !lines_to_clear.is_empty() {
                 let start_time = self.time_provider.now();
                 let line_blink_animation = animation::Animation::LineBlink {
@@ -1109,18 +1123,9 @@ impl WasmGameState {
             let (bottom_lines_cleared, non_bottom_lines_cleared) = 
                 animation::process_line_clear(&mut self.board, self.current_board_height, &completed_lines);
 
-            // Bottom lines の標準テトリス消去とスコア計算
+            // Bottom lines の標準テトリス消去処理
             for &line_y in &bottom_lines_cleared {
-                let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.inner.max_chains);
-                for (color, points) in scores {
-                    let color_index = match color {
-                        GameColor::Cyan => 0,
-                        GameColor::Magenta => 1,
-                        GameColor::Yellow => 2,
-                        _ => 0,
-                    };
-                    self.custom_score_system.add_score(color_index, points);
-                }
+                // スコア計算はlock_piece()で既に実行済み
             }
 
             // Bottom lines 処理後の連結ブロック更新と新ピーススポーン
@@ -1130,22 +1135,12 @@ impl WasmGameState {
                 console_log!("Bottom line clear: {} lines cleared", bottom_lines_cleared.len());
             }
 
-            // Non-bottom lines の孤立ブロック除去とスコア計算
+            // Non-bottom lines の孤立ブロック除去処理
             for &y in &non_bottom_lines_cleared {
                 // 1. 孤立ブロック除去（CLI版互換）
                 crate::board_logic::remove_isolated_blocks(&mut self.board, y);
 
-                // 2. スコア計算（グレー化前に実行）
-                let scores = animation::calculate_line_clear_score(&self.board, y, &self.custom_score_system.inner.max_chains);
-                for (color, points) in scores {
-                    let color_index = match color {
-                        GameColor::Cyan => 0,
-                        GameColor::Magenta => 1,
-                        GameColor::Yellow => 2,
-                        _ => 0,
-                    };
-                    self.custom_score_system.add_score(color_index, points);
-                }
+                // 2. スコア計算はlock_piece()で既に実行済み
             }
 
             // Non-bottom lines をグレー化（既に共通モジュールで処理済み）

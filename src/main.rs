@@ -204,6 +204,14 @@ impl GameState {
         // Update MAX-CHAIN based on current connected block counts
         self.update_max_chains();
 
+        // Calculate scores for lines to be cleared (before clearing)
+        for &line_y in &lines_to_clear {
+            let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.max_chains);
+            for (color, points) in scores {
+                self.custom_score_system.scores.add(color, points);
+            }
+        }
+
         if !lines_to_clear.is_empty() {
             self.animation.push(Animation::LineBlink {
                 lines: lines_to_clear,
@@ -335,35 +343,12 @@ impl GameState {
             let mut sorted_lines = bottom_lines_cleared.to_vec();
             sorted_lines.sort_by(|a, b| b.cmp(a));
 
-            // Count colors before clearing lines for custom scoring
-            // Use new scoring formula: block_count × MAX-CHAIN × 10 points
-            for &line_y in &sorted_lines {
-                for x in 0..BOARD_WIDTH {
-                    match self.board[line_y][x] {
-                        Cell::Occupied(color) => {
-                            // Occupied blocks have count=1
-                            let points = self.custom_score_system.max_chains.get(color) * 10;
-                            self.custom_score_system.scores.add(color, points);
-                        }
-                        Cell::Connected { color, count } => {
-                            // Connected blocks use their actual count value
-                            let points = (count as u32)
-                                * self.custom_score_system.max_chains.get(color)
-                                * 10;
-                            self.custom_score_system.scores.add(color, points);
-                        }
-                        _ => {} // Empty cells and other types are ignored
-                    }
-                }
-            }
-
             for &line_y in &sorted_lines {
                 self.board.remove(line_y);
             }
             for _ in 0..num_cleared {
                 self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
             }
-            // Note: Traditional score tracking removed in favor of custom color-based scoring
 
             // Update connected block counts after bottom line clear
             // This ensures connected blocks are properly recounted even for standard clears
@@ -379,27 +364,7 @@ impl GameState {
             // 1. Remove isolated blocks below the cleared line.
             board_logic::remove_isolated_blocks(&mut self.board, y);
 
-            // 2. Count colors before clearing lines for custom scoring
-            // Use new scoring formula: block_count × MAX-CHAIN × 10 points
-            for x in 0..BOARD_WIDTH {
-                match self.board[y][x] {
-                    Cell::Occupied(color) => {
-                        // Occupied blocks have count=1
-                        let points = self.custom_score_system.max_chains.get(color) * 10;
-                        self.custom_score_system.scores.add(color, points);
-                    }
-                    Cell::Connected { color, count } => {
-                        // Connected blocks use their actual count value
-                        let points = (count as u32)
-                            * self.custom_score_system.max_chains.get(color)
-                            * 10;
-                        self.custom_score_system.scores.add(color, points);
-                    }
-                    _ => {} // Empty cells and other types are ignored
-                }
-            }
-
-            // 3. Turn the cleared line to gray (Step 5)
+            // 2. Turn the cleared line to gray (Step 5)
             for x in 0..BOARD_WIDTH {
                 self.board[y][x] = Cell::Occupied(GameColor::Grey);
             }
