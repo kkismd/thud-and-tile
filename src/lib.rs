@@ -367,17 +367,10 @@ impl SimpleTetromino {
     }
     
     /// CLI版と同じ色の回転マッピングを適用
-    pub fn get_rotated_color_mapping(&self, new_index: usize, _clockwise: bool) -> GameColor {
+    pub fn get_rotated_color_mapping(&self, new_index: usize) -> GameColor {
         // With SRS True Rotation and physical rotation order, all tetrominoes use direct mapping
         // Colors follow blocks naturally through the rotation sequence
         self.colors[new_index]
-    }
-    
-    /// With SRS True Rotation, colors are fixed and coordinates rotate
-    /// This function is now a no-op for all pieces
-    pub fn rotate_colors(&mut self, _clockwise: bool) {
-        // With SRS True Rotation implementation, colors remain fixed
-        // and only coordinates change during rotation
     }
     
     pub fn get_blocks(&self) -> Vec<(i8, i8)> {
@@ -754,8 +747,6 @@ impl WasmGameState {
                         piece.rotation = new_rotation;
                         piece.x = test_x as usize;
                         piece.y = test_y as usize;
-                        // CLI版と同じように色も回転させる
-                        piece.rotate_colors(clockwise);
                     }
                     console_log!("SRS rotation successful: rotation {} at ({}, {})", new_rotation, test_x, test_y);
                     return true;
