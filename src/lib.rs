@@ -7,6 +7,9 @@ use wasm_bindgen::prelude::*;
 use std::time::Duration;
 use std::collections::{VecDeque, HashSet}; // BFS用とAnimation管理用
 
+// 共通モジュールのimport
+mod animation;
+
 // JavaScript console.log への出力用マクロ
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
@@ -110,20 +113,7 @@ use random::{RandomProvider, create_default_random_provider};
 use cell::Cell;
 use scoring::CustomScoreSystem;
 use tetromino::get_srs_wall_kick_offsets_by_shape; // CLI版のSRS関数をimport
-
-/// CLI版互換のAnimation構造体をWeb版に移植
-#[derive(Clone, Debug, PartialEq)]
-pub enum Animation {
-    LineBlink {
-        lines: Vec<usize>,
-        count: usize,
-        start_time: Duration,
-    },
-    PushDown {
-        gray_line_y: usize,
-        start_time: Duration,
-    },
-}
+use animation::{Animation, update_animations, process_push_down_step, PushDownStepResult, calculate_line_clear_score, process_line_clear};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -843,89 +833,40 @@ impl WasmGameState {
         }
     }
     
-    /// CLI版互換の高度なライン削除処理（内部実装）
+    /// CLI版互換の高度なライン削除処理（共通モジュール使用）
     fn clear_lines_advanced(&mut self, lines: &[usize]) {
-        let mut bottom_lines_cleared = Vec::new();
-        let mut non_bottom_lines_cleared = Vec::new();
+        // 共通モジュールのライン消去処理を使用
+        let (bottom_lines_cleared, non_bottom_lines_cleared) = 
+            animation::process_line_clear(&mut self.board, self.current_board_height, lines);
 
-        // Bottom line と Non-bottom line を分離（CLI版と同じロジック）
-        for &y in lines {
-            if y == self.current_board_height - 1 {
-                bottom_lines_cleared.push(y);
-            } else {
-                non_bottom_lines_cleared.push(y);
+        // Bottom lines のスコア計算
+        for &line_y in &bottom_lines_cleared {
+            let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.inner.max_chains);
+            for (color, points) in scores {
+                self.custom_score_system.inner.scores.add(color, points);
             }
         }
 
-        // Bottom lines の標準テトリスクリア処理
+        // Bottom lines の処理は既に共通モジュールで完了
         if !bottom_lines_cleared.is_empty() {
-            let num_cleared = bottom_lines_cleared.len();
-            let mut sorted_lines = bottom_lines_cleared.to_vec();
-            sorted_lines.sort_by(|a, b| b.cmp(a));
-
-            // スコア計算（CLI版と同じ）
-            for &line_y in &sorted_lines {
-                for x in 0..BOARD_WIDTH {
-                    match self.board[line_y][x] {
-                        Cell::Occupied(color) => {
-                            // Occupied blocks have count=1
-                            let points = self.custom_score_system.inner.max_chains.get(color) * 10;
-                            self.custom_score_system.inner.scores.add(color, points);
-                        }
-                        Cell::Connected { color, count } => {
-                            // Connected blocks use their actual count value
-                            let points = (count as u32)
-                                * self.custom_score_system.inner.max_chains.get(color)
-                                * 10;
-                            self.custom_score_system.inner.scores.add(color, points);
-                        }
-                        _ => {} // Empty cells and other types are ignored
-                    }
-                }
-            }
-
-            // ライン削除と上からの補充
-            for &line_y in &sorted_lines {
-                self.board.remove(line_y);
-            }
-            for _ in 0..num_cleared {
-                self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-            }
-
             // 連結ブロックカウント更新
             self.update_all_connected_block_counts();
 
             // 新しいピースをスポーン（アニメーションなし）
             self.spawn_piece();
             
-            console_log!("Bottom line clear: {} lines cleared", num_cleared);
+            console_log!("Bottom line clear: {} lines cleared", bottom_lines_cleared.len());
         }
 
-        // Non-bottom lines のカスタムクリア処理
+        // Non-bottom lines のスコア計算とアニメーション開始
         for &y in &non_bottom_lines_cleared {
             // 1. 孤立ブロック除去
             self.remove_isolated_blocks(y);
 
-            // 2. スコア計算
-            for x in 0..BOARD_WIDTH {
-                match self.board[y][x] {
-                    Cell::Occupied(color) => {
-                        let points = self.custom_score_system.inner.max_chains.get(color) * 10;
-                        self.custom_score_system.inner.scores.add(color, points);
-                    }
-                    Cell::Connected { color, count } => {
-                        let points = (count as u32)
-                            * self.custom_score_system.inner.max_chains.get(color)
-                            * 10;
-                        self.custom_score_system.inner.scores.add(color, points);
-                    }
-                    _ => {}
-                }
-            }
-
-            // 3. ライン をグレー化（アニメーション準備）
-            for x in 0..BOARD_WIDTH {
-                self.board[y][x] = Cell::Occupied(GameColor::Grey);
+            // 2. スコア計算（グレー化前に実行）
+            let scores = animation::calculate_line_clear_score(&self.board, y, &self.custom_score_system.inner.max_chains);
+            for (color, points) in scores {
+                self.custom_score_system.inner.scores.add(color, points);
             }
             
             console_log!("Non-bottom line clear: line {} marked for animation", y);
@@ -934,14 +875,14 @@ impl WasmGameState {
         // アニメーション開始
         if !non_bottom_lines_cleared.is_empty() {
             let start_time = self.time_provider.now();
-            let line_blink_animation = Animation::LineBlink {
+            let line_blink_animation = animation::Animation::LineBlink {
                 lines: non_bottom_lines_cleared,
                 count: 0,
                 start_time,
             };
             self.animation.push(line_blink_animation);
             console_log!("Starting line clear animation for {} lines", 
-                if let Animation::LineBlink { lines, .. } = &self.animation[0] { lines.len() } else { 0 });
+                if let animation::Animation::LineBlink { lines, .. } = &self.animation[0] { lines.len() } else { 0 });
         } else if bottom_lines_cleared.is_empty() {
             // どちらのラインもクリアされなかった場合、新しいピースをスポーン
             self.spawn_piece();
@@ -1200,7 +1141,7 @@ impl WasmGameState {
         }
     }
     
-    /// アニメーション処理を実行（CLI版互換）
+    /// アニメーション処理を実行（CLI版互換・共通モジュール使用）
     #[wasm_bindgen]
     pub fn update_animation(&mut self) {
         if self.animation.is_empty() {
@@ -1208,156 +1149,72 @@ impl WasmGameState {
         }
         
         let current_time = self.time_provider.now();
-        let mut completed_indices = Vec::new();
-        let mut lines_to_clear = Vec::new();
-        let mut gray_lines_to_finalize = Vec::new();
         
-        // 各アニメーションを処理（borrowing問題を回避するため、状態変更は分離）
-        for (i, animation) in self.animation.iter_mut().enumerate() {
-            match animation {
-                Animation::LineBlink { lines, count, start_time } => {
-                    let elapsed = current_time - *start_time;
-                    let blink_step = Duration::from_millis(120); // BLINK_ANIMATION_STEP from config.rs
-                    let steps_elapsed = elapsed.as_millis() / blink_step.as_millis();
-                    
-                    if steps_elapsed > *count as u128 {
-                        *count = steps_elapsed as usize;
-                        
-                        // CLI版のBLINK_COUNT_MAX: 6 を適用
-                        if *count >= 6 {
-                            // 完了フラグとライン情報を記録
-                            completed_indices.push(i);
-                            lines_to_clear.extend(lines.iter().cloned());
-                        }
-                    }
+        // 共通アニメーション処理モジュールを使用
+        let result = animation::update_animations(&mut self.animation, current_time);
+        
+        // LineBlink完了によるPush Down開始処理
+        for completed_lines in result.completed_line_blinks {
+            // ライン消去前のスコア計算
+            for &line_y in &completed_lines {
+                let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.inner.max_chains);
+                for (color, points) in scores {
+                    let color_index = match color {
+                        GameColor::Cyan => 0,
+                        GameColor::Magenta => 1,
+                        GameColor::Yellow => 2,
+                        _ => 0,
+                    };
+                    self.custom_score_system.add_score(color_index, points);
                 }
-                Animation::PushDown { gray_line_y, start_time } => {
-                    let elapsed = current_time - *start_time;
-                    let push_down_step = Duration::from_millis(100); // PUSH_DOWN_STEP_DURATION from config.rs
-                    
-                    if elapsed >= push_down_step {
-                        // CLI版と同様のPush Down処理
-                        let target_y = *gray_line_y + 1;
-                        
-                        // Push Downを続行するか終了するかを判定
-                        if target_y >= self.current_board_height || 
-                           (target_y < BOARD_HEIGHT && self.board[target_y][0] == Cell::Solid) {
-                            // Push Down完了: グレーラインをSolidに変換
-                            gray_lines_to_finalize.push(*gray_line_y);
-                            completed_indices.push(i);
-                            console_log!("PushDown animation completed for line {}", gray_line_y);
-                        } else {
-                            // ブロックを1ライン下に移動（CLI版準拠）
-                            // target_yラインを削除し、上部に空のラインを挿入
-                            if target_y < BOARD_HEIGHT {
-                                self.board.remove(target_y);
-                                self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-                                
-                                // アニメーションを継続（新しい位置で）
-                                *gray_line_y = target_y;
-                                *start_time = current_time; // タイマーリセット
-                                console_log!("PushDown animation moved line to {}", target_y);
-                            }
-                        }
-                    }
+            }
+            
+            // ライン をグレー化（Push Downアニメーション準備）
+            for &line_y in &completed_lines {
+                for x in 0..BOARD_WIDTH {
+                    self.board[line_y][x] = Cell::Occupied(GameColor::Grey);
                 }
             }
         }
         
-        // 完了したアニメーションの処理を実行
-        if !completed_indices.is_empty() {
-            let lines_count = lines_to_clear.len(); // move前にcountを取得
-            
-            // LineBlink完了後のPush Downアニメーション開始（CLI版準拠）
-            if !lines_to_clear.is_empty() {
-                // ライン消去処理
-                for y in &lines_to_clear { // 参照でイテレート
-                    // ライン消去前に各セルの色別スコアを計算
-                    for x in 0..BOARD_WIDTH {
-                        match self.board[*y][x] {
-                            Cell::Occupied(color) => {
-                                // CLI版のスコア計算式: max_chain * 10 点
-                                let color_index = match color {
-                                    GameColor::Cyan => 0,
-                                    GameColor::Magenta => 1, 
-                                    GameColor::Yellow => 2,
-                                    _ => 0, // その他の色はCyanとして扱う
-                                };
-                                let points = self.custom_score_system.inner.max_chains.get(color) * 10;
-                                self.custom_score_system.add_score(color_index, points);
-                                console_log!("Added {} points to color {} (index {}) for occupied block", points, format!("{:?}", color), color_index);
-                            }
-                            Cell::Connected { color, count } => {
-                                // CLI版のスコア計算式: count * max_chain * 10 点
-                                let color_index = match color {
-                                    GameColor::Cyan => 0,
-                                    GameColor::Magenta => 1,
-                                    GameColor::Yellow => 2, 
-                                    _ => 0,
-                                };
-                                let points = (count as u32) * self.custom_score_system.inner.max_chains.get(color) * 10;
-                                self.custom_score_system.add_score(color_index, points);
-                                console_log!("Added {} points to color {} (index {}) for connected block", points, format!("{:?}", color), color_index);
-                            }
-                            _ => {} // Empty cells are ignored
-                        }
-                    }
-                    
-                    // ライン をグレー化（Push Downアニメーション準備）
-                    for x in 0..BOARD_WIDTH {
-                        self.board[*y][x] = Cell::Occupied(GameColor::Grey);
-                    }
+        // Push Down完了処理
+        for gray_line_y in result.completed_push_downs {
+            match animation::process_push_down_step(&mut self.board, &mut self.current_board_height, gray_line_y) {
+                animation::PushDownStepResult::Completed => {
+                    console_log!("PushDown animation completed for line {}", gray_line_y);
                 }
-                
-                // 各グレーラインにPush Downアニメーションを追加（CLI版準拠）
-                let start_time = self.time_provider.now();
-                for &y in &lines_to_clear {
-                    self.animation.push(Animation::PushDown {
-                        gray_line_y: y,
-                        start_time,
+                animation::PushDownStepResult::Moved { new_gray_line_y } => {
+                    // 新しい位置でPush Downアニメーションを継続
+                    self.animation.push(animation::Animation::PushDown {
+                        gray_line_y: new_gray_line_y,
+                        start_time: current_time,
                     });
-                    console_log!("Started PushDown animation for line {}", y);
+                    console_log!("PushDown animation moved line to {}", new_gray_line_y);
                 }
             }
-            
-            // グレーライン最終化処理
-            for gray_line_y in gray_lines_to_finalize {
-                self.finalize_gray_line(gray_line_y);
-            }
-            
-            if lines_count > 0 {
-                console_log!("Cleared {} lines", lines_count);
-                console_log!("Total score: {}", self.custom_score_system.get_total_score());
-                console_log!("Cyan: {}, Magenta: {}, Yellow: {}", 
-                    self.custom_score_system.get_cyan_score(),
-                    self.custom_score_system.get_magenta_score(), 
-                    self.custom_score_system.get_yellow_score()
-                );
-            }
-            
-            // 完了したアニメーションを削除（逆順で削除してインデックスを維持）
-            for &i in completed_indices.iter().rev() {
-                self.animation.remove(i);
-            }
-            
-            // すべてのアニメーションが完了した場合、新しいピースをスポーン
-            if self.animation.is_empty() {
-                self.spawn_piece();
-            }
+        }
+        
+        // 継続するアニメーションを設定
+        self.animation = result.continuing_animations;
+        
+        // すべてのアニメーションが完了した場合、新しいピースをスポーン
+        if self.animation.is_empty() {
+            self.spawn_piece();
         }
     }
     
-    /// グレーラインをSolidラインに変換し、board heightを減少（CLI版と同じロジック）
-    /// 将来のComplete Line Clear System Migrationで使用予定
+    /// グレーラインをSolidラインに変換し、board heightを減少（共通モジュール使用）
     fn finalize_gray_line(&mut self, gray_line_y: usize) {
-        // グレーラインをSolidに変換
-        for x in 0..BOARD_WIDTH {
-            self.board[gray_line_y][x] = Cell::Solid;
+        // 共通モジュールのPush Down完了処理を使用
+        match animation::process_push_down_step(&mut self.board, &mut self.current_board_height, gray_line_y) {
+            animation::PushDownStepResult::Completed => {
+                console_log!("Gray line {} finalized as Solid, board height reduced to {}", gray_line_y, self.current_board_height);
+            }
+            animation::PushDownStepResult::Moved { .. } => {
+                // この関数では完了のみを扱うため、移動は想定外
+                console_log!("Warning: Unexpected move result in finalize_gray_line");
+            }
         }
-        
-        // CLI版と同じboard height減少処理
-        self.current_board_height = self.current_board_height.saturating_sub(1);
-        console_log!("Board height reduced to {}", self.current_board_height);
         
         // 将来的にここでconnected block countsの更新も行う
         // self.update_all_connected_block_counts();

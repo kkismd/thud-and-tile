@@ -16,6 +16,7 @@ mod game_color;
 mod game_input;
 mod random;
 mod scheduler;
+mod animation; // 共通アニメーション処理モジュール
 use config::*;
 use game_color::GameColor;
 use game_input::{GameInput, InputProvider, CrosstermInputProvider};
