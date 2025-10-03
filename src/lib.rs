@@ -3,6 +3,7 @@
 //! このモジュールは、Thud & TileゲームのWASM環境用エントリーポイントを提供します。
 //! JavaScript環境からアクセス可能なAPIを実装し、ゲームロジックとUI間の橋渡しを行います。
 
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen::prelude::*;
 use std::time::Duration;
 use std::collections::{VecDeque, HashSet}; // BFS用とAnimation管理用
