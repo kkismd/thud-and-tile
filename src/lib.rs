@@ -796,6 +796,12 @@ impl WasmGameState {
             // CLI版と同じ隣接ブロック処理を使用
             crate::board_logic::find_and_connect_adjacent_blocks(&mut self.board, &[]);
             
+            // CLI版と同じconnected block counts更新
+            self.update_connected_block_counts();
+            
+            // CLI版と同じmax_chains更新
+            self.update_max_chains();
+            
             // ライン消去チェック（アニメーション対応）
             self.clear_lines();
             
@@ -1248,25 +1254,26 @@ impl WasmGameState {
                 for x in 0..BOARD_WIDTH {
                     match self.board[*y][x] {
                         Cell::Occupied(color) => {
-                            // 基本スコア: 色ごとに100点を加算
+                            // CLI版のスコア計算式: max_chain * 10 点
                             let color_index = match color {
                                 GameColor::Cyan => 0,
                                 GameColor::Magenta => 1, 
                                 GameColor::Yellow => 2,
                                 _ => 0, // その他の色はCyanとして扱う
                             };
-                            self.custom_score_system.add_score(color_index, 100);
-                            console_log!("Added 100 points to color {} (index {})", format!("{:?}", color), color_index);
+                            let points = self.custom_score_system.inner.max_chains.get(color) * 10;
+                            self.custom_score_system.add_score(color_index, points);
+                            console_log!("Added {} points to color {} (index {}) for occupied block", points, format!("{:?}", color), color_index);
                         }
                         Cell::Connected { color, count } => {
-                            // 接続ブロックの場合: count * 100 点を加算
+                            // CLI版のスコア計算式: count * max_chain * 10 点
                             let color_index = match color {
                                 GameColor::Cyan => 0,
                                 GameColor::Magenta => 1,
                                 GameColor::Yellow => 2, 
                                 _ => 0,
                             };
-                            let points = (count as u32) * 100;
+                            let points = (count as u32) * self.custom_score_system.inner.max_chains.get(color) * 10;
                             self.custom_score_system.add_score(color_index, points);
                             console_log!("Added {} points to color {} (index {}) for connected block", points, format!("{:?}", color), color_index);
                         }
@@ -1543,7 +1550,35 @@ impl WasmGameState {
                 }
             }
         }
-        
-        console_log!("Updated all connected block counts");
+    }
+    
+    /// CLI版のupdate_connected_block_counts相当の実装
+    /// ピースロック後に連結ブロック数を再計算・更新
+    fn update_connected_block_counts(&mut self) {
+        let connected_counts = crate::board_logic::count_connected_blocks(&self.board, 0);
+        for ((x, y), count) in connected_counts {
+            if let Cell::Connected { color, count: _ } = self.board[y][x] {
+                self.board[y][x] = Cell::Connected {
+                    color,
+                    count: count as u8,
+                };
+            }
+        }
+    }
+    
+    /// CLI版のupdate_max_chains相当の実装
+    /// ボード全体をスキャンして各色の最大連結ブロック数を更新
+    fn update_max_chains(&mut self) {
+        // ボード全体をスキャンして、各色の最大連結ブロック数を見つける
+        for y in 0..self.current_board_height {
+            for x in 0..BOARD_WIDTH {
+                if let Cell::Connected { color, count } = self.board[y][x] {
+                    self.custom_score_system
+                        .inner
+                        .max_chains
+                        .update_max(color, count as u32);
+                }
+            }
+        }
     }
 }
