@@ -329,6 +329,14 @@ impl GameState {
         let mut bottom_lines_cleared = Vec::new();
         let mut non_bottom_lines_cleared = Vec::new();
 
+        // Calculate scores for lines to be cleared (before clearing)
+        for &line_y in lines {
+            let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.max_chains);
+            for (color, points) in scores {
+                self.custom_score_system.scores.add(color, points);
+            }
+        }
+
         for &y in lines {
             if y == self.current_board_height - 1 {
                 bottom_lines_cleared.push(y);
@@ -374,6 +382,11 @@ impl GameState {
                 gray_line_y: y,
                 start_time: time_provider.now(),
             });
+        }
+
+        // Update connected blocks after any line clears (both bottom and non-bottom)
+        if !bottom_lines_cleared.is_empty() || !non_bottom_lines_cleared.is_empty() {
+            self.update_all_connected_block_counts();
         }
 
         // If no non-bottom lines were cleared, and no bottom lines were cleared, spawn a new piece
@@ -429,13 +442,16 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     let result = update_animations(&mut state.animation, current_time);
 
     // Handle completed line clears
-    for completed_lines in result.completed_line_blinks {
+    for completed_lines in result.completed_line_blinks.clone() {
         // Process line clear using shared logic
         let (bottom_lines_cleared, non_bottom_lines_cleared) = completed_lines.iter()
             .partition::<Vec<_>, _>(|&&line_y| line_y == state.current_board_height - 1);
 
+        let has_bottom_clears = !bottom_lines_cleared.is_empty();
+        let has_non_bottom_clears = !non_bottom_lines_cleared.is_empty();
+
         // Handle bottom lines (standard Tetris clear)
-        if !bottom_lines_cleared.is_empty() {
+        if has_bottom_clears {
             let num_cleared = bottom_lines_cleared.len();
             let mut sorted_lines: Vec<usize> = bottom_lines_cleared.into_iter().cloned().collect();
             sorted_lines.sort_by(|a, b| b.cmp(a));
@@ -453,7 +469,7 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
         }
 
         // Handle non-bottom lines (custom clear with gray conversion)
-        for &y in non_bottom_lines_cleared {
+        for &&y in &non_bottom_lines_cleared {
             // Remove isolated blocks
             board_logic::remove_isolated_blocks(&mut state.board, y);
 
@@ -461,7 +477,25 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
             for x in 0..BOARD_WIDTH {
                 state.board[y][x] = Cell::Occupied(GameColor::Grey);
             }
+        }
 
+        // Update connected blocks after any line clears
+        if has_bottom_clears || has_non_bottom_clears {
+            state.update_all_connected_block_counts();
+        }
+    }
+
+    // Set continuing animations first
+    state.animation = result.continuing_animations;
+
+    // Add push down animations for non-bottom lines
+    for completed_lines in result.completed_line_blinks {
+        let non_bottom_lines_cleared: Vec<usize> = completed_lines.iter()
+            .filter(|&&line_y| line_y != state.current_board_height - 1)
+            .cloned()
+            .collect();
+
+        for y in non_bottom_lines_cleared {
             // Trigger push-down animation
             state.animation.push(Animation::PushDown {
                 gray_line_y: y,
@@ -470,20 +504,23 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
         }
     }
 
-    // Set continuing animations first
-    state.animation = result.continuing_animations;
-
     // Handle completed push downs
     for gray_line_y in result.completed_push_downs {
         // Process push down step
         match process_push_down_step(&mut state.board, &mut state.current_board_height, gray_line_y) {
             PushDownStepResult::Completed => {
-                // Push down completed, potentially spawn new piece
+                // Push down completed - update connected blocks as board structure changed
+                state.update_all_connected_block_counts();
+                
+                // Potentially spawn new piece
                 if state.animation.is_empty() {
                     state.spawn_piece();
                 }
             }
             PushDownStepResult::Moved { new_gray_line_y } => {
+                // Board structure changed - update connected blocks
+                state.update_all_connected_block_counts();
+                
                 // Continue push down animation at new position
                 state.animation.push(Animation::PushDown {
                     gray_line_y: new_gray_line_y,

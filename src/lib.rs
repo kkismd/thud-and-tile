@@ -600,6 +600,7 @@ impl WasmGameState {
                             GameColor::Cyan => 1,
                             GameColor::Magenta => 2,
                             GameColor::Yellow => 3,
+                            GameColor::Grey => 20,   // グレーラインのマッピングを追加
                             _ => {
                                 console_log!("Warning: Unexpected color in board: {:?}", color);
                                 4 // 他の色は4以降
@@ -612,6 +613,7 @@ impl WasmGameState {
                             GameColor::Cyan => 10,    // JavaScript側の期待値に合わせる
                             GameColor::Magenta => 11,
                             GameColor::Yellow => 12,
+                            GameColor::Grey => 20,   // グレー Connected cells
                             _ => 13, // 他の色は13以降
                         };
                         result.push(color_id);
@@ -1118,7 +1120,7 @@ impl WasmGameState {
         let result = animation::update_animations(&mut self.animation, current_time);
         
         // LineBlink完了によるライン消去とPush Down開始処理（CLI版互換）
-        for completed_lines in result.completed_line_blinks {
+        for completed_lines in result.completed_line_blinks.clone() {
             // CLI版と同じ処理順序：bottom/non-bottomに分離してライン消去処理
             let (bottom_lines_cleared, non_bottom_lines_cleared) = 
                 animation::process_line_clear(&mut self.board, self.current_board_height, &completed_lines);
@@ -1130,8 +1132,22 @@ impl WasmGameState {
                 console_log!("Bottom line clear: {} lines cleared", bottom_lines_cleared.len());
             }
 
+            console_log!("Line clear animation completed: {} bottom, {} non-bottom", 
+                bottom_lines_cleared.len(), non_bottom_lines_cleared.len());
+        }
+        
+        // 継続するアニメーションを設定（先に設定）
+        self.animation = result.continuing_animations;
+
+        // LineBlink完了によるPushDownアニメーション開始処理（CLI版互換）
+        for completed_lines in result.completed_line_blinks {
+            let non_bottom_lines_cleared: Vec<usize> = completed_lines.iter()
+                .filter(|&&line_y| line_y != self.current_board_height - 1)
+                .cloned()
+                .collect();
+
             // Non-bottom lines のPushDownアニメーション開始
-            for &y in &non_bottom_lines_cleared {
+            for y in non_bottom_lines_cleared {
                 // 1. 孤立ブロック除去（CLI版互換）
                 crate::board_logic::remove_isolated_blocks(&mut self.board, y);
 
@@ -1141,9 +1157,6 @@ impl WasmGameState {
                     start_time: current_time,
                 });
             }
-
-            console_log!("Line clear animation completed: {} bottom, {} non-bottom", 
-                bottom_lines_cleared.len(), non_bottom_lines_cleared.len());
         }
         
         // Push Down完了処理
@@ -1162,9 +1175,6 @@ impl WasmGameState {
                 }
             }
         }
-        
-        // 継続するアニメーションを設定
-        self.animation = result.continuing_animations;
         
         // すべてのアニメーションが完了した場合、新しいピースをスポーン
         if self.animation.is_empty() {

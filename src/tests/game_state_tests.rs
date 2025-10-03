@@ -408,10 +408,12 @@ fn test_lock_piece_ignores_solid_lines() {
     }
 
     // Create a piece to lock and trigger the line clear
-    let piece = Tetromino::from_shape(
+    let mut piece = Tetromino::from_shape(
         TetrominoShape::I,
         [GameColor::Red, GameColor::Red, GameColor::Red, GameColor::Red],
     );
+    // Position the piece so it will land at the second-to-bottom row  
+    piece.pos = (1, (BOARD_HEIGHT - 3) as i8);
     state.current_piece = Some(piece);
 
     state.lock_piece(&time_provider);
