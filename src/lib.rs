@@ -328,20 +328,21 @@ impl SimpleTetromino {
         let shape = provider.gen_range(0, 7) as u8;
         let color_palette = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
         
-        // 各ブロックに個別の色を割り当て（ランダム）
-        let colors = vec![
-            color_palette[provider.gen_range(0, 3)],
-            color_palette[provider.gen_range(0, 3)],
-            color_palette[provider.gen_range(0, 3)],
-            color_palette[provider.gen_range(0, 3)],
-        ];
-        
-        SimpleTetromino {
-            x: (BOARD_WIDTH / 2 - 2) as usize, // CLI版と同じ位置 (x=3)
-            y: 0,
-            rotation: 0,
-            colors,
-            shape,
+        // CLI版と同じ隣接制約チェックを適用
+        loop {
+            let colors = [
+                color_palette[provider.gen_range(0, 3)],
+                color_palette[provider.gen_range(0, 3)],
+                color_palette[provider.gen_range(0, 3)],
+                color_palette[provider.gen_range(0, 3)],
+            ];
+            
+            let tetromino = Self::from_shape_with_colors(shape, colors);
+            
+            // CLI版と同じ隣接制約チェック
+            if Self::validate_adjacency_constraints(&tetromino) {
+                return tetromino;
+            }
         }
     }
     
@@ -349,21 +350,55 @@ impl SimpleTetromino {
         let mut provider = create_default_random_provider();
         let color_palette = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
         
-        // 各ブロックに個別の色を割り当て（ランダム）
-        let colors = vec![
-            color_palette[provider.gen_range(0, 3)],
-            color_palette[provider.gen_range(0, 3)],
-            color_palette[provider.gen_range(0, 3)],
-            color_palette[provider.gen_range(0, 3)],
-        ];
-        
+        // CLI版と同じ隣接制約チェックを適用
+        loop {
+            let colors = [
+                color_palette[provider.gen_range(0, 3)],
+                color_palette[provider.gen_range(0, 3)],
+                color_palette[provider.gen_range(0, 3)],
+                color_palette[provider.gen_range(0, 3)],
+            ];
+            
+            let tetromino = Self::from_shape_with_colors(shape as u8, colors);
+            
+            // CLI版と同じ隣接制約チェック
+            if Self::validate_adjacency_constraints(&tetromino) {
+                return tetromino;
+            }
+        }
+    }
+    
+    /// 色配列を指定してテトロミノを作成（内部用）
+    fn from_shape_with_colors(shape: u8, colors: [GameColor; 4]) -> Self {
         SimpleTetromino {
             x: (BOARD_WIDTH / 2 - 2) as usize, // CLI版と同じ位置 (x=3)
             y: 0,
             rotation: 0,
-            colors,
-            shape: shape as u8,
+            colors: colors.to_vec(),
+            shape,
         }
+    }
+    
+    /// 隣接制約を検証（CLI版と同じロジック）
+    fn validate_adjacency_constraints(tetromino: &SimpleTetromino) -> bool {
+        let blocks = tetromino.get_blocks_at_rotation(tetromino.rotation);
+        
+        for i in 0..blocks.len() {
+            for j in (i + 1)..blocks.len() {
+                let pos1 = blocks[i];
+                let pos2 = blocks[j];
+                let color1 = tetromino.colors[i % tetromino.colors.len()];
+                let color2 = tetromino.colors[j % tetromino.colors.len()];
+
+                let is_adjacent = (pos1.0 - pos2.0).abs() + (pos1.1 - pos2.1).abs() == 1;
+
+                if is_adjacent && color1 == color2 {
+                    return false;
+                }
+            }
+        }
+        
+        true
     }
     
     /// CLI版と同じ色の回転マッピングを適用
