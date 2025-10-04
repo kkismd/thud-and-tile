@@ -22,8 +22,10 @@ pub enum Animation {
         start_time: Duration,
     },
     EraseLine {
-        lines_remaining: u32,
+        target_solid_lines: Vec<usize>,
+        current_step: usize,
         last_update: Duration,
+        chain_bonus_consumed: usize,
     },
 }
 
@@ -58,7 +60,7 @@ pub fn update_animations(
         match animation {
             Animation::LineBlink {
                 lines,
-                count,
+                count: _,
                 start_time,
             } => {
                 let elapsed = current_time - start_time;
@@ -98,19 +100,23 @@ pub fn update_animations(
                 }
             }
             Animation::EraseLine {
-                lines_remaining,
+                target_solid_lines,
+                current_step,
                 last_update,
+                chain_bonus_consumed,
             } => {
                 let mut animation = Animation::EraseLine {
-                    lines_remaining,
+                    target_solid_lines,
+                    current_step,
                     last_update,
+                    chain_bonus_consumed,
                 };
                 
                 match process_erase_line_step(&mut animation, current_time) {
                     EraseLineStepResult::Continue => {
                         result.continuing_animations.push(animation);
                     }
-                    EraseLineStepResult::Complete => {
+                    EraseLineStepResult::Complete { lines_erased: _ } => {
                         // EraseLineアニメーション完了 - 継続アニメーションには追加しない
                     }
                 }
@@ -166,7 +172,7 @@ pub enum PushDownStepResult {
 #[derive(Debug)]
 pub enum EraseLineStepResult {
     Continue,
-    Complete,
+    Complete { lines_erased: u32 },
 }
 
 /// EraseLineアニメーション処理（1ステップ実行）
@@ -175,32 +181,39 @@ pub fn process_erase_line_step(
     current_time: Duration,
 ) -> EraseLineStepResult {
     if let Animation::EraseLine {
-        lines_remaining,
+        target_solid_lines,
+        current_step,
         last_update,
+        chain_bonus_consumed,
     } = animation
     {
         // 120ミリ秒ごとに1ライン消去
         let erase_interval = Duration::from_millis(120);
 
         if current_time - *last_update >= erase_interval {
-            if *lines_remaining > 0 {
-                *lines_remaining -= 1;
+            if *current_step < target_solid_lines.len() {
+                *current_step += 1;
+                *chain_bonus_consumed += 1;
                 *last_update = current_time;
 
-                if *lines_remaining == 0 {
-                    EraseLineStepResult::Complete
+                if *current_step >= target_solid_lines.len() {
+                    EraseLineStepResult::Complete { 
+                        lines_erased: target_solid_lines.len() as u32 
+                    }
                 } else {
                     EraseLineStepResult::Continue
                 }
             } else {
-                EraseLineStepResult::Complete
+                EraseLineStepResult::Complete { 
+                    lines_erased: target_solid_lines.len() as u32 
+                }
             }
         } else {
             EraseLineStepResult::Continue
         }
     } else {
         // EraseLine以外のアニメーションが渡された場合はComplete扱い
-        EraseLineStepResult::Complete
+        EraseLineStepResult::Complete { lines_erased: 0 }
     }
 }
 
