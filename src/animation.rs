@@ -101,11 +101,19 @@ pub fn update_animations(
                 lines_remaining,
                 last_update,
             } => {
-                // 最小実装：そのまま継続
-                result.continuing_animations.push(Animation::EraseLine {
+                let mut animation = Animation::EraseLine {
                     lines_remaining,
                     last_update,
-                });
+                };
+                
+                match process_erase_line_step(&mut animation, current_time) {
+                    EraseLineStepResult::Continue => {
+                        result.continuing_animations.push(animation);
+                    }
+                    EraseLineStepResult::Complete => {
+                        // EraseLineアニメーション完了 - 継続アニメーションには追加しない
+                    }
+                }
             }
         }
     }
@@ -171,8 +179,8 @@ pub fn process_erase_line_step(
         last_update,
     } = animation
     {
-        // 100ミリ秒ごとに1ライン消去
-        let erase_interval = Duration::from_millis(100);
+        // 120ミリ秒ごとに1ライン消去
+        let erase_interval = Duration::from_millis(120);
 
         if current_time - *last_update >= erase_interval {
             if *lines_remaining > 0 {

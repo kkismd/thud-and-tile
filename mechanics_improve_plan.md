@@ -388,7 +388,7 @@ fn test_erase_line_animation_progress() {
         last_update: Duration::from_millis(0)
     };
     
-    let result = process_erase_line_step(&mut animation, Duration::from_millis(100));
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120));
     assert!(matches!(result, EraseLineStepResult::Continue));
     
     if let Animation::EraseLine { lines_remaining, .. } = animation {
