@@ -173,3 +173,39 @@ fn debug_connected_blocks_score_calculation() {
     assert_eq!(state.custom_score_system.scores.yellow, expected_yellow);
     assert_eq!(state.custom_score_system.scores.total(), expected_total);
 }
+
+// Phase 3-1: calculate_line_clear_total_score関数のTDDテスト
+#[test]
+fn test_calculate_line_clear_total_score_basic() {
+    // RED: まだ実装されていない関数のテスト
+    use crate::scoring::{calculate_line_clear_total_score, ColorMaxChains};
+
+    let board = create_test_board_with_line();
+    let max_chains = ColorMaxChains {
+        cyan: 2,
+        magenta: 3,
+        yellow: 1,
+        chain_bonus: 0,
+    };
+
+    let total_score = calculate_line_clear_total_score(&board, 19, &max_chains);
+    assert_eq!(total_score, 200); // Cyan:4×2×10 + Magenta:3×3×10 + Yellow:3×1×10 = 200
+}
+
+fn create_test_board_with_line() -> Vec<Vec<Cell>> {
+    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+    let line_y = 19;
+    board[line_y] = vec![
+        Cell::Occupied(GameColor::Cyan),    // 1
+        Cell::Occupied(GameColor::Magenta), // 2
+        Cell::Occupied(GameColor::Yellow),  // 3
+        Cell::Occupied(GameColor::Cyan),    // 4
+        Cell::Occupied(GameColor::Magenta), // 5
+        Cell::Occupied(GameColor::Yellow),  // 6
+        Cell::Occupied(GameColor::Cyan),    // 7
+        Cell::Occupied(GameColor::Magenta), // 8
+        Cell::Occupied(GameColor::Yellow),  // 9
+        Cell::Occupied(GameColor::Cyan),    // 10
+    ];
+    board
+}

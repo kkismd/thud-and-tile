@@ -329,3 +329,39 @@ mod tests {
         assert_eq!(system.total_score, u32::MAX);
     }
 }
+
+/// Phase 3-1: ライン消去の統合スコア計算関数
+pub fn calculate_line_clear_total_score(
+    board: &Vec<Vec<crate::cell::Cell>>,
+    cleared_line_y: usize,
+    max_chains: &ColorMaxChains,
+) -> u32 {
+    use crate::cell::Cell;
+    use crate::game_color::GameColor;
+    
+    if cleared_line_y >= board.len() {
+        return 0;
+    }
+    
+    // 各色のブロック数をカウント
+    let mut color_counts = [0u32; 3]; // [cyan, magenta, yellow]
+    
+    for cell in &board[cleared_line_y] {
+        if let Cell::Occupied(color) = cell {
+            match color {
+                GameColor::Cyan => color_counts[0] += 1,
+                GameColor::Magenta => color_counts[1] += 1,
+                GameColor::Yellow => color_counts[2] += 1,
+                _ => {} // 他の色は無視
+            }
+        }
+    }
+    
+    // 各色のスコアを計算: ブロック数 × MAX-CHAIN × 10
+    let cyan_score = color_counts[0] * max_chains.cyan * 10;
+    let magenta_score = color_counts[1] * max_chains.magenta * 10;
+    let yellow_score = color_counts[2] * max_chains.yellow * 10;
+    
+    // オーバーフロー防止で合計
+    cyan_score.saturating_add(magenta_score).saturating_add(yellow_score)
+}
