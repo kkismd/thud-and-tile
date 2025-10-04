@@ -286,3 +286,35 @@ pub fn process_line_clear(
 
     (bottom_lines_cleared, non_bottom_lines_cleared)
 }
+
+/// ============================================================================
+/// Phase 9-2: CHAIN-BONUS統合システム関数群
+/// ============================================================================
+
+/// PushDown完了時のEraseLineアニメーション作成における制限判定
+/// CHAIN-BONUSの量とSolidライン数の最小値を返す
+/// 
+/// # Arguments
+/// * `chain_bonus` - 現在のCHAIN-BONUS量
+/// * `solid_lines_count` - 対象のSolidライン数
+/// 
+/// # Returns
+/// EraseLineアニメーションで処理すべきライン数
+pub fn determine_erase_line_count(chain_bonus: u32, solid_lines_count: usize) -> usize {
+    std::cmp::min(chain_bonus as usize, solid_lines_count)
+}
+
+/// EraseLineアニメーション完了時のCHAIN-BONUS消費処理
+/// 消費したCHAIN-BONUS量を返す
+/// 
+/// # Arguments
+/// * `chain_bonus` - 現在のCHAIN-BONUS量への可変参照
+/// * `lines_erased` - 消去されたライン数
+/// 
+/// # Returns
+/// 実際に消費されたCHAIN-BONUS量
+pub fn consume_chain_bonus_for_erase_line(chain_bonus: &mut u32, lines_erased: u32) -> u32 {
+    let consumed = std::cmp::min(*chain_bonus, lines_erased);
+    *chain_bonus -= consumed;
+    consumed
+}
