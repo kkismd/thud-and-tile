@@ -1,5 +1,5 @@
 use crate::game_color::GameColor;
-use crate::random::{RandomProvider, create_default_random_provider};
+use crate::random::{create_default_random_provider, RandomProvider};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
@@ -79,7 +79,11 @@ pub const fn get_transition_index(from_state: u8, to_state: u8) -> usize {
 
 /// Web版で使用するための独立したSRS wall kick offsets関数
 /// 形状を数値で指定してSRSオフセットを取得
-pub fn get_srs_wall_kick_offsets_by_shape(shape: u8, from_state: u8, to_state: u8) -> &'static [[i8; 2]; 5] {
+pub fn get_srs_wall_kick_offsets_by_shape(
+    shape: u8,
+    from_state: u8,
+    to_state: u8,
+) -> &'static [[i8; 2]; 5] {
     let index = get_transition_index(from_state, to_state);
 
     match shape {
@@ -116,9 +120,12 @@ impl TetrominoBag {
     pub fn new() -> Self {
         let mut bag = TetrominoShape::all_shapes();
         let mut random_provider = create_default_random_provider();
-        
+
         random_provider.shuffle(&mut bag);
-        TetrominoBag { bag, random_provider }
+        TetrominoBag {
+            bag,
+            random_provider,
+        }
     }
 
     /// Web版用のコンストラクタ（独立したインスタンス作成）
@@ -132,7 +139,10 @@ impl TetrominoBag {
         let mut bag = TetrominoShape::all_shapes();
         let mut provider = random_provider;
         provider.shuffle(&mut bag);
-        TetrominoBag { bag, random_provider: provider }
+        TetrominoBag {
+            bag,
+            random_provider: provider,
+        }
     }
 
     pub fn next(&mut self) -> TetrominoShape {
@@ -174,8 +184,9 @@ impl Tetromino {
 
             // 共通の隣接制約チェック関数を使用
             let coordinates: Vec<(i8, i8)> = tetromino.blocks.iter().map(|(pos, _)| *pos).collect();
-            let block_colors: Vec<GameColor> = tetromino.blocks.iter().map(|(_, color)| *color).collect();
-            
+            let block_colors: Vec<GameColor> =
+                tetromino.blocks.iter().map(|(_, color)| *color).collect();
+
             if Self::validate_adjacency_constraints(&coordinates, &block_colors) {
                 return tetromino;
             }
@@ -314,7 +325,8 @@ impl Tetromino {
             .enumerate()
             .map(|(i, &(x, y))| {
                 // All pieces use the same rotation mapping: colors follow blocks
-                let color = self.get_rotated_color_mapping(i, self.rotation_state, next_rotation_state);
+                let color =
+                    self.get_rotated_color_mapping(i, self.rotation_state, next_rotation_state);
                 ((x, y), color)
             })
             .collect();
@@ -325,7 +337,12 @@ impl Tetromino {
 
     /// Get the color mapping for rotation transitions
     /// With physical rotation order in SHAPES, all tetrominoes use direct 1:1 mapping
-    fn get_rotated_color_mapping(&self, new_index: usize, _from_state: u8, _to_state: u8) -> GameColor {
+    fn get_rotated_color_mapping(
+        &self,
+        new_index: usize,
+        _from_state: u8,
+        _to_state: u8,
+    ) -> GameColor {
         // All tetrominoes use direct mapping due to physical rotation order in SHAPES
         // Colors follow blocks naturally through the rotation sequence
         self.blocks[new_index].1
@@ -354,7 +371,8 @@ impl Tetromino {
             .enumerate()
             .map(|(i, &(x, y))| {
                 // All pieces use the same rotation mapping: colors follow blocks
-                let color = self.get_rotated_color_mapping(i, self.rotation_state, next_rotation_state);
+                let color =
+                    self.get_rotated_color_mapping(i, self.rotation_state, next_rotation_state);
                 ((x, y), color)
             })
             .collect();
@@ -410,7 +428,7 @@ impl Tetromino {
         [
             [(0, 0), (1, 0), (1, 1), (2, 1)], // State 0: A,B,C,D - standard Z shape
             [(2, 0), (2, 1), (1, 1), (1, 2)], // State 1: A,B,C,D after 90° rotation
-            [(0, 1), (1, 1), (1, 2), (2, 2)], // State 2: A,B,C,D after 180° rotation  
+            [(0, 1), (1, 1), (1, 2), (2, 2)], // State 2: A,B,C,D after 180° rotation
             [(1, 0), (1, 1), (0, 1), (0, 2)], // State 3: A,B,C,D after 270° rotation
         ],
     ];
@@ -453,9 +471,10 @@ mod tests {
 
     #[test]
     fn test_new_random_uses_7_bag_system() {
-        use crate::random::{RandomProviderImpl, DeterministicRandomProvider};
+        use crate::random::{DeterministicRandomProvider, RandomProviderImpl};
 
-        let deterministic_provider = DeterministicRandomProvider::new(vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7]);
+        let deterministic_provider =
+            DeterministicRandomProvider::new(vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7]);
         let mut test_bag = TetrominoBag {
             bag: TetrominoShape::all_shapes(),
             random_provider: RandomProviderImpl::Deterministic(deterministic_provider),

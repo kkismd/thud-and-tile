@@ -154,11 +154,7 @@ pub fn remove_isolated_blocks(board: &mut Board, cleared_line_y: usize) {
                 ];
 
                 for (nx, ny) in neighbors {
-                    if nx >= 0
-                        && nx < BOARD_WIDTH as i8
-                        && ny >= 0
-                        && ny < BOARD_HEIGHT as i8
-                    {
+                    if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && ny < BOARD_HEIGHT as i8 {
                         let neighbor_color = match board[ny as usize][nx as usize] {
                             Cell::Occupied(c) => Some(c),
                             Cell::Connected { color: c, count: _ } => Some(c),

@@ -69,7 +69,7 @@ fn test_counts_connected_blocks() {
     board[red_block.1][red_block.0] = Cell::Occupied(GameColor::Red);
 
     let mut results = board_logic::count_connected_blocks(&board, cleared_line_y);
-    results.sort_by_key(|k| (k.0.1, k.0.0)); // Sort for consistent order
+    results.sort_by_key(|k| (k.0 .1, k.0 .0)); // Sort for consistent order
 
     let mut expected = vec![
         (red_block, 1),
@@ -78,7 +78,7 @@ fn test_counts_connected_blocks() {
         (green_group[2], 4),
         (green_group[3], 4),
     ];
-    expected.sort_by_key(|k| (k.0.1, k.0.0));
+    expected.sort_by_key(|k| (k.0 .1, k.0 .0));
 
     assert_eq!(results, expected);
 }

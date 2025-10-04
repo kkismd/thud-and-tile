@@ -11,12 +11,12 @@ pub enum GameColor {
     Red,
     Green,
     Blue,
-    
+
     // UIカラー
     White,
     Black,
     DarkGrey,
-    
+
     // 特殊カラー（エフェクト用）
     DarkRed,
     DarkGreen,
@@ -181,7 +181,7 @@ mod tests {
         let game_color = GameColor::Red;
         let crossterm_color: Color = game_color.into();
         assert_eq!(crossterm_color, Color::Red);
-        
+
         let back_to_game: GameColor = crossterm_color.into();
         assert_eq!(back_to_game, GameColor::Red);
     }

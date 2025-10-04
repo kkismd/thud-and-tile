@@ -2,7 +2,9 @@
 //! CLI版とWASM版で共有されるアニメーション処理を統一
 
 use crate::cell::Cell;
-use crate::config::{BLINK_ANIMATION_STEP, BLINK_COUNT_MAX, PUSH_DOWN_STEP_DURATION, BOARD_WIDTH, BOARD_HEIGHT};
+use crate::config::{
+    BLINK_ANIMATION_STEP, BLINK_COUNT_MAX, BOARD_HEIGHT, BOARD_WIDTH, PUSH_DOWN_STEP_DURATION,
+};
 use crate::game_color::GameColor;
 use crate::scoring::ColorMaxChains; // MaxChainsの正しい型名
 use std::time::Duration;
@@ -47,18 +49,22 @@ pub fn update_animations(
     current_time: Duration,
 ) -> AnimationResult {
     let mut result = AnimationResult::new();
-    
+
     for animation in animations.drain(..) {
         match animation {
-            Animation::LineBlink { lines, count, start_time } => {
+            Animation::LineBlink {
+                lines,
+                count,
+                start_time,
+            } => {
                 let elapsed = current_time - start_time;
                 let blink_step = BLINK_ANIMATION_STEP;
                 let steps_elapsed = elapsed.as_millis() / blink_step.as_millis();
-                
+
                 if steps_elapsed >= BLINK_COUNT_MAX as u128 {
                     // LineBlink完了 → 呼び出し元で底辺ライン判定を実行
                     result.completed_line_blinks.push(lines.clone());
-                    
+
                     // PushDownアニメーションの生成は呼び出し元に委託
                     // （CLI版: 底辺ライン判定後に非底辺ラインのみPushDown作成）
                 } else {
@@ -70,9 +76,12 @@ pub fn update_animations(
                     });
                 }
             }
-            Animation::PushDown { gray_line_y, start_time } => {
+            Animation::PushDown {
+                gray_line_y,
+                start_time,
+            } => {
                 let elapsed = current_time - start_time;
-                
+
                 if elapsed >= PUSH_DOWN_STEP_DURATION {
                     // Push Down 1ステップ実行またはアニメーション完了
                     result.completed_push_downs.push(gray_line_y);
@@ -86,7 +95,7 @@ pub fn update_animations(
             }
         }
     }
-    
+
     result
 }
 
@@ -97,24 +106,27 @@ pub fn process_push_down_step(
     gray_line_y: usize,
 ) -> PushDownStepResult {
     let target_y = gray_line_y + 1;
-    
+
     // Push Down完了条件をチェック
-    if target_y >= *current_board_height || 
-       (target_y < BOARD_HEIGHT && board[target_y][0] == Cell::Solid) {
+    if target_y >= *current_board_height
+        || (target_y < BOARD_HEIGHT && board[target_y][0] == Cell::Solid)
+    {
         // Push Down完了: グレーラインをSolidに変換
         for x in 0..BOARD_WIDTH {
             board[gray_line_y][x] = Cell::Solid;
         }
         *current_board_height = current_board_height.saturating_sub(1);
-        
+
         PushDownStepResult::Completed
     } else {
         // ブロックを1ライン下に移動
         if target_y < BOARD_HEIGHT {
             board.remove(target_y);
             board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-            
-            PushDownStepResult::Moved { new_gray_line_y: target_y }
+
+            PushDownStepResult::Moved {
+                new_gray_line_y: target_y,
+            }
         } else {
             PushDownStepResult::Completed
         }
@@ -135,7 +147,7 @@ pub fn calculate_line_clear_score(
     max_chains: &ColorMaxChains,
 ) -> Vec<(GameColor, u32)> {
     let mut scores = Vec::new();
-    
+
     for x in 0..BOARD_WIDTH {
         match board[line_y][x] {
             Cell::Occupied(color) => {
@@ -151,7 +163,7 @@ pub fn calculate_line_clear_score(
             _ => {} // Empty cells and other types are ignored
         }
     }
-    
+
     scores
 }
 

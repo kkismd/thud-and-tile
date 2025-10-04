@@ -1,26 +1,23 @@
 use crossterm::{
     cursor::{Hide, Show},
-    event::{
-        KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
-        PushKeyboardEnhancementFlags,
-    },
+    event::{KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags},
     execute,
-    style::{ResetColor},
+    style::ResetColor,
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io::{self};
 use std::time::{Duration, Instant};
 
+mod animation;
 mod config;
 mod game_color;
 mod game_input;
 mod random;
-mod scheduler;
-mod animation; // 共通アニメーション処理モジュール
+mod scheduler; // 共通アニメーション処理モジュール
 use config::*;
 use game_color::GameColor;
-use game_input::{GameInput, InputProvider, CrosstermInputProvider};
-use scheduler::{Scheduler, create_default_scheduler};
+use game_input::{CrosstermInputProvider, GameInput, InputProvider};
+use scheduler::{create_default_scheduler, Scheduler};
 
 mod render;
 
@@ -91,7 +88,7 @@ use tetromino::Tetromino;
 
 mod board_logic;
 
-use animation::{Animation, update_animations, process_push_down_step, PushDownStepResult}; // 共通アニメーション関数
+use animation::{process_push_down_step, update_animations, Animation, PushDownStepResult}; // 共通アニメーション関数
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GameMode {
@@ -206,7 +203,11 @@ impl GameState {
 
         // Calculate scores for lines to be cleared (before clearing)
         for &line_y in &lines_to_clear {
-            let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.max_chains);
+            let scores = animation::calculate_line_clear_score(
+                &self.board,
+                line_y,
+                &self.custom_score_system.max_chains,
+            );
             for (color, points) in scores {
                 self.custom_score_system.scores.add(color, points);
             }
@@ -331,7 +332,11 @@ impl GameState {
 
         // Calculate scores for lines to be cleared (before clearing)
         for &line_y in lines {
-            let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.max_chains);
+            let scores = animation::calculate_line_clear_score(
+                &self.board,
+                line_y,
+                &self.custom_score_system.max_chains,
+            );
             for (color, points) in scores {
                 self.custom_score_system.scores.add(color, points);
             }
@@ -444,7 +449,8 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     // Handle completed line clears
     for completed_lines in result.completed_line_blinks.clone() {
         // Process line clear using shared logic
-        let (bottom_lines_cleared, non_bottom_lines_cleared) = completed_lines.iter()
+        let (bottom_lines_cleared, non_bottom_lines_cleared) = completed_lines
+            .iter()
             .partition::<Vec<_>, _>(|&&line_y| line_y == state.current_board_height - 1);
 
         let has_bottom_clears = !bottom_lines_cleared.is_empty();
@@ -490,7 +496,8 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
 
     // Add push down animations for non-bottom lines
     for completed_lines in result.completed_line_blinks {
-        let non_bottom_lines_cleared: Vec<usize> = completed_lines.iter()
+        let non_bottom_lines_cleared: Vec<usize> = completed_lines
+            .iter()
             .filter(|&&line_y| line_y != state.current_board_height - 1)
             .cloned()
             .collect();
@@ -507,11 +514,15 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     // Handle completed push downs
     for gray_line_y in result.completed_push_downs {
         // Process push down step
-        match process_push_down_step(&mut state.board, &mut state.current_board_height, gray_line_y) {
+        match process_push_down_step(
+            &mut state.board,
+            &mut state.current_board_height,
+            gray_line_y,
+        ) {
             PushDownStepResult::Completed => {
                 // Push down completed - update connected blocks as board structure changed
                 state.update_all_connected_block_counts();
-                
+
                 // Potentially spawn new piece
                 if state.animation.is_empty() {
                     state.spawn_piece();
@@ -520,7 +531,7 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
             PushDownStepResult::Moved { new_gray_line_y } => {
                 // Board structure changed - update connected blocks
                 state.update_all_connected_block_counts();
-                
+
                 // Continue push down animation at new position
                 state.animation.push(Animation::PushDown {
                     gray_line_y: new_gray_line_y,

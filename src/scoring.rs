@@ -51,6 +51,7 @@ pub struct ColorMaxChains {
     pub cyan: u32,
     pub magenta: u32,
     pub yellow: u32,
+    pub chain_bonus: u32,
 }
 
 impl ColorMaxChains {
@@ -59,6 +60,7 @@ impl ColorMaxChains {
             cyan: 0,
             magenta: 0,
             yellow: 0,
+            chain_bonus: 0,
         }
     }
 
@@ -222,5 +224,11 @@ mod tests {
 
         let expected = "SCORE:    1120\n  CYAN:    200\n  MAGENTA: 420\n  YELLOW:  500\n\nMAX-CHAIN: 5\n  CYAN:    2\n  MAGENTA: 4\n  YELLOW:  5";
         assert_eq!(format!("{}", system), expected);
+    }
+
+    #[test]
+    fn test_color_max_chains_has_chain_bonus() {
+        let max_chains = ColorMaxChains::new();
+        assert_eq!(max_chains.chain_bonus, 0);
     }
 }
