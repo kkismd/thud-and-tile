@@ -154,6 +154,48 @@ pub enum PushDownStepResult {
     Moved { new_gray_line_y: usize },
 }
 
+/// EraseLineステップの結果
+#[derive(Debug)]
+pub enum EraseLineStepResult {
+    Continue,
+    Complete,
+}
+
+/// EraseLineアニメーション処理（1ステップ実行）
+pub fn process_erase_line_step(
+    animation: &mut Animation,
+    current_time: Duration,
+) -> EraseLineStepResult {
+    if let Animation::EraseLine {
+        lines_remaining,
+        last_update,
+    } = animation
+    {
+        // 100ミリ秒ごとに1ライン消去
+        let erase_interval = Duration::from_millis(100);
+
+        if current_time - *last_update >= erase_interval {
+            if *lines_remaining > 0 {
+                *lines_remaining -= 1;
+                *last_update = current_time;
+
+                if *lines_remaining == 0 {
+                    EraseLineStepResult::Complete
+                } else {
+                    EraseLineStepResult::Continue
+                }
+            } else {
+                EraseLineStepResult::Complete
+            }
+        } else {
+            EraseLineStepResult::Continue
+        }
+    } else {
+        // EraseLine以外のアニメーションが渡された場合はComplete扱い
+        EraseLineStepResult::Complete
+    }
+}
+
 /// ライン消去時のスコア計算（CLI版とWASM版共通）
 pub fn calculate_line_clear_score(
     board: &Vec<Vec<Cell>>,
