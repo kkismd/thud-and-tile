@@ -1,5 +1,30 @@
 # Task History Log
 
+## 2025-10-04 - メカニクス改善計画策定完了
+
+### ✅ メカニクス改善計画の完成
+- **スコアシステム改修計画:** ColorScores → total_score統一設計
+  - 色別表示廃止、合計値のみ表示
+  - 直接合計値加算方式への変更
+  - CustomScoreSystem構造体の変更仕様確定
+- **CHAIN-BONUSシステム設計:** 新機能の詳細仕様策定
+  - ColorMaxChainsにchain_bonusメンバ追加
+  - MAX-CHAIN更新時の加算ロジック明確化
+  - Solidライン相殺での消費システム設計
+- **Solidライン相殺機能（EraseLine）:** アニメーション仕様完成
+  - LineBlink → PushDown → EraseLineのシーケンス設計
+  - 120ミリ秒間隔での実装方針確定
+  - ゲームバランス考察とプレイループ分析
+- **実装計画策定:** TDDサイクルでの段階的実装ステップ明確化
+  - 5段階の実装順序確定
+  - 既存テスト修正（約15個）の影響範囲特定
+  - ROADMAPへの最優先事項反映
+
+### ✅ ドキュメント整備
+- **mechanics_improve_plan.md:** 実装に向けた完全な技術仕様書完成
+- **ROADMAP.md:** Priority 0として最優先事項設定
+- **game_spec.md:** Solid=灰色表記の統一化
+
 ## 2024-10-04 - コード共通化・品質改善フェーズ完了
 
 ### ✅ Issue #4, #5 バグ修正完了
