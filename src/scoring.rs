@@ -105,6 +105,13 @@ impl ColorMaxChains {
     pub fn add_chain_bonus(&mut self, amount: u32) {
         self.chain_bonus = self.chain_bonus.saturating_add(amount);
     }
+
+    /// CHAIN-BONUSを消費（指定された最大量まで消費し、実際に消費した量を返す）
+    pub fn consume_chain_bonus(&mut self, max_amount: u32) -> u32 {
+        let consumed = self.chain_bonus.min(max_amount);
+        self.chain_bonus -= consumed;
+        consumed
+    }
 }
 
 /// カスタムスコアシステム全体を管理する構造体
@@ -256,5 +263,35 @@ mod tests {
         max_chains.chain_bonus = u32::MAX - 5;
         max_chains.add_chain_bonus(10);
         assert_eq!(max_chains.chain_bonus, u32::MAX);
+    }
+
+    #[test]
+    fn test_consume_chain_bonus() {
+        let mut max_chains = ColorMaxChains::new();
+
+        // Test consuming from empty bonus
+        assert_eq!(max_chains.consume_chain_bonus(10), 0);
+        assert_eq!(max_chains.chain_bonus, 0);
+
+        // Add some bonus first
+        max_chains.add_chain_bonus(20);
+        assert_eq!(max_chains.chain_bonus, 20);
+
+        // Consume partial amount
+        assert_eq!(max_chains.consume_chain_bonus(5), 5);
+        assert_eq!(max_chains.chain_bonus, 15);
+
+        // Consume more than available (should return available amount)
+        assert_eq!(max_chains.consume_chain_bonus(25), 15);
+        assert_eq!(max_chains.chain_bonus, 0);
+
+        // Test consuming when bonus is 0
+        assert_eq!(max_chains.consume_chain_bonus(10), 0);
+        assert_eq!(max_chains.chain_bonus, 0);
+
+        // Test consuming exact amount
+        max_chains.add_chain_bonus(10);
+        assert_eq!(max_chains.consume_chain_bonus(10), 10);
+        assert_eq!(max_chains.chain_bonus, 0);
     }
 }

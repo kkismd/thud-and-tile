@@ -506,6 +506,7 @@ fn test_chain_bonus_creates_erase_line_animation() {
 3. **cargo clippy**: 警告なし
 4. **cargo fmt**: フォーマット適用
 5. **git add && git commit**: 各Cycle完了時にコミット
+6. **in japanese** : コミットメッセージは日本語で書く
 
 ### エラー発生時の対応
 - **RED段階**: コンパイルエラーは期待される（新機能追加時）
