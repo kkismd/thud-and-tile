@@ -100,6 +100,11 @@ impl ColorMaxChains {
     pub fn max(&self) -> u32 {
         self.cyan.max(self.magenta).max(self.yellow)
     }
+
+    /// CHAIN-BONUSを加算（オーバーフロー防止）
+    pub fn add_chain_bonus(&mut self, amount: u32) {
+        self.chain_bonus = self.chain_bonus.saturating_add(amount);
+    }
 }
 
 /// カスタムスコアシステム全体を管理する構造体
@@ -230,5 +235,26 @@ mod tests {
     fn test_color_max_chains_has_chain_bonus() {
         let max_chains = ColorMaxChains::new();
         assert_eq!(max_chains.chain_bonus, 0);
+    }
+
+    #[test]
+    fn test_add_chain_bonus() {
+        let mut max_chains = ColorMaxChains::new();
+
+        // Initial state
+        assert_eq!(max_chains.chain_bonus, 0);
+
+        // Add some bonus
+        max_chains.add_chain_bonus(10);
+        assert_eq!(max_chains.chain_bonus, 10);
+
+        // Add more bonus (accumulative)
+        max_chains.add_chain_bonus(5);
+        assert_eq!(max_chains.chain_bonus, 15);
+
+        // Test overflow protection (saturating_add behavior)
+        max_chains.chain_bonus = u32::MAX - 5;
+        max_chains.add_chain_bonus(10);
+        assert_eq!(max_chains.chain_bonus, u32::MAX);
     }
 }
