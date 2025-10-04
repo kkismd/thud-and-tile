@@ -1,89 +1,112 @@
 # Development Roadmap
 
-## 🎯 次のステップ (優先度順)
+## 🎯 現在の状況: 統一アーキテクチャ再検討段階
 
-### Priority 1: Browser Performance Testing (今すぐ実行可能)
-**推定時間:** 30分  
-**目的:** SRS True Rotation実装の動作確認
+### 最新の状況 (2024-10-04)
+**Phase 2B**: 統一アーキテクチャの第1回実装試行を完了し、レトロスペクティブ分析を実施。  
+**結論**: 大幅な機能回帰が発生したため、テスト駆動開発による段階的アプローチに方針転換。
 
-**手順:**
-1. `cd ../thud-and-tile-web && npm run dev` でローカルサーバー起動
-2. ブラウザでO-minoの回転動作確認（wobble効果の視覚的検証）
-3. 他のテトロミノの回転動作確認
-4. 色の固定動作確認（回転時に色がブロックと一緒に移動）
-5. パフォーマンス測定（FPS確認）
+**完了済み項目:**
+- ✅ SRS True Rotation実装とCLI/Web統一 (Phase 2A)
+- ✅ 統一アーキテクチャ第1回実装試行
+- ✅ レトロスペクティブ分析 (Keep/Problem/Try)
+- ✅ 次回実装戦略の策定
 
-### Priority 2: Cross-browser Compatibility Check  
-**推定時間:** 45分  
-**対象ブラウザ:** Chrome, Firefox, Safari, Edge
+## 🚀 次のステップ (優先度順)
 
-**テスト項目:**
-- WASM module loading
-- Keyboard input responsiveness
-- Animation smoothness  
-- Score system accuracy
+### Priority 1: 統一アーキテクチャ第2回実装準備
+**推定時間:** 2-3日  
+**アプローチ:** テスト駆動開発 + 段階的移行
 
-### Priority 3: Performance Optimization Analysis
-**推定時間:** 1時間  
+**準備手順:**
+1. 既存機能の包括的テスト作成
+2. GameStateAccess trait の最小実装設計
+3. Red-Green-Refactorサイクルでの段階的実装
+4. 各段階での機能退行防止テスト
 
-**分析ポイント:**
-- JavaScript<->WASM call frequency
-- Animation update overhead
-- Board state transfer efficiency
-- Memory allocation patterns
+### Priority 2: 機能回帰防止テスト設計
+**推定時間:** 1-2日  
+**目的:** 既存機能の品質保証体制確立
 
----
+**テスト設計項目:**
+- Push Down アニメーションシステム
+- Line Blink 効果
+- Connected Cells システム
+- Ghost Piece 表示
+- 差分レンダリングシステム
+- カスタムスコアリング
 
-## 📋 Phase 2B: Performance Optimization & Polish
-**推定期間:** 1-2週間
+### Priority 3: GameStateAccess実装戦略
+**推定時間:** 3-4日  
+**方針:** 最小インターフェース → 段階的拡張
 
-### Performance Profiling
-- [ ] Web version performance benchmarking
-- [ ] Animation frame rate optimization
-- [ ] WASM memory usage analysis
-- [ ] JavaScript<->WASM call overhead measurement
-
-### Browser Testing & Compatibility  
-- [ ] Cross-browser testing (Chrome, Firefox, Safari, Edge)
-- [ ] Mobile browser compatibility verification
-- [ ] Touch input implementation for mobile
-- [ ] Responsive design improvements
-
-### Code Quality & Documentation
-- [ ] Comprehensive API documentation
-- [ ] Code coverage analysis
-- [ ] Additional unit tests for edge cases
-- [ ] Performance regression test suite
+**実装ステップ:**
+1. 基本状態アクセス（ボード、現在ピース）
+2. アニメーション状態取得
+3. 統一レンダリング対応
+4. 高度な機能（スコア、統計等）
 
 ---
 
-## 📋 Phase 3: Advanced Features & Production Ready
+## 📋 Phase 2B: テスト駆動統一アーキテクチャ実装
+**推定期間:** 2-3週間  
+**方針:** レトロスペクティブ分析に基づく改善アプローチ
+
+### 実装品質向上
+- [ ] 既存機能の包括的テストスイート作成
+- [ ] Red-Green-Refactorサイクルの厳格な適用
+- [ ] 各機能の段階的移行（big bang approach回避）
+- [ ] 機能回帰防止の自動テスト
+
+### 統一アーキテクチャ再実装
+- [ ] GameStateAccess trait の最小設計
+- [ ] CLI/Web エンジンの段階的統一
+- [ ] レンダリングシステムの慎重な統合
+- [ ] 既存機能保持の確認テスト
+
+### コード品質向上
+- [ ] テスタビリティ重視の設計
+- [ ] 複雑な依存関係の分離
+- [ ] モックとスタブの活用
+- [ ] 継続的な品質測定
+
+---
+
+## 📋 Phase 3: 統一アーキテクチャ完成とポリッシュ
 **推定期間:** 2-3週間
 
-### Enhanced Game Features
-- [ ] Save/Load game state functionality
-- [ ] Multiple difficulty levels
-- [ ] Sound effects integration
-- [ ] Advanced statistics tracking
+### 統一システム完成
+- [ ] CLI/Web版の完全な機能等価性達成
+- [ ] パフォーマンス最適化と品質向上
+- [ ] クロスブラウザ互換性確認
+- [ ] プロダクション準備完了
 
-### Production Deployment
-- [ ] CI/CD pipeline setup
-- [ ] Production build optimization
-- [ ] CDN integration for WASM assets
-- [ ] Error tracking and analytics
+### 高度機能実装
+- [ ] Save/Load機能
+- [ ] 難易度設定システム
+- [ ] サウンド効果統合
+- [ ] 高度な統計追跡
 
 ---
 
 ## 🚀 Quick Start Next Action
 
+**レトロスペクティブ文書参照:**
 ```bash
-# 1. ブラウザテスト実行
-cd ../thud-and-tile-web
-npm run dev
-# ブラウザで http://localhost:5173 を開く
+# 第1回実装の教訓確認
+cat UNIFIED_ARCHITECTURE_RETROSPECTIVE.md
 
-# 2. SRS回転動作確認
-# - O-mino: wobble効果確認
-# - 他ピース: 標準回転確認  
-# - 色固定: 回転時の色追従確認
+# 次回実装の準備開始
+# 1. 既存機能の動作確認
+cargo run
+cd ../thud-and-tile-web && npm run dev
+
+# 2. テスト作成の計画立案
+# - 重要機能の識別
+# - テスト設計方針検討
+# - Red-Green-Refactorサイクル準備
 ```
+
+**重要リンク:**
+- [統一アーキテクチャレトロスペクティブ](./UNIFIED_ARCHITECTURE_RETROSPECTIVE.md)
+- [実装履歴](./HISTORY.md)
