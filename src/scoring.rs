@@ -140,15 +140,14 @@ impl CustomScoreSystem {
 /// スコア表示用のフォーマット実装
 impl fmt::Display for CustomScoreSystem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "SCORE:    {}", self.scores.total())?;
-        writeln!(f, "  CYAN:    {}", self.scores.cyan)?;
-        writeln!(f, "  MAGENTA: {}", self.scores.magenta)?;
-        writeln!(f, "  YELLOW:  {}", self.scores.yellow)?;
+        writeln!(f, "TOTAL SCORE: {}", self.total_score)?;
         writeln!(f)?;
         writeln!(f, "MAX-CHAIN: {}", self.max_chains.max())?;
         writeln!(f, "  CYAN:    {}", self.max_chains.cyan)?;
         writeln!(f, "  MAGENTA: {}", self.max_chains.magenta)?;
-        write!(f, "  YELLOW:  {}", self.max_chains.yellow)
+        writeln!(f, "  YELLOW:  {}", self.max_chains.yellow)?;
+        writeln!(f)?;
+        write!(f, "CHAIN-BONUS: {}", self.max_chains.chain_bonus)
     }
 }
 

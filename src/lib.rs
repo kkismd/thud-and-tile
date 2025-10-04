@@ -470,6 +470,18 @@ impl WasmGameState {
         self.custom_score_system.get_total_score()
     }
 
+    /// 現在のtotal_scoreを取得（新Phase 8仕様）
+    #[wasm_bindgen]
+    pub fn get_new_total_score(&self) -> u32 {
+        self.custom_score_system.inner.total_score
+    }
+
+    /// 現在のchain_bonusを取得（新Phase 8仕様）
+    #[wasm_bindgen]
+    pub fn get_new_chain_bonus(&self) -> u32 {
+        self.custom_score_system.inner.max_chains.chain_bonus
+    }
+
     /// 3色別スコアを取得 [cyan, magenta, yellow]
     #[wasm_bindgen]
     pub fn get_color_scores(&self) -> Vec<u32> {

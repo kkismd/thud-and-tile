@@ -408,20 +408,16 @@ pub fn draw<R: Renderer>(
                 let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
                 renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 2)?;
-                renderer.print("SCORE:     0     ")?;
+                renderer.print("TOTAL SCORE: 0   ")?;
                 renderer.move_to(ui_x, 3)?;
-                renderer.print("  CYAN:    0     ")?;
-                renderer.move_to(ui_x, 4)?;
-                renderer.print("  MAGENTA: 0     ")?;
+                renderer.print("CHAIN-BONUS: 0   ")?;
                 renderer.move_to(ui_x, 5)?;
-                renderer.print("  YELLOW:  0     ")?;
-                renderer.move_to(ui_x, 7)?;
                 renderer.print("MAX-CHAIN: 0     ")?;
-                renderer.move_to(ui_x, 8)?;
+                renderer.move_to(ui_x, 6)?;
                 renderer.print("  CYAN:    0     ")?;
-                renderer.move_to(ui_x, 9)?;
+                renderer.move_to(ui_x, 7)?;
                 renderer.print("  MAGENTA: 0     ")?;
-                renderer.move_to(ui_x, 10)?;
+                renderer.move_to(ui_x, 8)?;
                 renderer.print("  YELLOW:  0     ")?;
             }
 
@@ -583,25 +579,17 @@ pub fn draw<R: Renderer>(
                 // Display total score
                 renderer.move_to(ui_x, 2)?;
                 renderer.print(
-                    format!("SCORE:     {:<6}", state.custom_score_system.scores.total()).as_str(),
+                    format!("TOTAL SCORE: {:<6}", state.custom_score_system.total_score).as_str(),
                 )?;
 
-                // Display color breakdown
+                // Display CHAIN-BONUS
                 renderer.move_to(ui_x, 3)?;
                 renderer.print(
-                    format!("  CYAN:    {:<6}", state.custom_score_system.scores.cyan).as_str(),
-                )?;
-                renderer.move_to(ui_x, 4)?;
-                renderer.print(
-                    format!("  MAGENTA: {:<6}", state.custom_score_system.scores.magenta).as_str(),
-                )?;
-                renderer.move_to(ui_x, 5)?;
-                renderer.print(
-                    format!("  YELLOW:  {:<6}", state.custom_score_system.scores.yellow).as_str(),
+                    format!("CHAIN-BONUS: {:<6}", state.custom_score_system.max_chains.chain_bonus).as_str(),
                 )?;
 
                 // Display max chain
-                renderer.move_to(ui_x, 7)?;
+                renderer.move_to(ui_x, 5)?;
                 renderer.print(
                     format!(
                         "MAX-CHAIN: {:<6}",
@@ -609,7 +597,7 @@ pub fn draw<R: Renderer>(
                     )
                     .as_str(),
                 )?;
-                renderer.move_to(ui_x, 8)?;
+                renderer.move_to(ui_x, 6)?;
                 renderer.print(
                     format!(
                         "  CYAN:    {:<6}",
@@ -617,7 +605,7 @@ pub fn draw<R: Renderer>(
                     )
                     .as_str(),
                 )?;
-                renderer.move_to(ui_x, 9)?;
+                renderer.move_to(ui_x, 7)?;
                 renderer.print(
                     format!(
                         "  MAGENTA: {:<6}",
@@ -625,7 +613,7 @@ pub fn draw<R: Renderer>(
                     )
                     .as_str(),
                 )?;
-                renderer.move_to(ui_x, 10)?;
+                renderer.move_to(ui_x, 8)?;
                 renderer.print(
                     format!(
                         "  YELLOW:  {:<6}",
