@@ -221,16 +221,22 @@ fn test_calculate_line_clear_total_score_connected() {
     use crate::scoring::{calculate_line_clear_total_score, ColorMaxChains};
 
     let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-    board[19][0] = Cell::Connected { color: GameColor::Cyan, count: 3 };
-    board[19][1] = Cell::Connected { color: GameColor::Yellow, count: 5 };
-    
+    board[19][0] = Cell::Connected {
+        color: GameColor::Cyan,
+        count: 3,
+    };
+    board[19][1] = Cell::Connected {
+        color: GameColor::Yellow,
+        count: 5,
+    };
+
     let max_chains = ColorMaxChains {
         cyan: 2,
         magenta: 1,
         yellow: 4,
         chain_bonus: 0,
     };
-    
+
     let total_score = calculate_line_clear_total_score(&board, 19, &max_chains);
     assert_eq!(total_score, 260); // (3*2*10) + (5*4*10) = 260
 }
@@ -239,8 +245,8 @@ fn test_calculate_line_clear_total_score_connected() {
 #[test]
 fn test_both_score_calculations_match() {
     // RED: 新旧システムの結果一致確認
-    use crate::scoring::{calculate_line_clear_total_score, ColorMaxChains};
     use crate::animation::calculate_line_clear_score;
+    use crate::scoring::{calculate_line_clear_total_score, ColorMaxChains};
 
     let board = create_test_board_with_mixed_blocks();
     let max_chains = ColorMaxChains {
@@ -249,29 +255,141 @@ fn test_both_score_calculations_match() {
         yellow: 1,
         chain_bonus: 0,
     };
-    
+
     // 既存システム（animation.rs）
     let old_scores = calculate_line_clear_score(&board, 19, &max_chains);
     let old_total: u32 = old_scores.iter().map(|(_, points)| points).sum();
-    
+
     // 新システム（scoring.rs）
     let new_total = calculate_line_clear_total_score(&board, 19, &max_chains);
-    
+
     assert_eq!(old_total, new_total);
 }
 
 fn create_test_board_with_mixed_blocks() -> Vec<Vec<Cell>> {
     create_test_board_with_cells(vec![
-        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
-        Cell::Connected { color: GameColor::Magenta, count: 2 }, // 2 × 3 × 10 = 60
-        Cell::Occupied(GameColor::Yellow),  // 1 × 1 × 10 = 10
-        Cell::Connected { color: GameColor::Cyan, count: 3 },    // 3 × 2 × 10 = 60
+        Cell::Occupied(GameColor::Cyan), // 1 × 2 × 10 = 20
+        Cell::Connected {
+            color: GameColor::Magenta,
+            count: 2,
+        }, // 2 × 3 × 10 = 60
+        Cell::Occupied(GameColor::Yellow), // 1 × 1 × 10 = 10
+        Cell::Connected {
+            color: GameColor::Cyan,
+            count: 3,
+        }, // 3 × 2 × 10 = 60
         Cell::Occupied(GameColor::Magenta), // 1 × 3 × 10 = 30
-        Cell::Connected { color: GameColor::Yellow, count: 4 },  // 4 × 1 × 10 = 40
-        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
+        Cell::Connected {
+            color: GameColor::Yellow,
+            count: 4,
+        }, // 4 × 1 × 10 = 40
+        Cell::Occupied(GameColor::Cyan), // 1 × 2 × 10 = 20
         Cell::Occupied(GameColor::Magenta), // 1 × 3 × 10 = 30
-        Cell::Empty,                        // 無視
-        Cell::Solid,                        // 無視
+        Cell::Empty,                     // 無視
+        Cell::Solid,                     // 無視
     ])
     // Total expected: 20+60+10+60+30+40+20+30 = 270
+}
+
+// Phase 4A-1: MAX-CHAIN増加検知のテスト
+#[test]
+fn test_detect_max_chain_increases() {
+    // RED: MAX-CHAIN増加検知機能のテスト
+    use crate::scoring::{calculate_chain_increases, ColorMaxChains};
+
+    let old_chains = ColorMaxChains {
+        cyan: 2,
+        magenta: 3,
+        yellow: 4,
+        chain_bonus: 0,
+    };
+    let new_chains = ColorMaxChains {
+        cyan: 4,
+        magenta: 3,
+        yellow: 6,
+        chain_bonus: 0,
+    };
+
+    let increases = calculate_chain_increases(&old_chains, &new_chains);
+    assert_eq!(increases, 4); // (4-2) + (6-4) = 4
+}
+
+// Phase 4A-2: CHAIN-BONUS自動更新テスト
+#[test]
+fn test_chain_bonus_automatic_update() {
+    // RED: CHAIN-BONUS自動更新機能のテスト
+    use crate::scoring::{update_chain_bonus_from_increases, ColorMaxChains};
+
+    let mut old_chains = ColorMaxChains {
+        cyan: 2,
+        magenta: 3,
+        yellow: 4,
+        chain_bonus: 5,
+    };
+    let new_chains = ColorMaxChains {
+        cyan: 4,
+        magenta: 3,
+        yellow: 6,
+        chain_bonus: 0,
+    };
+
+    update_chain_bonus_from_increases(&mut old_chains, &new_chains);
+
+    // CHAIN-BONUSが正しく更新されたことを確認: 5 + (4-2) + (6-4) = 9
+    assert_eq!(old_chains.chain_bonus, 9);
+    // MAX-CHAIN値も更新されていることを確認
+    assert_eq!(old_chains.cyan, 4);
+    assert_eq!(old_chains.magenta, 3);
+    assert_eq!(old_chains.yellow, 6);
+}
+
+// Phase 4B-1: lock_piece()での新スコア計算使用テスト
+#[test]
+fn test_lock_piece_uses_total_score() {
+    // RED: lock_piece()が新しいスコア計算を使用することをテスト
+    use crate::cell::Cell;
+    use crate::game_color::GameColor;
+    use crate::scoring::{lock_piece_with_total_score, CustomScoreSystem};
+
+    let mut custom_score = CustomScoreSystem::new();
+    custom_score.max_chains.cyan = 2;
+    custom_score.max_chains.magenta = 3;
+
+    // テスト用のボード（20x10）
+    let mut board = vec![vec![Cell::Empty; 10]; 20];
+
+    // 底辺ライン（index 19）にConnectedブロックを配置
+    board[19] = vec![
+        Cell::Connected {
+            color: GameColor::Cyan,
+            count: 3,
+        }, // 3 × 2 × 10 = 60
+        Cell::Connected {
+            color: GameColor::Magenta,
+            count: 2,
+        }, // 2 × 3 × 10 = 60
+        Cell::Connected {
+            color: GameColor::Yellow,
+            count: 1,
+        }, // 1 × 0 × 10 = 0
+        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
+        Cell::Occupied(GameColor::Magenta), // 1 × 3 × 10 = 30
+        Cell::Empty,
+        Cell::Empty,
+        Cell::Empty,
+        Cell::Empty,
+        Cell::Empty,
+    ];
+
+    let initial_total = custom_score.total_score;
+
+    // 底辺ライン（index 19）が消去されたとして処理
+    lock_piece_with_total_score(&mut custom_score, &board, &[19]);
+
+    // total_scoreが新しいスコア計算によって更新されたことを確認
+    // 期待値: 60 + 60 + 0 + 20 + 30 = 170
+    assert_eq!(custom_score.total_score, initial_total + 170);
+
+    // 既存のcolor_scoresは更新されないことを確認（並行期間中）
+    assert_eq!(custom_score.scores.total(), 0);
 }

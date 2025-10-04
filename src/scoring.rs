@@ -156,37 +156,72 @@ impl fmt::Display for CustomScoreSystem {
 mod tests {
     use super::*;
 
+    // Phase 5A-1: REFACTOR段階 - total_scoreベーステストの可読性向上
     #[test]
-    fn test_color_scores_initialization() {
-        let scores = ColorScores::new();
-        assert_eq!(scores.cyan, 0);
-        assert_eq!(scores.magenta, 0);
-        assert_eq!(scores.yellow, 0);
-        assert_eq!(scores.total(), 0);
+    fn test_total_score_initialization() {
+        let system = CustomScoreSystem::new();
+        assert_eq!(
+            system.total_score, 0,
+            "新規CustomScoreSystemのtotal_scoreは0で初期化されるべき"
+        );
     }
 
     #[test]
-    fn test_color_scores_add() {
-        let mut scores = ColorScores::new();
-        scores.add(GameColor::Cyan, 100);
-        scores.add(GameColor::Magenta, 200);
-        scores.add(GameColor::Yellow, 300);
+    fn test_total_score_addition() {
+        let mut system = CustomScoreSystem::new();
 
-        assert_eq!(scores.get(GameColor::Cyan), 100);
-        assert_eq!(scores.get(GameColor::Magenta), 200);
-        assert_eq!(scores.get(GameColor::Yellow), 300);
-        assert_eq!(scores.total(), 600);
+        // 段階的にスコアを加算
+        system.add_total_score(100);
+        assert_eq!(system.total_score, 100, "最初の加算後");
+
+        system.add_total_score(200);
+        assert_eq!(system.total_score, 300, "2回目の加算後");
+
+        system.add_total_score(300);
+        assert_eq!(system.total_score, 600, "3回目の加算後、累積スコア確認");
     }
 
     #[test]
-    fn test_color_scores_ignore_invalid_colors() {
-        let mut scores = ColorScores::new();
-        scores.add(GameColor::Red, 100); // Should be ignored
-        scores.add(GameColor::Blue, 200); // Should be ignored
+    fn test_total_score_overflow_protection() {
+        let mut system = CustomScoreSystem::new();
+        system.total_score = u32::MAX - 100;
 
-        assert_eq!(scores.get(GameColor::Red), 0);
-        assert_eq!(scores.get(GameColor::Blue), 0);
-        assert_eq!(scores.total(), 0);
+        // オーバーフローを引き起こすような大きな値を加算
+        system.add_total_score(200);
+
+        // saturating_addによりu32::MAXでカンプ
+        assert_eq!(
+            system.total_score,
+            u32::MAX,
+            "オーバーフロー保護でu32::MAXに制限される"
+        );
+    }
+
+    // Phase 5A-1: RED段階 - ColorScoresが新システムとの整合性チェック
+    #[test]
+    fn test_score_system_migration_consistency() {
+        // このテストは新旧システムの一貫性をチェックする
+        let mut system = CustomScoreSystem::new();
+
+        // 旧システム（ColorScores）でスコア追加
+        system.scores.add(GameColor::Cyan, 100);
+        system.scores.add(GameColor::Magenta, 200);
+
+        // 新システム（total_score）でも同じスコアが反映されているべき
+        let old_total = system.scores.total();
+        let new_total = system.total_score;
+
+        // この段階では一致しないため、RED状態であることを確認
+        // 新システムに移行すれば一致するはず
+        assert_eq!(old_total, 300);
+        assert_eq!(new_total, 0); // 新システムはまだ未使用のため0
+
+        // 将来的には total_score が主要スコアシステムになる
+        // この不一致が修正対象であることを示すテスト
+        assert_ne!(
+            old_total, new_total,
+            "新旧システムの不一致を確認（修正対象）"
+        );
     }
 
     #[test]
@@ -243,6 +278,34 @@ mod tests {
 
         let expected = "SCORE:    1120\n  CYAN:    200\n  MAGENTA: 420\n  YELLOW:  500\n\nMAX-CHAIN: 5\n  CYAN:    2\n  MAGENTA: 4\n  YELLOW:  5";
         assert_eq!(format!("{}", system), expected);
+    }
+
+    // Phase 5A-2: RED段階 - CustomScoreSystemの新旧整合性問題を示すテスト
+    #[test]
+    fn test_custom_score_system_consistency_issue() {
+        // 現在のCustomScoreSystemは古いscoresフィールドに依存している
+        let mut system = CustomScoreSystem::new();
+
+        // 古いscores.add()を使用した場合の問題
+        system.scores.add(GameColor::Cyan, 100);
+
+        // 新しいtotal_scoreは更新されない（不整合）
+        assert_eq!(system.scores.total(), 100);
+        assert_eq!(system.total_score, 0);
+
+        // Display機能も古いscoresに依存している
+        let display_text = format!("{}", system);
+        assert!(
+            display_text.contains("SCORE:    100"),
+            "Display should show old scores system"
+        );
+
+        // 新システム用のテストは失敗することを確認（修正対象）
+        assert_ne!(
+            system.scores.total(),
+            system.total_score,
+            "新旧スコアシステムの不整合確認"
+        );
     }
 
     #[test]
@@ -338,14 +401,14 @@ pub fn calculate_line_clear_total_score(
 ) -> u32 {
     use crate::cell::Cell;
     use crate::game_color::GameColor;
-    
+
     if cleared_line_y >= board.len() {
         return 0;
     }
-    
+
     // 各色のブロック数をカウント
     let mut color_counts = [0u32; 3]; // [cyan, magenta, yellow]
-    
+
     for cell in &board[cleared_line_y] {
         match cell {
             Cell::Occupied(color) => match color {
@@ -363,12 +426,62 @@ pub fn calculate_line_clear_total_score(
             _ => {} // Empty, Solidなどは無視
         }
     }
-    
+
     // 各色のスコアを計算: ブロック数 × MAX-CHAIN × 10
     let cyan_score = color_counts[0] * max_chains.cyan * 10;
     let magenta_score = color_counts[1] * max_chains.magenta * 10;
     let yellow_score = color_counts[2] * max_chains.yellow * 10;
-    
+
     // オーバーフロー防止で合計
-    cyan_score.saturating_add(magenta_score).saturating_add(yellow_score)
+    cyan_score
+        .saturating_add(magenta_score)
+        .saturating_add(yellow_score)
+}
+
+/// Phase 4A-1: MAX-CHAIN増加量計算関数
+pub fn calculate_chain_increases(old_chains: &ColorMaxChains, new_chains: &ColorMaxChains) -> u32 {
+    let mut total_increases = 0u32;
+
+    // 各色のMAX-CHAIN増加量を計算（減少時は0）
+    if new_chains.cyan > old_chains.cyan {
+        total_increases = total_increases.saturating_add(new_chains.cyan - old_chains.cyan);
+    }
+
+    if new_chains.magenta > old_chains.magenta {
+        total_increases = total_increases.saturating_add(new_chains.magenta - old_chains.magenta);
+    }
+
+    if new_chains.yellow > old_chains.yellow {
+        total_increases = total_increases.saturating_add(new_chains.yellow - old_chains.yellow);
+    }
+
+    total_increases
+}
+
+/// Phase 4A-2: CHAIN-BONUS自動更新関数
+pub fn update_chain_bonus_from_increases(
+    target_chains: &mut ColorMaxChains,
+    new_chains: &ColorMaxChains,
+) {
+    let increases = calculate_chain_increases(target_chains, new_chains);
+    target_chains.chain_bonus = target_chains.chain_bonus.saturating_add(increases);
+
+    // Update the MAX-CHAIN values to the new values
+    target_chains.cyan = new_chains.cyan;
+    target_chains.magenta = new_chains.magenta;
+    target_chains.yellow = new_chains.yellow;
+}
+
+/// Phase 4B-1: lock_piece()での新スコア計算使用関数
+/// この関数は既存のlock_piece()とは分離された新しいスコア計算パスです
+pub fn lock_piece_with_total_score(
+    custom_score: &mut CustomScoreSystem,
+    board: &Vec<Vec<crate::cell::Cell>>,
+    cleared_line_indices: &[usize],
+) {
+    // 消去されたラインのスコアを新しい計算で算出
+    for &line_y in cleared_line_indices {
+        let line_score = calculate_line_clear_total_score(board, line_y, &custom_score.max_chains);
+        custom_score.total_score = custom_score.total_score.saturating_add(line_score);
+    }
 }

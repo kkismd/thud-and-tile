@@ -352,82 +352,9 @@ fn test_lock_piece_uses_total_score() {
 **REFACTOR**: 
 - スコア計算処理の整理
 
-### Phase 5A: 既存テスト修正（段階的）
+### Phase 5: EraseLineアニメーション実装
 
-#### TDD Cycle 5A-1: scoring.rs テスト修正（第1グループ）
-**RED**: 
-- `test_color_scores_*`系テスト5個の失敗確認
-
-**GREEN**: 
-- 5個のテストを`total_score`ベースに書き換え
-
-**REFACTOR**: 
-- テストの可読性向上
-
-#### TDD Cycle 5A-2: scoring.rs テスト修正（第2グループ）  
-**RED**: 
-- `test_custom_score_system_*`系テスト5個の失敗確認
-
-**GREEN**: 
-- 5個のテストを`total_score`ベースに書き換え
-
-**REFACTOR**: 
-- テスト重複の削除
-
-#### TDD Cycle 5A-3: main.rs/lib.rs テスト修正
-**RED**: 
-- メインロジック系テスト5個の失敗確認
-
-**GREEN**: 
-- 5個のテストを新システムに対応
-
-**REFACTOR**: 
-- テストヘルパーの統一
-
-### Phase 5B: ColorScores完全削除
-
-#### TDD Cycle 5B-1: ColorScores削除準備
-**RED**: 
-```rust
-#[test] 
-fn test_total_score_functionality_complete() {
-    let mut system = CustomScoreSystem::new();
-    system.add_total_score(100);
-    assert_eq!(system.get_total_score(), 100);
-    
-    // この時点でscoresフィールドへの依存がないことを確認
-}
-```
-
-**GREEN**: 
-- 全機能がtotal_scoreで動作することを確認
-
-**REFACTOR**: 
-- 未使用コードの特定
-
-#### TDD Cycle 5B-2: ColorScores削除実行
-**RED**: 
-```rust
-// コンパイルエラーテスト：ColorScoresが存在しないことを確認
-#[test]
-fn test_no_color_scores_field() {
-    let system = CustomScoreSystem::new();
-    // system.scores; // この行でコンパイルエラーになることを期待
-    assert_eq!(system.get_total_score(), 0);
-}
-```
-
-**GREEN**: 
-- `scores: ColorScores`フィールドを削除
-- `Display`トレイト実装を更新
-
-**REFACTOR**: 
-- 未使用import削除
-- ドキュメント更新
-
-### Phase 6: EraseLineアニメーション実装
-
-#### TDD Cycle 6-1: Animation列挙体拡張
+#### TDD Cycle 5-1: Animation列挙体拡張
 **RED**: 
 ```rust
 #[test]
@@ -449,9 +376,188 @@ fn test_erase_line_animation_creation() {
 - `Animation`列挙体に`EraseLine`バリアント追加
 
 **REFACTOR**: 
-- アニメーション構造の整理
+- Animation関連のドキュメント更新
 
-#### TDD Cycle 6-2: EraseLineアニメーション更新処理
+#### TDD Cycle 5-2: ライン消去アニメーション処理
+**RED**: 
+```rust
+#[test]
+fn test_erase_line_animation_progress() {
+    let mut animation = Animation::EraseLine { 
+        lines_remaining: 3,
+        last_update: Duration::from_millis(0)
+    };
+    
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(100));
+    assert!(matches!(result, EraseLineStepResult::Continue));
+    
+    if let Animation::EraseLine { lines_remaining, .. } = animation {
+        assert_eq!(lines_remaining, 2);
+    }
+}
+```
+
+**GREEN**: 
+- `process_erase_line_step`関数実装
+- `EraseLineStepResult`列挙体追加
+
+**REFACTOR**: 
+- エラーハンドリング改善
+
+### Phase 6: 新スコア計算システム統合
+
+#### TDD Cycle 6-1: lock_piece()への統合
+**RED**: 
+```rust
+#[test]
+fn test_lock_piece_new_scoring_integration() {
+    let mut game_state = create_test_game_state();
+    game_state.custom_score_system.total_score = 0;
+    
+    // ライン消去が発生する状況を作成
+    setup_line_clear_scenario(&mut game_state);
+    
+    lock_piece(&mut game_state);
+    
+    // 新スコア計算が適用されていることを確認
+    assert!(game_state.custom_score_system.total_score > 0);
+}
+```
+
+**GREEN**: 
+- `lock_piece()`で`lock_piece_with_total_score()`を呼び出し
+- ライン消去検出とスコア計算の統合
+
+**REFACTOR**: 
+- スコア計算フローの最適化
+
+### Phase 7: 旧システム削除とテスト移行（一括実行）
+
+#### TDD Cycle 7-1: 旧システム依存テストの特定と移行
+**RED**: 
+```rust
+// 旧システムへの依存が残っているテストの失敗確認
+#[test]
+fn test_old_system_dependencies_removed() {
+    let system = CustomScoreSystem::new();
+    // system.scores; // この行でコンパイルエラーになることを期待
+    assert_eq!(system.total_score, 0);
+}
+```
+
+**GREEN**: 
+- `test_color_scores_*`系テストを`test_total_score_*`系に変換
+- `test_custom_score_system_*`系テストを新仕様対応に変更
+- main.rs/lib.rsの関連テストを新システム対応に更新
+
+**REFACTOR**: 
+- テスト重複の削除
+- テストヘルパー関数の統一
+
+#### TDD Cycle 7-2: ColorScores完全削除
+**RED**: 
+```rust
+#[test] 
+fn test_total_score_functionality_complete() {
+    let mut system = CustomScoreSystem::new();
+    system.add_total_score(100);
+    
+    // この時点でscoresフィールドへの依存がないことを確認
+    assert_eq!(system.total_score, 100);
+}
+```
+
+**GREEN**: 
+- `CustomScoreSystem`から`scores: ColorScores`フィールド削除
+- `Display`トレイト実装を`total_score`ベースに更新
+- `ColorScores`構造体と関連メソッドを削除
+
+**REFACTOR**: 
+- 未使用import削除
+- ドキュメント更新
+- コード整理
+
+### Phase 8: UI/表示系更新とCHAIN-BONUS連携
+
+#### TDD Cycle 8-1: スコア表示UI更新
+**RED**: 
+```rust
+#[test]
+fn test_score_display_shows_total_score() {
+    let mut system = CustomScoreSystem::new();
+    system.total_score = 1250;
+    system.max_chains.cyan = 3;
+    system.max_chains.magenta = 4;
+    system.max_chains.yellow = 5;
+    system.max_chains.chain_bonus = 2;
+    
+    let display_text = format!("{}", system);
+    assert!(display_text.contains("TOTAL SCORE: 1250"));
+    assert!(display_text.contains("CHAIN-BONUS: 2"));
+    assert!(!display_text.contains("CYAN:"), "個別色スコアは非表示");
+}
+```
+
+**GREEN**: 
+- `CustomScoreSystem`の`Display`実装をtotal_score中心に変更
+- CHAIN-BONUS表示の追加
+- 色別スコアから統合スコア表示への変更
+
+**REFACTOR**: 
+- 表示フォーマットの最適化
+
+#### TDD Cycle 8-2: render.rs更新（CLI版）
+**RED**: 
+```rust
+#[test]
+fn test_render_score_display_cli() {
+    let mut game_state = create_test_game_state();
+    game_state.custom_score_system.total_score = 2500;
+    game_state.custom_score_system.max_chains.chain_bonus = 5;
+    
+    let rendered_output = render_game_state(&game_state);
+    
+    assert!(rendered_output.contains("Score: 2500"));
+    assert!(rendered_output.contains("Chain Bonus: 5"));
+    assert!(rendered_output.contains("Max Chain:"));
+}
+```
+
+**GREEN**: 
+- `render.rs`のスコア表示ロジックを新システム対応に更新
+- CLI出力フォーマットの改善
+- CHAIN-BONUS情報の表示追加
+
+**REFACTOR**: 
+- レンダリング性能最適化
+
+#### TDD Cycle 8-3: Web UI更新（JavaScript側）
+**RED**: 
+```rust
+#[test]
+fn test_web_score_interface() {
+    let mut system = CustomScoreSystem::new();
+    system.total_score = 3750;
+    system.max_chains.chain_bonus = 8;
+    
+    // WebAssembly経由でのスコア取得テスト
+    let score_json = export_score_data(&system);
+    assert!(score_json.contains("\"total_score\":3750"));
+    assert!(score_json.contains("\"chain_bonus\":8"));
+}
+```
+
+**GREEN**: 
+- WebAssembly export関数をtotal_score対応に更新
+- JavaScript側のスコア表示ロジック更新
+- Web UIでのCHAIN-BONUS表示実装
+
+**REFACTOR**: 
+- Web UI/CLI共通インターフェースの整理
+
+### Phase 9: EraseLineアニメーション連携システム
+
+#### TDD Cycle 9-1: EraseLineアニメーション更新処理
 **RED**: 
 ```rust
 #[test]
@@ -477,7 +583,7 @@ fn test_erase_line_animation_updates() {
 **REFACTOR**: 
 - 120ミリ秒間隔の調整可能性
 
-#### TDD Cycle 6-3: CHAIN-BONUS消費ロジック統合
+#### TDD Cycle 8-2: CHAIN-BONUS消費ロジック統合
 **RED**: 
 ```rust
 #[test]
@@ -493,6 +599,58 @@ fn test_chain_bonus_creates_erase_line_animation() {
     assert_eq!(get_erase_line_count(&game_state.animations), 2); // min(3, 2)
 }
 ```
+
+**GREEN**: 
+- PushDownアニメーション完了時のCHAIN-BONUS消費処理
+- EraseLineアニメーション生成ロジック
+
+**REFACTOR**: 
+- CHAIN-BONUS管理の最適化
+
+### Phase 9: 高度機能実装
+
+#### TDD Cycle 9-1: 複数アニメーション同時実行
+**RED**: 
+```rust
+#[test]
+fn test_multiple_animations_simultaneously() {
+    let mut game_state = create_test_game_state();
+    
+    // LineBlink + EraseLineの同時実行
+    game_state.animations.push(Animation::LineBlink { /* ... */ });
+    game_state.animations.push(Animation::EraseLine { /* ... */ });
+    
+    update_animations(&mut game_state.animations, Duration::from_millis(120));
+    
+    // 両方のアニメーションが正常に更新されることを確認
+    assert_eq!(game_state.animations.len(), 2);
+}
+```
+
+**GREEN**: 
+- 複数アニメーション処理の並列実行
+
+**REFACTOR**: 
+- パフォーマンス最適化
+
+## 開発完了基準
+
+1. **機能完備性**：
+   - ✅ 新スコア計算システム（Phase 3-4）
+   - ⏳ EraseLineアニメーション（Phase 5）
+   - ⏳ 統合システム（Phase 6-7）
+   - ⏳ 高度機能（Phase 8-9）
+
+2. **品質基準**：
+   - すべてのTDDサイクル完了
+   - テストカバレッジ95%以上維持
+   - パフォーマンス要件充足
+   - ドキュメント整備完了
+
+3. **デプロイ準備**：
+   - 旧システム完全削除（Phase 7）
+   - 設定ファイル更新
+   - リリースノート作成
 
 **GREEN**: 
 - PushDown完了時のEraseLine作成ロジック

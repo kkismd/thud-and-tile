@@ -21,6 +21,10 @@ pub enum Animation {
         gray_line_y: usize,
         start_time: Duration,
     },
+    EraseLine {
+        lines_remaining: u32,
+        last_update: Duration,
+    },
 }
 
 /// アニメーション処理結果
@@ -92,6 +96,16 @@ pub fn update_animations(
                         start_time,
                     });
                 }
+            }
+            Animation::EraseLine {
+                lines_remaining,
+                last_update,
+            } => {
+                // 最小実装：そのまま継続
+                result.continuing_animations.push(Animation::EraseLine {
+                    lines_remaining,
+                    last_update,
+                });
             }
         }
     }
