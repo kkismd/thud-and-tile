@@ -443,17 +443,31 @@ impl SimpleTetromino {
                     _ => vec![(1, 0), (2, 0), (0, 1), (1, 1)],
                 }
             },
-            6 => { // Z piece - SRS standard
+            6 => { // Z piece - SRS standard coordinates with corrected physical rotation order
                 match rotation {
-                    0 => vec![(0, 0), (1, 0), (1, 1), (2, 1)],
-                    1 => vec![(2, 0), (1, 1), (2, 1), (1, 2)],
-                    2 => vec![(0, 1), (1, 1), (1, 2), (2, 2)],
-                    3 => vec![(1, 0), (0, 1), (1, 1), (0, 2)],
+                    0 => vec![(0, 0), (1, 0), (1, 1), (2, 1)], // State 0: A,B,C,D - standard Z shape
+                    1 => vec![(2, 0), (2, 1), (1, 1), (1, 2)], // State 1: A,B,C,D after 90° rotation
+                    2 => vec![(0, 1), (1, 1), (1, 2), (2, 2)], // State 2: A,B,C,D after 180° rotation  
+                    3 => vec![(1, 0), (1, 1), (0, 1), (0, 2)], // State 3: A,B,C,D after 270° rotation
                     _ => vec![(0, 0), (1, 0), (1, 1), (2, 1)],
                 }
             },
             _ => vec![(0, 0)], // Default
         }
+    }
+    
+    /// 現在の回転状態でのブロック座標と色のペアを返す
+    pub fn iter_blocks_with_colors(&self) -> Vec<((i8, i8), GameColor)> {
+        let blocks = self.get_blocks_at_rotation(self.rotation);
+        blocks.into_iter()
+            .enumerate()
+            .map(|(index, (dx, dy))| {
+                let abs_x = self.x as i8 + dx;
+                let abs_y = self.y as i8 + dy;
+                let color = self.colors[index % self.colors.len()];
+                ((abs_x, abs_y), color)
+            })
+            .collect()
     }
 }
 
@@ -1036,16 +1050,13 @@ pub fn get_board_dimensions() -> Vec<usize> {
 impl WasmGameState {
     pub fn get_current_piece_blocks(&self) -> Vec<i32> {
         if let Some(ref piece) = self.current_piece {
-            let blocks = piece.get_blocks_at_rotation(piece.rotation);
             let mut result = Vec::new();
             
-            for (block_index, (dx, dy)) in blocks.iter().enumerate() {
-                let board_x = piece.x as i8 + dx;
-                let board_y = piece.y as i8 + dy;
+            // iter_blocks_with_colors()を使用して正しい位置と色の対応を取得
+            for ((board_x, board_y), color) in piece.iter_blocks_with_colors() {
                 result.push(board_x as i32);
                 result.push(board_y as i32);
-                let block_color = piece.colors[block_index % piece.colors.len()];
-                result.push(block_color as i32); // 各ブロックの個別色
+                result.push(color as i32);
             }
             
             result
@@ -1072,15 +1083,16 @@ impl WasmGameState {
     /// 次のテトロミノの全ブロック座標を取得（プレビュー用）
     pub fn get_next_piece_blocks(&self) -> Vec<i32> {
         if let Some(ref piece) = self.next_piece {
-            let blocks = piece.get_blocks_at_rotation(piece.rotation);
             let mut result = Vec::new();
             
-            for (block_index, (dx, dy)) in blocks.iter().enumerate() {
-                // 次ピース表示用なので固定位置（0,0基準）で座標を返す
-                result.push(*dx as i32);
-                result.push(*dy as i32);
-                let block_color = piece.colors[block_index % piece.colors.len()];
-                result.push(block_color as i32);
+            // iter_blocks_with_colors()を使用して正しい位置と色の対応を取得
+            // 次ピース表示用なので相対座標で返す
+            for ((abs_x, abs_y), color) in piece.iter_blocks_with_colors() {
+                let rel_x = abs_x - piece.x as i8;
+                let rel_y = abs_y - piece.y as i8;
+                result.push(rel_x as i32);
+                result.push(rel_y as i32);
+                result.push(color as i32);
             }
             
             result
@@ -1093,16 +1105,16 @@ impl WasmGameState {
     pub fn get_ghost_piece_blocks(&self) -> Vec<i32> {
         if let Some(ref piece) = self.current_piece {
             if let Some((ghost_x, ghost_y)) = self.calculate_ghost_position(piece) {
-                let blocks = piece.get_blocks_at_rotation(piece.rotation);
-                let mut result = Vec::new();
+                // 現在のピースをゴースト位置にコピーして、iter_blocks_with_colors()を使用
+                let mut ghost_piece = piece.clone();
+                ghost_piece.x = ghost_x as usize;
+                ghost_piece.y = ghost_y as usize;
                 
-                for (block_index, (dx, dy)) in blocks.iter().enumerate() {
-                    let board_x = ghost_x + dx;
-                    let board_y = ghost_y + dy;
+                let mut result = Vec::new();
+                for ((board_x, board_y), color) in ghost_piece.iter_blocks_with_colors() {
                     result.push(board_x as i32);
                     result.push(board_y as i32);
-                    let block_color = piece.colors[block_index % piece.colors.len()];
-                    result.push(block_color as i32); // 各ブロックの個別色（半透明化はフロントエンド側で処理）
+                    result.push(color as i32); // 各ブロックの個別色（半透明化はフロントエンド側で処理）
                 }
                 
                 result
