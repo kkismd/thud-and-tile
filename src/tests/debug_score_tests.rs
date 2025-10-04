@@ -209,3 +209,24 @@ fn create_test_board_with_line() -> Vec<Vec<Cell>> {
     ];
     board
 }
+
+// Phase 3-2: Cell種類別スコア計算のテスト
+#[test]
+fn test_calculate_line_clear_total_score_connected() {
+    // RED: Connected型セル対応テスト
+    use crate::scoring::{calculate_line_clear_total_score, ColorMaxChains};
+
+    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+    board[19][0] = Cell::Connected { color: GameColor::Cyan, count: 3 };
+    board[19][1] = Cell::Connected { color: GameColor::Yellow, count: 5 };
+    
+    let max_chains = ColorMaxChains {
+        cyan: 2,
+        magenta: 1,
+        yellow: 4,
+        chain_bonus: 0,
+    };
+    
+    let total_score = calculate_line_clear_total_score(&board, 19, &max_chains);
+    assert_eq!(total_score, 260); // (3*2*10) + (5*4*10) = 260
+}

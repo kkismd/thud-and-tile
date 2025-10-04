@@ -347,13 +347,20 @@ pub fn calculate_line_clear_total_score(
     let mut color_counts = [0u32; 3]; // [cyan, magenta, yellow]
     
     for cell in &board[cleared_line_y] {
-        if let Cell::Occupied(color) = cell {
-            match color {
+        match cell {
+            Cell::Occupied(color) => match color {
                 GameColor::Cyan => color_counts[0] += 1,
                 GameColor::Magenta => color_counts[1] += 1,
                 GameColor::Yellow => color_counts[2] += 1,
                 _ => {} // 他の色は無視
-            }
+            },
+            Cell::Connected { color, count } => match color {
+                GameColor::Cyan => color_counts[0] += *count as u32,
+                GameColor::Magenta => color_counts[1] += *count as u32,
+                GameColor::Yellow => color_counts[2] += *count as u32,
+                _ => {} // 他の色は無視
+            },
+            _ => {} // Empty, Solidなどは無視
         }
     }
     
