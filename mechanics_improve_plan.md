@@ -585,83 +585,368 @@ fn test_web_score_interface() {
 **REFACTOR**: 
 - Web UI/CLI共通インターフェースの整理
 
-### Phase 9: EraseLineアニメーション連携システム
+### Phase 9: EraseLineアニメーションシステム完成（厳密な仕様実装）
 
-#### TDD Cycle 9-1: EraseLineアニメーション更新処理
-**RED**: 
+### 🚨 前回実装での誤解と修正
+
+#### 間違えた仕様理解：
+1. **CHAIN-BONUS消費タイミング**: PushDown完了時に即座に消費 → ❌
+2. **EraseLineアニメーション**: lines_remainingのカウントダウンのみ → ❌  
+3. **相殺処理**: アニメーション完了後に完成ラインを消去 → ❌
+
+#### 正しい仕様理解：
+1. **CHAIN-BONUS消費**: EraseLineアニメーション中に1ライン消去毎に1ポイント消費
+2. **EraseLineアニメーション**: 実際のSolidライン除去処理を含む
+3. **相殺処理**: 完成ライン（隙間なしライン）ではなく、Solidライン（グレーライン）を消去
+
+### 📋 厳密な仕様定義
+
+#### MAX-CHAIN & CHAIN-BONUS仕様
 ```rust
-#[test]
-fn test_erase_line_animation_updates() {
-    let mut animations = vec![Animation::EraseLine { 
-        lines_remaining: 2,
-        last_update: Duration::from_millis(0)
-    }];
-    let current_time = Duration::from_millis(120);
+// ピース着地時の処理順序（厳密）
+fn lock_piece(&mut self) {
+    // 1. ピースをボードに配置
+    // 2. 隣接ブロック連結計算
+    // 3. 連結数字をボードに反映  
+    // 4. 旧MAX-CHAIN値を保存
+    let old_max_chains = self.custom_score_system.max_chains.clone();
+    // 5. 新MAX-CHAIN値を計算・更新
+    self.update_max_chains();
+    // 6. MAX-CHAIN増加分をCHAIN-BONUSに加算
+    let increases = calculate_chain_increases(&old_max_chains, &self.custom_score_system.max_chains);
+    self.custom_score_system.max_chains.chain_bonus += increases;
+    // 7. 完成ライン検出とLineBlink開始
+}
+```
+
+#### EraseLineアニメーション仕様
+```rust
+// EraseLineアニメーションの動作（厳密）
+pub struct EraseLineAnimation {
+    target_solid_lines: Vec<usize>,  // 削除対象のSolidライン（底上）
+    current_step: usize,            // 現在の削除ステップ
+    last_update: Duration,          // 最終更新時刻
+    chain_bonus_consumed: u32,      // 消費したCHAIN-BONUS量
+}
+
+// 120ms毎に1ラインずつSolidラインを削除
+// 削除と同時にCHAIN-BONUSを1ポイント消費
+// CHAIN-BONUSが0になるか、Solidラインが全て消えたら完了
+```
+
+#### Solidライン相殺システム仕様
+```rust
+// PushDown完了時の相殺判定（厳密）
+fn on_push_down_complete() {
+    let solid_line_count = count_solid_lines_from_bottom();
+    let available_chain_bonus = self.custom_score_system.max_chains.chain_bonus;
+    let erasable_lines = min(solid_line_count, available_chain_bonus);
     
-    let result = update_animations(&mut animations, current_time);
-    
-    // 1つのラインが削除されることを確認
-    if let Animation::EraseLine { lines_remaining, .. } = &animations[0] {
-        assert_eq!(*lines_remaining, 1);
+    if erasable_lines > 0 {
+        // EraseLineアニメーション開始（相殺開始）
+        self.start_erase_line_animation(erasable_lines);
     }
 }
 ```
 
-**GREEN**: 
-- `update_animations()`にEraseLine処理追加
+### 🧪 Phase 9-1: EraseLineアニメーション基盤（TDD）
 
-**REFACTOR**: 
-- 120ミリ秒間隔の調整可能性
+#### Cycle 9-1-1: EraseLineAnimation構造体設計
 
-#### TDD Cycle 8-2: CHAIN-BONUS消費ロジック統合
-**RED**: 
+**RED**: 失敗するテスト作成
 ```rust
 #[test]
-fn test_chain_bonus_creates_erase_line_animation() {
-    let mut game_state = create_test_game_state();
-    game_state.custom_score_system.max_chains.chain_bonus = 3;
-    add_solid_lines_to_board(&mut game_state, 2);
+fn test_erase_line_animation_creation() {
+    let solid_lines = vec![19, 18]; // 底辺から2行のSolidライン
+    let animation = Animation::EraseLine {
+        target_solid_lines: solid_lines.clone(),
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
     
-    trigger_push_down_completion(&mut game_state);
+    // EraseLineアニメーション構造体が正しく作成されることを確認
+    if let Animation::EraseLine { target_solid_lines, current_step, .. } = animation {
+        assert_eq!(target_solid_lines, vec![19, 18]);
+        assert_eq!(current_step, 0);
+    } else {
+        panic!("Expected EraseLine animation");
+    }
+}
+```
+
+**GREEN**: 最小実装
+```rust
+// animation.rs
+pub enum Animation {
+    LineBlink { /* existing */ },
+    PushDown { /* existing */ },
+    EraseLine {
+        target_solid_lines: Vec<usize>,
+        current_step: usize,
+        last_update: Duration,
+        chain_bonus_consumed: u32,
+    },
+}
+```
+
+**REFACTOR**: 構造体設計の最適化
+
+#### Cycle 9-1-2: EraseLineアニメーションステップ処理
+
+**RED**: 失敗するテスト作成
+```rust
+#[test]
+fn test_erase_line_animation_step_processing() {
+    let mut animation = Animation::EraseLine {
+        target_solid_lines: vec![19, 18, 17],
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
+    
+    // 120ms経過後にステップ処理
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120));
+    
+    // 1ステップ進行することを確認
+    if let Animation::EraseLine { current_step, chain_bonus_consumed, .. } = animation {
+        assert_eq!(current_step, 1);
+        assert_eq!(chain_bonus_consumed, 1);
+        assert!(matches!(result, EraseLineStepResult::Continue));
+    }
+}
+
+#[test]
+fn test_erase_line_animation_completion() {
+    let mut animation = Animation::EraseLine {
+        target_solid_lines: vec![19],
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
+    
+    // 120ms経過後にステップ処理
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120));
+    
+    // アニメーション完了を確認
+    assert!(matches!(result, EraseLineStepResult::Complete { lines_erased: 1 }));
+}
+```
+
+**GREEN**: 最小実装
+```rust
+pub enum EraseLineStepResult {
+    Continue,
+    Complete { lines_erased: u32 },
+}
+
+pub fn process_erase_line_step(
+    animation: &mut Animation,
+    current_time: Duration,
+) -> EraseLineStepResult {
+    if let Animation::EraseLine {
+        target_solid_lines,
+        current_step,
+        last_update,
+        chain_bonus_consumed,
+    } = animation {
+        let erase_interval = Duration::from_millis(120);
+        
+        if current_time - *last_update >= erase_interval {
+            *current_step += 1;
+            *chain_bonus_consumed += 1;
+            *last_update = current_time;
+            
+            if *current_step >= target_solid_lines.len() {
+                EraseLineStepResult::Complete { 
+                    lines_erased: target_solid_lines.len() as u32 
+                }
+            } else {
+                EraseLineStepResult::Continue
+            }
+        } else {
+            EraseLineStepResult::Continue
+        }
+    } else {
+        EraseLineStepResult::Complete { lines_erased: 0 }
+    }
+}
+```
+
+### 🧪 Phase 9-2: CHAIN-BONUS統合システム（TDD）
+
+#### Cycle 9-2-1: PushDown完了時の相殺判定
+
+**RED**: 失敗するテスト作成
+```rust
+#[test]
+fn test_push_down_triggers_erase_line_with_chain_bonus() {
+    let mut game_state = TestGameState::new();
+    game_state.custom_score_system.max_chains.chain_bonus = 3;
+    
+    // 底辺に2行のSolidライン配置
+    add_solid_lines_to_bottom(&mut game_state, 2);
+    
+    // PushDown完了をトリガー
+    let result = trigger_push_down_completion(&mut game_state);
     
     // EraseLineアニメーションが作成されることを確認
-    assert!(has_erase_line_animation(&game_state.animations));
-    assert_eq!(get_erase_line_count(&game_state.animations), 2); // min(3, 2)
+    assert!(has_erase_line_animation(&result.continuing_animations));
+    let erase_animation = get_erase_line_animation(&result.continuing_animations).unwrap();
+    assert_eq!(erase_animation.target_solid_lines.len(), 2); // min(3, 2) = 2
+}
+
+#[test]
+fn test_insufficient_chain_bonus_limits_erase_lines() {
+    let mut game_state = TestGameState::new();
+    game_state.custom_score_system.max_chains.chain_bonus = 1;
+    
+    // 底辺に3行のSolidライン配置
+    add_solid_lines_to_bottom(&mut game_state, 3);
+    
+    // PushDown完了をトリガー
+    let result = trigger_push_down_completion(&mut game_state);
+    
+    // 制限された数のEraseLineアニメーションが作成されることを確認
+    let erase_animation = get_erase_line_animation(&result.continuing_animations).unwrap();
+    assert_eq!(erase_animation.target_solid_lines.len(), 1); // min(1, 3) = 1
 }
 ```
 
-**GREEN**: 
-- PushDownアニメーション完了時のCHAIN-BONUS消費処理
-- EraseLineアニメーション生成ロジック
+#### Cycle 9-2-2: EraseLineアニメーション完了時のCHAIN-BONUS消費
 
-**REFACTOR**: 
-- CHAIN-BONUS管理の最適化
-
-### Phase 9: 高度機能実装
-
-#### TDD Cycle 9-1: 複数アニメーション同時実行
-**RED**: 
+**RED**: 失敗するテスト作成
 ```rust
 #[test]
-fn test_multiple_animations_simultaneously() {
-    let mut game_state = create_test_game_state();
+fn test_erase_line_completion_consumes_chain_bonus() {
+    let mut game_state = TestGameState::new();
+    game_state.custom_score_system.max_chains.chain_bonus = 5;
     
-    // LineBlink + EraseLineの同時実行
-    game_state.animations.push(Animation::LineBlink { /* ... */ });
-    game_state.animations.push(Animation::EraseLine { /* ... */ });
+    // EraseLineアニメーションを直接作成（2ライン削除予定）
+    let erase_animation = Animation::EraseLine {
+        target_solid_lines: vec![19, 18],
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
+    game_state.animations.push(erase_animation);
     
-    update_animations(&mut game_state.animations, Duration::from_millis(120));
+    // アニメーション完了まで進める
+    complete_erase_line_animation(&mut game_state);
     
-    // 両方のアニメーションが正常に更新されることを確認
-    assert_eq!(game_state.animations.len(), 2);
+    // CHAIN-BONUSが正しく消費されることを確認
+    assert_eq!(game_state.custom_score_system.max_chains.chain_bonus, 3); // 5 - 2 = 3
 }
 ```
 
-**GREEN**: 
-- 複数アニメーション処理の並列実行
+### 🧪 Phase 9-3: Solidライン操作システム（TDD）
 
-**REFACTOR**: 
-- パフォーマンス最適化
+#### Cycle 9-3-1: Solidライン検出とカウント
+
+**RED**: 失敗するテスト作成
+```rust
+#[test]
+fn test_count_solid_lines_from_bottom() {
+    let mut board = create_empty_board();
+    
+    // 底辺から3行をSolidライン（グレー）にする
+    for y in 17..20 {
+        for x in 0..10 {
+            board[y][x] = Cell::Occupied(GameColor::Grey);
+        }
+    }
+    
+    let solid_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(solid_count, 3);
+}
+
+#[test]
+fn test_partial_solid_lines_not_counted() {
+    let mut board = create_empty_board();
+    
+    // 底辺ラインを部分的に埋める（完全Solidではない）
+    for x in 0..5 {
+        board[19][x] = Cell::Occupied(GameColor::Grey);
+    }
+    
+    let solid_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(solid_count, 0); // 部分的な行はカウントしない
+}
+```
+
+#### Cycle 9-3-2: Solidライン除去処理
+
+**RED**: 失敗するテスト作成  
+```rust
+#[test]
+fn test_remove_solid_line_from_bottom() {
+    let mut board = create_empty_board();
+    let mut current_height = 20;
+    
+    // 底辺に2行のSolidライン配置
+    add_solid_lines_to_bottom_direct(&mut board, 2);
+    
+    // 底辺のSolidライン1行を除去
+    let result = remove_solid_line_from_bottom(&mut board, &mut current_height);
+    
+    // 1行除去されることを確認
+    assert!(result.is_some());
+    assert_eq!(current_height, 21); // ボード高が1行拡張される
+    
+    // 残りのSolidライン数を確認
+    let remaining_solid = count_solid_lines_from_bottom(&board);
+    assert_eq!(remaining_solid, 1);
+}
+```
+
+### 🧪 Phase 9-4: 統合テストとエッジケース
+
+#### Cycle 9-4-1: 完全な相殺シーケンステスト
+
+**RED**: 失敗するテスト作成
+```rust
+#[test]
+fn test_complete_offset_sequence() {
+    let mut game_state = TestGameState::new();
+    
+    // 初期状態設定
+    game_state.custom_score_system.max_chains.chain_bonus = 2;
+    add_solid_lines_to_bottom(&mut game_state, 3);
+    add_complete_line(&mut game_state, 16); // 通常のライン消去をトリガー
+    
+    // LineBlink → PushDown → EraseLine の完全シーケンス実行
+    let sequence_result = execute_complete_animation_sequence(&mut game_state);
+    
+    // 最終状態確認
+    assert_eq!(game_state.custom_score_system.max_chains.chain_bonus, 0); // 2消費
+    assert_eq!(count_solid_lines_from_bottom(&game_state.board), 1); // 3-2=1
+    assert!(sequence_result.all_animations_completed);
+}
+```
+
+#### Cycle 9-4-2: CHAIN-BONUS枯渇エッジケース
+
+**RED**: 失敗するテスト作成
+```rust
+#[test]
+fn test_chain_bonus_exhaustion_stops_erase_line() {
+    let mut game_state = TestGameState::new();
+    game_state.custom_score_system.max_chains.chain_bonus = 1;
+    
+    // 5行のSolidラインがあるが、CHAIN-BONUSは1のみ
+    add_solid_lines_to_bottom(&mut game_state, 5);
+    
+    // EraseLineアニメーション実行
+    let erase_animation = create_erase_line_animation(1); // 1行のみ削除予定
+    game_state.animations.push(erase_animation);
+    
+    complete_erase_line_animation(&mut game_state);
+    
+    // CHAIN-BONUSが0になり、Solidラインが4行残ることを確認
+    assert_eq!(game_state.custom_score_system.max_chains.chain_bonus, 0);
+    assert_eq!(count_solid_lines_from_bottom(&game_state.board), 4);
+}
+```
 
 ## 開発完了基準
 
