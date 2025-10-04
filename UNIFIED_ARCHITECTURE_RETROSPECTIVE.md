@@ -48,6 +48,12 @@
 - **Animation System Loss**: 元の完成したアニメーションシステムが統一アーキテクチャで利用不可
 - **Timing Control Issues**: プラットフォーム間でのタイミング制御の不整合
 
+### 5. テスト戦略の欠如
+- **No Regression Testing**: 既存機能の動作を保護するテストが不在
+- **Manual Testing Only**: 自動化されたテストスイートなしで複雑な変更を実行
+- **No Feature Parity Validation**: 統一前後での機能等価性を検証する仕組みなし
+- **Architecture Testability Ignored**: テストしやすいアーキテクチャ設計の軽視
+
 ## Try - 次回への改善案
 
 ### 1. 段階的移行戦略
@@ -117,6 +123,22 @@ fn main() -> io::Result<()> {
 }
 ```
 
+#### Test-Driven Development Approach
+- **Red-Green-Refactor Cycle**: 各機能実装をテストファーストで進行
+- **Testability重視**: アーキテクチャ設計時にテスト容易性を最優先
+- **Regression Prevention**: 既存機能の動作をテストで保護してから統一化
+- **Incremental Validation**: 小さな変更ごとにテスト実行で安全性確保
+
+```rust
+// 例: 統一アーキテクチャの段階的テスト
+#[test]
+fn test_feature_parity_game_state_access() {
+    // 1. Red: 統一前後で同じ結果を期待するテスト
+    // 2. Green: 最小限の実装で テストを通す
+    // 3. Refactor: アーキテクチャを改善
+}
+```
+
 ## 次回実装での重要原則
 
 1. **"Working is better than perfect"** - 動作する機能を壊さない
@@ -124,6 +146,36 @@ fn main() -> io::Result<()> {
 3. **"Feature parity before enhancement"** - 既存機能の再現を優先
 4. **"Test early, test often"** - 各段階での動作確認
 5. **"Rollback readiness"** - いつでも前の状態に戻せる準備
+6. **"Red-Green-Refactor"** - テスト駆動による確実な進捗
+7. **"Testability first"** - アーキテクチャ設計時にテスト容易性を最優先
+
+## Test-Driven Architecture Migration
+
+### テスト戦略
+```rust
+// Phase 1: 既存機能の動作保護テスト
+#[test]
+fn test_original_cli_game_complete_flow() { /* CLI版の完全な動作 */ }
+
+#[test]
+fn test_original_web_game_complete_flow() { /* Web版の完全な動作 */ }
+
+// Phase 2: 統一インターフェースの同等性テスト
+#[test]
+fn test_unified_cli_equals_original() { /* 統一版 == 元版 */ }
+
+#[test]
+fn test_unified_web_equals_original() { /* 統一版 == 元版 */ }
+
+// Phase 3: プラットフォーム間一貫性テスト
+#[test]
+fn test_cross_platform_consistency() { /* CLI版 == Web版 */ }
+```
+
+### Red-Green-Refactorサイクルの適用
+1. **Red**: 期待する統一機能のテストを書く（必ず失敗）
+2. **Green**: テストが通る最小限の実装
+3. **Refactor**: アーキテクチャを改善、テストは維持
 
 ## 技術的負債の認識
 
