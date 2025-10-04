@@ -70,3 +70,454 @@ MAX-CHAINを伸ばすことには限界があるため、必ず何処かで頭�
 ## 既存テストへの影響
 
 ColorScoresを廃止すると、既存のテストコード（約15個）の修正が必要になります。
+
+## TDD実装計画（Red-Green-Refactor）
+
+### 実装方針
+- **RED**: 失敗するテストを先に書く
+- **GREEN**: 最小限のコードでテストを通す
+- **REFACTOR**: 動作を保ったままコードを改善
+- **1サイクル = 30分以内**を目標に小さく刻む
+
+### Phase 1: ColorMaxChainsにchain_bonusメンバ追加
+
+#### TDD Cycle 1-1: chain_bonusフィールド追加
+**RED**: 
+```rust
+#[test]
+fn test_color_max_chains_has_chain_bonus() {
+    let max_chains = ColorMaxChains::new();
+    assert_eq!(max_chains.chain_bonus, 0);
+}
+```
+
+**GREEN**: 
+- `ColorMaxChains`構造体に`pub chain_bonus: u32`を追加
+- `new()`メソッドで`chain_bonus: 0`で初期化
+
+**REFACTOR**: 
+- 既存のテストが通ることを確認
+- コードスタイルとドキュメント整備
+
+#### TDD Cycle 1-2: chain_bonus加算メソッド
+**RED**: 
+```rust
+#[test]
+fn test_add_chain_bonus() {
+    let mut max_chains = ColorMaxChains::new();
+    max_chains.add_chain_bonus(5);
+    assert_eq!(max_chains.chain_bonus, 5);
+    
+    max_chains.add_chain_bonus(3);
+    assert_eq!(max_chains.chain_bonus, 8);
+}
+```
+
+**GREEN**: 
+- `add_chain_bonus(&mut self, amount: u32)`メソッド実装
+
+**REFACTOR**: 
+- オーバーフロー対策（saturating_add使用）
+
+#### TDD Cycle 1-3: chain_bonus消費メソッド
+**RED**: 
+```rust
+#[test]
+fn test_consume_chain_bonus() {
+    let mut max_chains = ColorMaxChains::new();
+    max_chains.chain_bonus = 5;
+    
+    let consumed = max_chains.consume_chain_bonus(3);
+    assert_eq!(consumed, 3);
+    assert_eq!(max_chains.chain_bonus, 2);
+    
+    // 不足する場合のテスト
+    let consumed2 = max_chains.consume_chain_bonus(5);
+    assert_eq!(consumed2, 2);
+    assert_eq!(max_chains.chain_bonus, 0);
+}
+```
+
+**GREEN**: 
+- `consume_chain_bonus(&mut self, max_amount: u32) -> u32`メソッド実装
+
+**REFACTOR**: 
+- エッジケースのテスト追加
+
+### Phase 2: CustomScoreSystem構造変更（段階的移行）
+
+#### TDD Cycle 2-1: total_scoreフィールド追加
+**RED**: 
+```rust
+#[test]
+fn test_custom_score_system_has_total_score() {
+    let system = CustomScoreSystem::new();
+    assert_eq!(system.total_score, 0);
+    // 既存のscoresフィールドも並行して存在することを確認
+    assert_eq!(system.scores.total(), 0);
+}
+```
+
+**GREEN**: 
+- `CustomScoreSystem`に`pub total_score: u32`追加
+- `new()`で`total_score: 0`初期化
+- 既存の`scores: ColorScores`は保持
+
+**REFACTOR**: 
+- フィールドアクセスの整理
+
+#### TDD Cycle 2-2: add_total_scoreメソッド実装
+**RED**: 
+```rust
+#[test]
+fn test_add_total_score() {
+    let mut system = CustomScoreSystem::new();
+    system.add_total_score(100);
+    assert_eq!(system.total_score, 100);
+    
+    system.add_total_score(50);
+    assert_eq!(system.total_score, 150);
+}
+```
+
+**GREEN**: 
+- `add_total_score(&mut self, points: u32)`メソッド実装
+
+**REFACTOR**: 
+- オーバーフロー対策（saturating_add使用）
+
+#### TDD Cycle 2-3: get_total_scoreメソッド実装
+**RED**: 
+```rust
+#[test]
+fn test_get_total_score() {
+    let mut system = CustomScoreSystem::new();
+    assert_eq!(system.get_total_score(), 0);
+    
+    system.total_score = 250;
+    assert_eq!(system.get_total_score(), 250);
+}
+```
+
+**GREEN**: 
+- `get_total_score(&self) -> u32`メソッド実装
+
+**REFACTOR**: 
+- アクセサメソッドの一貫性確認
+
+### Phase 3: スコア計算ロジックの変更
+
+#### TDD Cycle 3-1: 新しいスコア計算関数の基本実装
+**RED**: 
+```rust
+#[test]
+fn test_calculate_line_clear_total_score_basic() {
+    // シンプルなテストケース：Occupiedブロックのみ
+    let mut board = vec![vec![Cell::Empty; 10]; 20];
+    board[19][0] = Cell::Occupied(GameColor::Cyan);
+    board[19][1] = Cell::Occupied(GameColor::Magenta);
+    
+    let mut max_chains = ColorMaxChains::new();
+    max_chains.cyan = 2;
+    max_chains.magenta = 3;
+    
+    let total_score = calculate_line_clear_total_score(&board, 19, &max_chains);
+    assert_eq!(total_score, 50); // (1*2*10) + (1*3*10) = 50
+}
+```
+
+**GREEN**: 
+- `calculate_line_clear_total_score()`関数の基本実装
+- Occupiedブロックのみ対応
+
+**REFACTOR**: 
+- 計算式の明確化
+
+#### TDD Cycle 3-2: Connected ブロック対応追加
+**RED**: 
+```rust
+#[test]
+fn test_calculate_line_clear_total_score_connected() {
+    let mut board = vec![vec![Cell::Empty; 10]; 20];
+    board[19][0] = Cell::Connected { color: GameColor::Cyan, count: 3 };
+    board[19][1] = Cell::Connected { color: GameColor::Yellow, count: 5 };
+    
+    let mut max_chains = ColorMaxChains::new();
+    max_chains.cyan = 2;
+    max_chains.yellow = 4;
+    
+    let total_score = calculate_line_clear_total_score(&board, 19, &max_chains);
+    assert_eq!(total_score, 260); // (3*2*10) + (5*4*10) = 260
+}
+```
+
+**GREEN**: 
+- `Cell::Connected`ケースの処理追加
+
+**REFACTOR**: 
+- 計算ロジックの統一化
+
+#### TDD Cycle 3-3: 既存システムとの並行動作確認
+**RED**: 
+```rust
+#[test]
+fn test_both_score_calculations_match() {
+    let board = create_test_board_with_mixed_blocks();
+    let max_chains = create_test_max_chains();
+    
+    // 既存システム
+    let old_scores = calculate_line_clear_score(&board, 19, &max_chains);
+    let old_total: u32 = old_scores.iter().map(|(_, points)| points).sum();
+    
+    // 新システム
+    let new_total = calculate_line_clear_total_score(&board, 19, &max_chains);
+    
+    assert_eq!(old_total, new_total);
+}
+```
+
+**GREEN**: 
+- 両システムの結果一致を確認
+
+**REFACTOR**: 
+- テストヘルパー関数の整理
+
+### Phase 4A: CHAIN-BONUS更新ロジック実装
+
+#### TDD Cycle 4A-1: MAX-CHAIN更新検知
+**RED**: 
+```rust
+#[test]
+fn test_detect_max_chain_increases() {
+    let old_chains = ColorMaxChains { cyan: 2, magenta: 3, yellow: 4, chain_bonus: 0 };
+    let new_chains = ColorMaxChains { cyan: 4, magenta: 3, yellow: 6, chain_bonus: 0 };
+    
+    let increases = calculate_chain_increases(&old_chains, &new_chains);
+    assert_eq!(increases, 4); // (4-2) + (6-4) = 4
+}
+```
+
+**GREEN**: 
+- `calculate_chain_increases()`関数実装
+
+**REFACTOR**: 
+- エッジケース（減少時）の処理確認
+
+#### TDD Cycle 4A-2: ピース着地時のCHAIN-BONUS更新
+**RED**: 
+```rust
+#[test]
+fn test_chain_bonus_update_on_piece_lock() {
+    let mut game_state = create_test_game_state();
+    game_state.custom_score_system.max_chains.cyan = 2;
+    game_state.custom_score_system.max_chains.chain_bonus = 1;
+    
+    // テストボードで新しい連結を作成してMAX-CHAINが増加する状況を設定
+    setup_board_for_chain_increase(&mut game_state, GameColor::Cyan, 4);
+    
+    lock_piece_and_update_chains(&mut game_state);
+    
+    assert_eq!(game_state.custom_score_system.max_chains.cyan, 4);
+    assert_eq!(game_state.custom_score_system.max_chains.chain_bonus, 3); // 1 + (4-2)
+}
+```
+
+**GREEN**: 
+- `lock_piece()`内でのCHAIN-BONUS更新実装
+
+**REFACTOR**: 
+- 処理順序の確認と最適化
+
+### Phase 4B: スコア加算処理の統合
+
+#### TDD Cycle 4B-1: lock_piece()での新スコア計算使用
+**RED**: 
+```rust
+#[test]
+fn test_lock_piece_uses_total_score() {
+    let mut game_state = create_test_game_state_with_line_ready();
+    let initial_total = game_state.custom_score_system.total_score;
+    
+    lock_piece(&mut game_state);
+    
+    assert!(game_state.custom_score_system.total_score > initial_total);
+    // 既存のcolor_scoresは更新されないことを確認（並行期間中）
+    assert_eq!(game_state.custom_score_system.scores.total(), 0);
+}
+```
+
+**GREEN**: 
+- `lock_piece()`での新スコア計算とtotal_score更新
+
+**REFACTOR**: 
+- スコア計算処理の整理
+
+### Phase 5A: 既存テスト修正（段階的）
+
+#### TDD Cycle 5A-1: scoring.rs テスト修正（第1グループ）
+**RED**: 
+- `test_color_scores_*`系テスト5個の失敗確認
+
+**GREEN**: 
+- 5個のテストを`total_score`ベースに書き換え
+
+**REFACTOR**: 
+- テストの可読性向上
+
+#### TDD Cycle 5A-2: scoring.rs テスト修正（第2グループ）  
+**RED**: 
+- `test_custom_score_system_*`系テスト5個の失敗確認
+
+**GREEN**: 
+- 5個のテストを`total_score`ベースに書き換え
+
+**REFACTOR**: 
+- テスト重複の削除
+
+#### TDD Cycle 5A-3: main.rs/lib.rs テスト修正
+**RED**: 
+- メインロジック系テスト5個の失敗確認
+
+**GREEN**: 
+- 5個のテストを新システムに対応
+
+**REFACTOR**: 
+- テストヘルパーの統一
+
+### Phase 5B: ColorScores完全削除
+
+#### TDD Cycle 5B-1: ColorScores削除準備
+**RED**: 
+```rust
+#[test] 
+fn test_total_score_functionality_complete() {
+    let mut system = CustomScoreSystem::new();
+    system.add_total_score(100);
+    assert_eq!(system.get_total_score(), 100);
+    
+    // この時点でscoresフィールドへの依存がないことを確認
+}
+```
+
+**GREEN**: 
+- 全機能がtotal_scoreで動作することを確認
+
+**REFACTOR**: 
+- 未使用コードの特定
+
+#### TDD Cycle 5B-2: ColorScores削除実行
+**RED**: 
+```rust
+// コンパイルエラーテスト：ColorScoresが存在しないことを確認
+#[test]
+fn test_no_color_scores_field() {
+    let system = CustomScoreSystem::new();
+    // system.scores; // この行でコンパイルエラーになることを期待
+    assert_eq!(system.get_total_score(), 0);
+}
+```
+
+**GREEN**: 
+- `scores: ColorScores`フィールドを削除
+- `Display`トレイト実装を更新
+
+**REFACTOR**: 
+- 未使用import削除
+- ドキュメント更新
+
+### Phase 6: EraseLineアニメーション実装
+
+#### TDD Cycle 6-1: Animation列挙体拡張
+**RED**: 
+```rust
+#[test]
+fn test_erase_line_animation_creation() {
+    let animation = Animation::EraseLine { 
+        lines_remaining: 3,
+        last_update: Duration::from_millis(0)
+    };
+    match animation {
+        Animation::EraseLine { lines_remaining, .. } => {
+            assert_eq!(lines_remaining, 3);
+        },
+        _ => panic!("Expected EraseLine animation"),
+    }
+}
+```
+
+**GREEN**: 
+- `Animation`列挙体に`EraseLine`バリアント追加
+
+**REFACTOR**: 
+- アニメーション構造の整理
+
+#### TDD Cycle 6-2: EraseLineアニメーション更新処理
+**RED**: 
+```rust
+#[test]
+fn test_erase_line_animation_updates() {
+    let mut animations = vec![Animation::EraseLine { 
+        lines_remaining: 2,
+        last_update: Duration::from_millis(0)
+    }];
+    let current_time = Duration::from_millis(120);
+    
+    let result = update_animations(&mut animations, current_time);
+    
+    // 1つのラインが削除されることを確認
+    if let Animation::EraseLine { lines_remaining, .. } = &animations[0] {
+        assert_eq!(*lines_remaining, 1);
+    }
+}
+```
+
+**GREEN**: 
+- `update_animations()`にEraseLine処理追加
+
+**REFACTOR**: 
+- 120ミリ秒間隔の調整可能性
+
+#### TDD Cycle 6-3: CHAIN-BONUS消費ロジック統合
+**RED**: 
+```rust
+#[test]
+fn test_chain_bonus_creates_erase_line_animation() {
+    let mut game_state = create_test_game_state();
+    game_state.custom_score_system.max_chains.chain_bonus = 3;
+    add_solid_lines_to_board(&mut game_state, 2);
+    
+    trigger_push_down_completion(&mut game_state);
+    
+    // EraseLineアニメーションが作成されることを確認
+    assert!(has_erase_line_animation(&game_state.animations));
+    assert_eq!(get_erase_line_count(&game_state.animations), 2); // min(3, 2)
+}
+```
+
+**GREEN**: 
+- PushDown完了時のEraseLine作成ロジック
+
+**REFACTOR**: 
+- アニメーションシーケンスの最適化
+
+### 各Cycleでの確認事項
+1. **cargo check**: コンパイルエラーなし
+2. **cargo test**: 全テスト通過（95/95維持）
+3. **cargo clippy**: 警告なし
+4. **cargo fmt**: フォーマット適用
+5. **git add && git commit**: 各Cycle完了時にコミット
+
+### エラー発生時の対応
+- **RED段階**: コンパイルエラーは期待される（新機能追加時）
+- **GREEN段階**: テスト通過最優先、最小実装でOK
+- **REFACTOR段階**: 機能変更禁止、品質向上のみ
+- **想定外の失敗**: 前Cycleに戻って原因調査
+- **テスト数減少**: 即座に原因特定と修復
+
+### 実装完了の確認基準
+- [ ] 全95テストが通過
+- [ ] 新機能のテストが追加済み
+- [ ] ColorScoresが完全削除済み
+- [ ] CHAIN-BONUSが正常動作
+- [ ] EraseLineアニメーションが実装済み
+- [ ] CLI版での動作確認完了
