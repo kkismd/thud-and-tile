@@ -119,6 +119,7 @@ impl ColorMaxChains {
 pub struct CustomScoreSystem {
     pub scores: ColorScores,
     pub max_chains: ColorMaxChains,
+    pub total_score: u32,
 }
 
 impl CustomScoreSystem {
@@ -126,6 +127,7 @@ impl CustomScoreSystem {
         Self {
             scores: ColorScores::new(),
             max_chains: ColorMaxChains::new(),
+            total_score: 0,
         }
     }
 }
@@ -293,5 +295,11 @@ mod tests {
         max_chains.add_chain_bonus(10);
         assert_eq!(max_chains.consume_chain_bonus(10), 10);
         assert_eq!(max_chains.chain_bonus, 0);
+    }
+
+    #[test]
+    fn test_custom_score_system_has_total_score() {
+        let system = CustomScoreSystem::new();
+        assert_eq!(system.total_score, 0);
     }
 }
