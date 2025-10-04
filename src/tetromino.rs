@@ -407,10 +407,10 @@ impl Tetromino {
         ],
         // Z - SRS standard coordinates with physical rotation order
         [
-            [(0, 0), (1, 0), (1, 1), (2, 1)], // State 0: standard Z shape
-            [(2, 0), (1, 1), (2, 1), (1, 2)], // State 1: rotated 90° (D,C,B,A physical order)
-            [(0, 1), (1, 1), (1, 2), (2, 2)], // State 2: rotated 180°
-            [(1, 0), (0, 1), (1, 1), (0, 2)], // State 3: rotated 270°
+            [(0, 0), (1, 0), (1, 1), (2, 1)], // State 0: A,B,C,D - standard Z shape
+            [(2, 0), (2, 1), (1, 1), (1, 2)], // State 1: A,B,C,D after 90° rotation
+            [(0, 1), (1, 1), (1, 2), (2, 2)], // State 2: A,B,C,D after 180° rotation  
+            [(1, 0), (1, 1), (0, 1), (0, 2)], // State 3: A,B,C,D after 270° rotation
         ],
     ];
 }

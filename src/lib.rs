@@ -1170,6 +1170,8 @@ impl WasmGameState {
         for gray_line_y in result.completed_push_downs {
             match animation::process_push_down_step(&mut self.board, &mut self.current_board_height, gray_line_y) {
                 animation::PushDownStepResult::Completed => {
+                    // Push Down完了後にconnected block countsを更新
+                    self.update_all_connected_block_counts();
                     console_log!("PushDown animation completed for line {}", gray_line_y);
                 }
                 animation::PushDownStepResult::Moved { new_gray_line_y } => {
@@ -1185,6 +1187,8 @@ impl WasmGameState {
         
         // すべてのアニメーションが完了した場合、新しいピースをスポーン
         if self.animation.is_empty() {
+            // アニメーション完了後にconnected block countsを最終更新
+            self.update_all_connected_block_counts();
             self.spawn_piece();
         }
     }
