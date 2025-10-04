@@ -121,6 +121,20 @@ impl TetrominoBag {
         TetrominoBag { bag, random_provider }
     }
 
+    /// Web版用のコンストラクタ（独立したインスタンス作成）
+    pub fn new_instance() -> Self {
+        Self::new()
+    }
+
+    /// テスト用のコンストラクタ（決定論的な動作）
+    #[cfg(test)]
+    pub fn new_for_test(random_provider: crate::random::RandomProviderImpl) -> Self {
+        let mut bag = TetrominoShape::all_shapes();
+        let mut provider = random_provider;
+        provider.shuffle(&mut bag);
+        TetrominoBag { bag, random_provider: provider }
+    }
+
     pub fn next(&mut self) -> TetrominoShape {
         if self.bag.is_empty() {
             self.bag = TetrominoShape::all_shapes();
@@ -158,24 +172,11 @@ impl Tetromino {
 
             let tetromino = Self::from_shape(shape, colors);
 
-            // Check for adjacency validity
-            let blocks = &tetromino.blocks;
-            let mut is_valid = true;
-            'outer: for i in 0..blocks.len() {
-                for j in (i + 1)..blocks.len() {
-                    let (pos1, color1) = blocks[i];
-                    let (pos2, color2) = blocks[j];
-
-                    let is_adjacent = (pos1.0 - pos2.0).abs() + (pos1.1 - pos2.1).abs() == 1;
-
-                    if is_adjacent && color1 == color2 {
-                        is_valid = false;
-                        break 'outer;
-                    }
-                }
-            }
-
-            if is_valid {
+            // 共通の隣接制約チェック関数を使用
+            let coordinates: Vec<(i8, i8)> = tetromino.blocks.iter().map(|(pos, _)| *pos).collect();
+            let block_colors: Vec<GameColor> = tetromino.blocks.iter().map(|(_, color)| *color).collect();
+            
+            if Self::validate_adjacency_constraints(&coordinates, &block_colors) {
                 return tetromino;
             }
         }
@@ -422,6 +423,26 @@ impl Tetromino {
         } else {
             None
         }
+    }
+
+    /// 隣接制約を検証する共通関数
+    /// 1つのテトロミノ内で隣接するブロック同士は異なる色でなければならない
+    pub fn validate_adjacency_constraints(coordinates: &[(i8, i8)], colors: &[GameColor]) -> bool {
+        for i in 0..coordinates.len() {
+            for j in (i + 1)..coordinates.len() {
+                let pos1 = coordinates[i];
+                let pos2 = coordinates[j];
+                let color1 = colors[i % colors.len()];
+                let color2 = colors[j % colors.len()];
+
+                let is_adjacent = (pos1.0 - pos2.0).abs() + (pos1.1 - pos2.1).abs() == 1;
+
+                if is_adjacent && color1 == color2 {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }
 

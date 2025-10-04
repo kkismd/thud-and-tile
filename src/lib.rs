@@ -125,7 +125,7 @@ use game_input::GameInput;
 use random::{RandomProvider, create_default_random_provider};
 use cell::Cell;
 use scoring::CustomScoreSystem;
-use tetromino::{get_srs_wall_kick_offsets_by_shape, Tetromino}; // CLI版のSRS関数とTetrominoをimport
+use tetromino::{get_srs_wall_kick_offsets_by_shape, Tetromino, TetrominoShape, TetrominoBag}; // CLI版の共通コンポーネントをimport
 use animation::{Animation, calculate_line_clear_score, process_line_clear};
 
 #[cfg(target_arch = "wasm32")]
@@ -263,55 +263,6 @@ impl WasmCustomScoreSystem {
     }
 }
 
-/// Web版用のTetrominoShape列挙型
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TetrominoShape {
-    I = 0,
-    O = 1,
-    T = 2,
-    L = 3,
-    J = 4,
-    S = 5,
-    Z = 6,
-}
-
-impl TetrominoShape {
-    fn all_shapes() -> Vec<TetrominoShape> {
-        vec![
-            TetrominoShape::I,
-            TetrominoShape::O,
-            TetrominoShape::T,
-            TetrominoShape::L,
-            TetrominoShape::J,
-            TetrominoShape::S,
-            TetrominoShape::Z,
-        ]
-    }
-}
-
-/// Web版用の7-bag実装
-pub struct WebTetrominoBag {
-    bag: Vec<TetrominoShape>,
-}
-
-impl WebTetrominoBag {
-    pub fn new() -> Self {
-        let mut bag = TetrominoShape::all_shapes();
-        let mut provider = create_default_random_provider();
-        provider.shuffle(&mut bag);
-        WebTetrominoBag { bag }
-    }
-
-    pub fn next(&mut self) -> TetrominoShape {
-        if self.bag.is_empty() {
-            self.bag = TetrominoShape::all_shapes();
-            let mut provider = create_default_random_provider();
-            provider.shuffle(&mut self.bag);
-        }
-        self.bag.pop().unwrap()
-    }
-}
-
 /// 簡易テトロミノ（WASM用）
 #[derive(Debug, Clone)]
 pub struct SimpleTetromino {
@@ -323,29 +274,6 @@ pub struct SimpleTetromino {
 }
 
 impl SimpleTetromino {
-    pub fn new_random() -> Self {
-        let mut provider = create_default_random_provider();
-        let shape = provider.gen_range(0, 7) as u8;
-        let color_palette = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
-        
-        // CLI版と同じ隣接制約チェックを適用
-        loop {
-            let colors = [
-                color_palette[provider.gen_range(0, 3)],
-                color_palette[provider.gen_range(0, 3)],
-                color_palette[provider.gen_range(0, 3)],
-                color_palette[provider.gen_range(0, 3)],
-            ];
-            
-            let tetromino = Self::from_shape_with_colors(shape, colors);
-            
-            // CLI版と同じ隣接制約チェック
-            if Self::validate_adjacency_constraints(&tetromino) {
-                return tetromino;
-            }
-        }
-    }
-    
     pub fn from_shape(shape: TetrominoShape) -> Self {
         let mut provider = create_default_random_provider();
         let color_palette = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
@@ -380,25 +308,10 @@ impl SimpleTetromino {
     }
     
     /// 隣接制約を検証（CLI版と同じロジック）
+    /// 隣接制約を検証（共通関数使用）
     fn validate_adjacency_constraints(tetromino: &SimpleTetromino) -> bool {
         let blocks = tetromino.get_blocks_at_rotation(tetromino.rotation);
-        
-        for i in 0..blocks.len() {
-            for j in (i + 1)..blocks.len() {
-                let pos1 = blocks[i];
-                let pos2 = blocks[j];
-                let color1 = tetromino.colors[i % tetromino.colors.len()];
-                let color2 = tetromino.colors[j % tetromino.colors.len()];
-
-                let is_adjacent = (pos1.0 - pos2.0).abs() + (pos1.1 - pos2.1).abs() == 1;
-
-                if is_adjacent && color1 == color2 {
-                    return false;
-                }
-            }
-        }
-        
-        true
+        Tetromino::validate_adjacency_constraints(&blocks, &tetromino.colors)
     }
     
     /// CLI版と同じ色の回転マッピングを適用
@@ -465,7 +378,7 @@ pub struct WasmGameState {
     fall_speed: Duration,
     last_fall_time: Duration,
     time_provider: WasmTimeProvider,
-    tetromino_bag: WebTetrominoBag, // 7-bag実装
+    tetromino_bag: TetrominoBag, // 統一された7-bag実装
     current_board_height: usize, // 動的ボード高さ（CLI版と同じ）
     // アニメーション関連（CLI版と同等）
     animation: Vec<Animation>, // CLI版と同じVec<Animation>管理
@@ -490,7 +403,7 @@ impl WasmGameState {
             fall_speed: FALL_SPEED_START,
             last_fall_time: current_time,
             time_provider,
-            tetromino_bag: WebTetrominoBag::new(),
+            tetromino_bag: TetrominoBag::new_instance(),
             current_board_height: BOARD_HEIGHT, // CLI版と同じ初期値
             animation: Vec::new(), // CLI版と同じ初期状態
         }
@@ -1536,4 +1449,86 @@ fn wasm_shared_animation_module() {
     // アニメーションが存在することを確認
     assert!(!animations.is_empty());
     console_log!("WASM shared animation test passed with {} animations", animations.len());
+}
+
+#[cfg(test)]
+mod web_tetromino_tests {
+    use super::*;
+    use crate::random::{RandomProviderImpl, DeterministicRandomProvider};
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_web_7_bag_system() {
+        // DeterministicRandomProviderでテスト用のTetrominoBagを作成
+        let deterministic_provider = DeterministicRandomProvider::new(vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7]);
+        let mut test_bag = TetrominoBag::new_for_test(RandomProviderImpl::Deterministic(deterministic_provider));
+
+        let mut generated_shapes = Vec::new();
+        for _ in 0..14 {
+            // 2つのbagを生成
+            generated_shapes.push(test_bag.next());
+        }
+
+        // 最初のbagが7種類全てを含むことを確認
+        let first_bag_shapes: HashSet<_> = generated_shapes[0..7].iter().collect();
+        assert_eq!(
+            first_bag_shapes.len(),
+            7,
+            "Web版: 最初のbagが7種類全てを含んでいません"
+        );
+
+        // 2番目のbagも7種類全てを含むことを確認
+        let second_bag_shapes: HashSet<_> = generated_shapes[7..14].iter().collect();
+        assert_eq!(
+            second_bag_shapes.len(),
+            7,
+            "Web版: 2番目のbagが7種類全てを含んでいません"
+        );
+    }
+
+    #[test]
+    fn test_web_adjacency_constraints() {
+        // Web版の隣接制約チェックをテスト
+        let shape = TetrominoShape::Z;
+        
+        // 隣接する2つのブロックに同じ色を設定（無効）
+        let invalid_colors = [GameColor::Cyan, GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
+        let invalid_tetromino = SimpleTetromino::from_shape_with_colors(shape as u8, invalid_colors);
+        
+        assert!(
+            !SimpleTetromino::validate_adjacency_constraints(&invalid_tetromino),
+            "Web版: 隣接するブロックに同じ色があるのに、検証が成功してしまいました"
+        );
+
+        // 隣接するブロックが全て異なる色（有効）
+        let valid_colors = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow, GameColor::Cyan];
+        let valid_tetromino = SimpleTetromino::from_shape_with_colors(shape as u8, valid_colors);
+        
+        assert!(
+            SimpleTetromino::validate_adjacency_constraints(&valid_tetromino),
+            "Web版: 隣接制約を満たしているのに、検証が失敗しました"
+        );
+    }
+
+    #[test]
+    fn test_web_cli_tetromino_compatibility() {
+        // Web版とCLI版の共通コンポーネントが正しく動作することを確認
+        let shape = TetrominoShape::T;
+        let rotation = 0;
+        
+        // 共通のget_shape_coordinates関数を使用
+        let coordinates = Tetromino::get_shape_coordinates(shape as usize, rotation as usize);
+        assert!(coordinates.is_some(), "Web版: 共通座標関数からの取得に失敗");
+        
+        let coords = coordinates.unwrap();
+        
+        // Web版のget_blocks_at_rotation関数でも同じ座標が取得できることを確認
+        let web_tetromino = SimpleTetromino::from_shape_with_colors(shape as u8, [GameColor::Cyan; 4]);
+        let web_coords = web_tetromino.get_blocks_at_rotation(rotation);
+        
+        assert_eq!(coords.len(), web_coords.len(), "Web版: 座標数が一致しません");
+        for (i, &coord) in coords.iter().enumerate() {
+            assert_eq!(coord, web_coords[i], "Web版: 座標が一致しません at index {}", i);
+        }
+    }
 }
