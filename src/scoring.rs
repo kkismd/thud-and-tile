@@ -485,3 +485,88 @@ pub fn lock_piece_with_total_score(
         custom_score.total_score = custom_score.total_score.saturating_add(line_score);
     }
 }
+
+/// Phase 4A-2: ピース着地時のCHAIN-BONUS更新関数
+pub fn update_chain_bonus_on_piece_lock(
+    custom_score: &mut CustomScoreSystem,
+    new_chains: &ColorMaxChains,
+) {
+    let old_chains = custom_score.max_chains.clone();
+    let increases = calculate_chain_increases(&old_chains, new_chains);
+    
+    // MAX-CHAINを更新
+    custom_score.max_chains.cyan = new_chains.cyan;
+    custom_score.max_chains.magenta = new_chains.magenta;
+    custom_score.max_chains.yellow = new_chains.yellow;
+    
+    // CHAIN-BONUSに増加分を加算
+    custom_score.max_chains.chain_bonus = custom_score.max_chains.chain_bonus.saturating_add(increases);
+}
+
+#[cfg(test)]
+mod phase4_tests {
+    use super::*;
+
+    #[test]
+    fn test_phase4a1_detect_max_chain_increases() {
+        let old_chains = ColorMaxChains { 
+            cyan: 2, 
+            magenta: 3, 
+            yellow: 4, 
+            chain_bonus: 0 
+        };
+        let new_chains = ColorMaxChains { 
+            cyan: 4, 
+            magenta: 3, 
+            yellow: 6, 
+            chain_bonus: 0 
+        };
+        
+        let increases = calculate_chain_increases(&old_chains, &new_chains);
+        assert_eq!(increases, 4); // (4-2) + (6-4) = 4
+    }
+
+    // Phase 4A-2: ピース着地時のCHAIN-BONUS更新テスト（RED段階）
+    #[test]
+    fn test_phase4a2_chain_bonus_update_on_piece_lock() {
+        let mut custom_score = CustomScoreSystem::new();
+        custom_score.max_chains.cyan = 2;
+        custom_score.max_chains.chain_bonus = 1;
+        
+        // 新しいMAX-CHAINの状態（Cyan: 2→4に増加）
+        let new_chains = ColorMaxChains { 
+            cyan: 4, 
+            magenta: 0, 
+            yellow: 0, 
+            chain_bonus: 0 
+        };
+        
+        // この関数は未実装のため失敗するはず
+        update_chain_bonus_on_piece_lock(&mut custom_score, &new_chains);
+        
+        assert_eq!(custom_score.max_chains.cyan, 4);
+        assert_eq!(custom_score.max_chains.chain_bonus, 3); // 1 + (4-2)
+    }
+
+    // Phase 4A-2: エッジケーステスト（REFACTOR段階）
+    #[test]
+    fn test_phase4a2_chain_bonus_no_decrease() {
+        let mut custom_score = CustomScoreSystem::new();
+        custom_score.max_chains.cyan = 5;
+        custom_score.max_chains.chain_bonus = 2;
+        
+        // MAX-CHAINが減少する場合（5→3）
+        let new_chains = ColorMaxChains { 
+            cyan: 3, 
+            magenta: 0, 
+            yellow: 0, 
+            chain_bonus: 0 
+        };
+        
+        update_chain_bonus_on_piece_lock(&mut custom_score, &new_chains);
+        
+        // 減少時はCHAIN-BONUSは増加しない
+        assert_eq!(custom_score.max_chains.cyan, 3);
+        assert_eq!(custom_score.max_chains.chain_bonus, 2); // 変化なし
+    }
+}

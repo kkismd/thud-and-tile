@@ -1,5 +1,8 @@
 use super::*;
 
+// debug_score_tests.rs は主にmain.rsの機能をテストするため、
+// lib.rsテストでは基本的なロジックのみテスト可能
+
 #[test]
 fn debug_score_calculation() {
     let time_provider = MockTimeProvider::new();
@@ -392,4 +395,26 @@ fn test_lock_piece_uses_total_score() {
 
     // 既存のcolor_scoresは更新されないことを確認（並行期間中）
     assert_eq!(custom_score.scores.total(), 0);
+}
+
+// Phase 4A-1: MAX-CHAIN更新検知テスト（RED段階）
+#[test]
+fn test_phase4a1_detect_max_chain_increases() {
+    use crate::scoring::{calculate_chain_increases, ColorMaxChains};
+    
+    let old_chains = ColorMaxChains { 
+        cyan: 2, 
+        magenta: 3, 
+        yellow: 4, 
+        chain_bonus: 0 
+    };
+    let new_chains = ColorMaxChains { 
+        cyan: 4, 
+        magenta: 3, 
+        yellow: 6, 
+        chain_bonus: 0 
+    };
+    
+    let increases = calculate_chain_increases(&old_chains, &new_chains);
+    assert_eq!(increases, 4); // (4-2) + (6-4) = 4
 }
