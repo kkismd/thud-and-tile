@@ -130,6 +130,11 @@ impl CustomScoreSystem {
             total_score: 0,
         }
     }
+
+    /// 統合スコアを加算（オーバーフロー防止）
+    pub fn add_total_score(&mut self, points: u32) {
+        self.total_score = self.total_score.saturating_add(points);
+    }
 }
 
 /// スコア表示用のフォーマット実装
@@ -301,5 +306,26 @@ mod tests {
     fn test_custom_score_system_has_total_score() {
         let system = CustomScoreSystem::new();
         assert_eq!(system.total_score, 0);
+    }
+
+    #[test]
+    fn test_add_total_score() {
+        let mut system = CustomScoreSystem::new();
+
+        // Initial state
+        assert_eq!(system.total_score, 0);
+
+        // Add some score
+        system.add_total_score(100);
+        assert_eq!(system.total_score, 100);
+
+        // Add more score (accumulative)
+        system.add_total_score(50);
+        assert_eq!(system.total_score, 150);
+
+        // Test overflow protection (saturating_add behavior)
+        system.total_score = u32::MAX - 25;
+        system.add_total_score(50);
+        assert_eq!(system.total_score, u32::MAX);
     }
 }
