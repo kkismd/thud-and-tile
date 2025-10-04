@@ -1,5 +1,44 @@
 # Task History Log
 
+## 2024-10-04 - コード共通化・品質改善フェーズ完了
+
+### ✅ Issue #4, #5 バグ修正完了
+- **Issue #4:** ZミノのSHAPE回転時色配置ずれ → **解決済み**
+  - 物理回転順序に準拠した座標配列修正
+  - CLI・Web版両方で統一された挙動を実現
+- **Issue #5:** ライン消去後Connected数未更新 → **解決済み**
+  - `update_animation()`でのconnected数リアルタイム更新
+  - アニメーション完了時の確実な再計算
+
+### ✅ コード共通化による重複削除
+- **SHAPES配列統一:** tetromino.rs → lib.rs共通化 (50+行削除)
+  - `get_shape_coordinates()`公開関数で1箇所管理
+  - CLI・Web版で同じ座標データ使用、修正は1箇所で完結
+- **TetrominoShape定義統一:** Web版重複定義削除、CLI版をインポート使用
+- **7-bag システム統一:** WebTetrominoBag削除、TetrominoBag共通使用
+- **隣接制約チェック共通化:** `validate_adjacency_constraints()`でロジック統一
+
+### ✅ API整理・品質向上
+- **紛らわしいAPI削除:** `SimpleTetromino::new_random()`（完全ランダム）を削除
+- **Web版テスト強化:** 3新規テスト追加
+  - `test_web_7_bag_system()`: Web版7-bagシステム検証
+  - `test_web_adjacency_constraints()`: 隣接制約検証
+  - `test_web_cli_tetromino_compatibility()`: CLI・Web版互換性確認
+- **品質保証:** 95/95テスト成功（lib.rs: 30, main.rs: 65）
+
+### ✅ 技術的負債解消
+- **DRY原則達成:** 重複コードの大幅削減
+- **Single Source of Truth:** 重要なデータ構造の一元管理
+- **保守性向上:** 将来の修正・機能追加コストの削減
+- **テスト強化:** Web版品質保証体制の確立
+
+**主要コミット:**
+- `dc8c243`: "refactor: 共通化によりSHAPES配列の重複コードを削除"
+  - 2 files changed, 17 insertions(+), 67 deletions(-)
+  - CLI・Web版統一アーキテクチャの基盤確立
+
+---
+
 ## 2024-10-04 - 統一アーキテクチャ第1回実装レトロスペクティブ
 
 ### ❌ 統一アーキテクチャ第1回実装 - 大幅な機能回帰
