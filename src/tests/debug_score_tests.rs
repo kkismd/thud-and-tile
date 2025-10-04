@@ -193,9 +193,7 @@ fn test_calculate_line_clear_total_score_basic() {
 }
 
 fn create_test_board_with_line() -> Vec<Vec<Cell>> {
-    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-    let line_y = 19;
-    board[line_y] = vec![
+    create_test_board_with_cells(vec![
         Cell::Occupied(GameColor::Cyan),    // 1
         Cell::Occupied(GameColor::Magenta), // 2
         Cell::Occupied(GameColor::Yellow),  // 3
@@ -206,7 +204,13 @@ fn create_test_board_with_line() -> Vec<Vec<Cell>> {
         Cell::Occupied(GameColor::Magenta), // 8
         Cell::Occupied(GameColor::Yellow),  // 9
         Cell::Occupied(GameColor::Cyan),    // 10
-    ];
+    ])
+}
+
+/// テストボード作成のヘルパー関数
+fn create_test_board_with_cells(line_cells: Vec<Cell>) -> Vec<Vec<Cell>> {
+    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+    board[19] = line_cells;
     board
 }
 
@@ -229,4 +233,45 @@ fn test_calculate_line_clear_total_score_connected() {
     
     let total_score = calculate_line_clear_total_score(&board, 19, &max_chains);
     assert_eq!(total_score, 260); // (3*2*10) + (5*4*10) = 260
+}
+
+// Phase 3-3: 既存システムとの並行動作確認テスト
+#[test]
+fn test_both_score_calculations_match() {
+    // RED: 新旧システムの結果一致確認
+    use crate::scoring::{calculate_line_clear_total_score, ColorMaxChains};
+    use crate::animation::calculate_line_clear_score;
+
+    let board = create_test_board_with_mixed_blocks();
+    let max_chains = ColorMaxChains {
+        cyan: 2,
+        magenta: 3,
+        yellow: 1,
+        chain_bonus: 0,
+    };
+    
+    // 既存システム（animation.rs）
+    let old_scores = calculate_line_clear_score(&board, 19, &max_chains);
+    let old_total: u32 = old_scores.iter().map(|(_, points)| points).sum();
+    
+    // 新システム（scoring.rs）
+    let new_total = calculate_line_clear_total_score(&board, 19, &max_chains);
+    
+    assert_eq!(old_total, new_total);
+}
+
+fn create_test_board_with_mixed_blocks() -> Vec<Vec<Cell>> {
+    create_test_board_with_cells(vec![
+        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
+        Cell::Connected { color: GameColor::Magenta, count: 2 }, // 2 × 3 × 10 = 60
+        Cell::Occupied(GameColor::Yellow),  // 1 × 1 × 10 = 10
+        Cell::Connected { color: GameColor::Cyan, count: 3 },    // 3 × 2 × 10 = 60
+        Cell::Occupied(GameColor::Magenta), // 1 × 3 × 10 = 30
+        Cell::Connected { color: GameColor::Yellow, count: 4 },  // 4 × 1 × 10 = 40
+        Cell::Occupied(GameColor::Cyan),    // 1 × 2 × 10 = 20
+        Cell::Occupied(GameColor::Magenta), // 1 × 3 × 10 = 30
+        Cell::Empty,                        // 無視
+        Cell::Solid,                        // 無視
+    ])
+    // Total expected: 20+60+10+60+30+40+20+30 = 270
 }
