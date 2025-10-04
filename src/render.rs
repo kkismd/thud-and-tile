@@ -679,3 +679,134 @@ pub fn draw<R: Renderer>(
 
     renderer.flush()
 }
+
+/// GameStateAccessを使った統一描画システム（CLI・Web共通）
+pub fn draw_unified<R: Renderer>(
+    renderer: &mut R,
+    game_state: &dyn crate::unified_engine::GameStateAccess,
+) -> io::Result<()> {
+    let game_mode = game_state.get_game_mode();
+    
+    match game_mode {
+        0 => {
+            // Title mode - handled separately by draw_title_screen
+            return Ok(());
+        }
+        1 => {
+            // Playing mode
+            renderer.clear_screen()?;
+            
+            // ボードの外枠を描画
+            renderer.set_foreground_color(GameColor::Grey)?;
+            renderer.move_to(0, 0)?;
+            renderer.print("┌")?;
+            renderer.move_to((BOARD_WIDTH * 2) as u16 + 1, 0)?;
+            renderer.print("┐")?;
+            renderer.move_to(0, BOARD_HEIGHT as u16 + 1)?;
+            renderer.print("└")?;
+            renderer.move_to((BOARD_WIDTH * 2) as u16 + 1, BOARD_HEIGHT as u16 + 1)?;
+            renderer.print("┘")?;
+            
+            // 縦線
+            for y in 1..=BOARD_HEIGHT {
+                renderer.move_to(0, y as u16)?;
+                renderer.print("│")?;
+                renderer.move_to((BOARD_WIDTH * 2) as u16 + 1, y as u16)?;
+                renderer.print("│")?;
+            }
+            
+            // 横線
+            for x in 0..BOARD_WIDTH {
+                renderer.move_to((x * 2) as u16 + 1, 0)?;
+                renderer.print("──")?;
+                renderer.move_to((x * 2) as u16 + 1, BOARD_HEIGHT as u16 + 1)?;
+                renderer.print("──")?;
+            }
+            
+            // ボードの中身を描画
+            let board_data = game_state.get_board_state();
+            for y in 0..BOARD_HEIGHT {
+                for x in 0..BOARD_WIDTH {
+                    let index = y * BOARD_WIDTH + x;
+                    if index < board_data.len() {
+                        let cell_value = board_data[index];
+                        if cell_value != 0 {
+                            let color = GameColor::from_u8(cell_value);
+                            renderer.set_background_color(color)?;
+                            renderer.move_to((x * 2) as u16 + 1, (y + 1) as u16)?;
+                            renderer.print("  ")?; // 2文字分のブロック
+                            renderer.reset_color()?;
+                        }
+                    }
+                }
+            }
+            
+            // 現在のピースを描画（全ブロック）
+            let piece_blocks = game_state.get_current_piece_blocks();
+            for (x, y, color_id) in piece_blocks {
+                if y >= 0 && x >= 0 && x < BOARD_WIDTH as i32 && y < BOARD_HEIGHT as i32 {
+                    let color = GameColor::from_u8(color_id);
+                    renderer.set_background_color(color)?;
+                    let screen_x = (x * 2 + 1) as u16;
+                    let screen_y = (y + 1) as u16;
+                    renderer.move_to(screen_x, screen_y)?;
+                    renderer.print("  ")?; // 2文字分のブロック
+                    renderer.reset_color()?;
+                }
+            }
+            
+            // ゴーストピースを描画
+            let ghost_blocks = game_state.get_ghost_piece_blocks();
+            for (x, y) in ghost_blocks {
+                if y >= 0 && x >= 0 && x < BOARD_WIDTH as i32 && y < BOARD_HEIGHT as i32 {
+                    renderer.set_foreground_color(GameColor::DarkGrey)?;
+                    let screen_x = (x * 2 + 1) as u16;
+                    let screen_y = (y + 1) as u16;
+                    renderer.move_to(screen_x, screen_y)?;
+                    renderer.print("░░")?; // ゴーストブロック
+                    renderer.reset_color()?;
+                }
+            }
+            
+            // スコア表示
+            let score = game_state.get_score();
+            renderer.set_foreground_color(GameColor::White)?;
+            renderer.move_to((BOARD_WIDTH * 2 + 5) as u16, 2)?;
+            renderer.print(&format!("Score: {}", score))?;
+            
+            // アニメーション状態
+            if game_state.has_animation() {
+                renderer.move_to((BOARD_WIDTH * 2 + 5) as u16, 4)?;
+                renderer.print("Animation: ●")?;
+            }
+            
+            // 操作方法
+            renderer.move_to((BOARD_WIDTH * 2 + 5) as u16, 6)?;
+            renderer.print("Controls:")?;
+            renderer.move_to((BOARD_WIDTH * 2 + 5) as u16, 7)?;
+            renderer.print("WASD: Move/Rotate")?;
+            renderer.move_to((BOARD_WIDTH * 2 + 5) as u16, 8)?;
+            renderer.print("Q: Quit")?;
+        }
+        2 => {
+            // Game Over mode
+            renderer.clear_screen()?;
+            renderer.set_foreground_color(GameColor::Red)?;
+            renderer.move_to(5, 5)?;
+            renderer.print("💀 === GAME OVER === 💀")?;
+            renderer.move_to(5, 7)?;
+            renderer.print(&format!("Final Score: {}", game_state.get_score()))?;
+            renderer.move_to(5, 9)?;
+            renderer.print("Press 'Q' to quit")?;
+        }
+        _ => {
+            // 未知のモード
+            renderer.clear_screen()?;
+            renderer.move_to(5, 5)?;
+            renderer.print("Unknown game mode")?;
+        }
+    }
+    
+    renderer.reset_color()?;
+    renderer.flush()
+}

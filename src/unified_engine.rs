@@ -29,6 +29,8 @@ pub trait GameStateAccess {
     fn get_game_mode(&self) -> u8;
     fn get_board_state(&self) -> Vec<u8>;
     fn get_current_piece_info(&self) -> Vec<i32>;
+    fn get_current_piece_blocks(&self) -> Vec<(i32, i32, u8)>; // (x, y, color_id)
+    fn get_ghost_piece_blocks(&self) -> Vec<(i32, i32)>; // (x, y)
     fn get_score(&self) -> u32;
     fn has_animation(&self) -> bool;
 }
@@ -92,6 +94,7 @@ impl UnifiedGameController {
         UpdateResult {
             needs_render: self.needs_render,
             game_mode: self.engine.get_game_state().get_game_mode(),
+            force_full_redraw: false, // 通常は差分描画
         }
     }
     
@@ -133,6 +136,17 @@ impl UnifiedGameController {
         self.should_exit
     }
     
+    /// CLI版専用: 直接GameStateアクセス（一時的な互換性のため）
+    pub fn get_cli_game_state(&self) -> Option<&crate::GameState> {
+        // ダウンキャストでCliGameEngineにアクセス
+        use std::any::Any;
+        if let Some(cli_engine) = (self.engine.as_ref() as &dyn Any).downcast_ref::<crate::CliGameEngine>() {
+            Some(cli_engine.get_state())
+        } else {
+            None
+        }
+    }
+    
     /// エンジンイベントの処理
     fn handle_engine_event(&mut self, event: GameEvent) {
         match event {
@@ -164,6 +178,7 @@ impl UnifiedGameController {
 pub struct UpdateResult {
     pub needs_render: bool,
     pub game_mode: u8,
+    pub force_full_redraw: bool, // 全画面再描画が必要かどうか
 }
 
 /// CLI版用の実装例
@@ -275,6 +290,16 @@ pub mod cli_adapter {
         
         fn get_current_piece_info(&self) -> Vec<i32> {
             // TODO: 現在ピース情報の変換実装
+            vec![]
+        }
+        
+        fn get_current_piece_blocks(&self) -> Vec<(i32, i32, u8)> {
+            // TODO: 現在ピースのブロック情報実装
+            vec![]
+        }
+        
+        fn get_ghost_piece_blocks(&self) -> Vec<(i32, i32)> {
+            // TODO: ゴーストピース実装
             vec![]
         }
         

@@ -190,6 +190,20 @@ impl GameStateAccess for WasmGameEngine {
         }
     }
     
+    fn get_current_piece_blocks(&self) -> Vec<(i32, i32, u8)> {
+        // WASM版では簡単な実装
+        if let Some(ref piece) = self.current_piece {
+            vec![(piece.x, piece.y, piece.color.to_u8())]
+        } else {
+            vec![]
+        }
+    }
+    
+    fn get_ghost_piece_blocks(&self) -> Vec<(i32, i32)> {
+        // WASM版では簡単な実装
+        vec![]
+    }
+    
     fn get_score(&self) -> u32 {
         self.score
     }

@@ -71,6 +71,29 @@ impl GameColor {
         }
     }
 
+    /// 数値IDからGameColorに変換（統一描画システム用）
+    pub fn from_u8(value: u8) -> GameColor {
+        match value {
+            1 => GameColor::Cyan,
+            2 => GameColor::Magenta,
+            3 => GameColor::Yellow,
+            4 => GameColor::Grey,
+            5 => GameColor::Red,
+            6 => GameColor::Green,
+            7 => GameColor::Blue,
+            8 => GameColor::White,
+            9 => GameColor::Black,
+            10 => GameColor::DarkGrey,
+            11 => GameColor::DarkRed,
+            12 => GameColor::DarkGreen,
+            13 => GameColor::DarkBlue,
+            14 => GameColor::DarkYellow,
+            15 => GameColor::DarkMagenta,
+            16 => GameColor::DarkCyan,
+            _ => GameColor::Grey, // デフォルト
+        }
+    }
+
     /// CSS色名を取得（Web用）
     pub fn to_css_name(&self) -> &'static str {
         match self {

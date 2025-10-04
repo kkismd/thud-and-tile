@@ -128,18 +128,56 @@ impl GameStateAccess for CliGameEngine {
     }
     
     fn get_board_state(&self) -> Vec<u8> {
-        // 簡単な実装 - より詳細な実装は後で追加
-        vec![]
+        // ボード状態をWeb版と統一的な形式で返す
+        let mut board_data = Vec::new();
+        for row in &self.state.board {
+            for cell in row {
+                let cell_value = match cell {
+                    crate::cell::Cell::Empty => 0u8,
+                    crate::cell::Cell::Occupied(color) => color.to_u8(),
+                    crate::cell::Cell::Solid => 9,
+                    crate::cell::Cell::Connected { color, .. } => color.to_u8() + 10, // Connected用のオフセット
+                };
+                board_data.push(cell_value);
+            }
+        }
+        board_data
     }
     
     fn get_current_piece_info(&self) -> Vec<i32> {
-        // 簡単な実装 - より詳細な実装は後で追加
-        vec![]
+        // Web版と同じ形式: [x, y, shape_type, rotation]
+        if let Some(piece) = &self.state.current_piece {
+            vec![piece.pos.0 as i32, piece.pos.1 as i32, piece.shape as i32, piece.get_rotation_state() as i32]
+        } else {
+            vec![]
+        }
+    }
+    
+    fn get_current_piece_blocks(&self) -> Vec<(i32, i32, u8)> {
+        // 現在のピースの全ブロック位置と色を返す
+        if let Some(piece) = &self.state.current_piece {
+            piece.iter_blocks()
+                .map(|((x, y), color)| (x as i32, y as i32, color.to_u8()))
+                .collect()
+        } else {
+            vec![]
+        }
+    }
+    
+    fn get_ghost_piece_blocks(&self) -> Vec<(i32, i32)> {
+        // ゴーストピースの位置を返す
+        if let Some(ghost) = self.state.ghost_piece() {
+            ghost.iter_blocks()
+                .map(|((x, y), _)| (x as i32, y as i32))
+                .collect()
+        } else {
+            vec![]
+        }
     }
     
     fn get_score(&self) -> u32 {
-        // CustomScoreSystemから総スコアを計算
-        0 // 簡単な実装 - より詳細な実装は後で追加
+        // CustomScoreSystemから総スコアを取得
+        self.state.custom_score_system.scores.total()
     }
     
     fn has_animation(&self) -> bool {

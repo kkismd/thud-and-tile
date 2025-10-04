@@ -559,34 +559,14 @@ fn main_unified() -> io::Result<()> {
                     render::draw_title_screen(&mut renderer)?; // Title
                 }
                 1 => {
-                    // Playing - より分かりやすいゲーム画面表示
-                    use crossterm::{execute, style::Print, cursor::MoveTo, terminal::{Clear, ClearType}};
-                    
-                    // 画面をクリアしてゲーム画面を描画
-                    execute!(renderer.stdout, Clear(ClearType::All))?;
-                    execute!(renderer.stdout, MoveTo(2, 2), Print("🎮 === TETRIS GAME ACTIVE === 🎮"))?;
-                    execute!(renderer.stdout, MoveTo(2, 4), Print("┌──────────────────────┐"))?;
-                    execute!(renderer.stdout, MoveTo(2, 5), Print("│                      │"))?;
-                    execute!(renderer.stdout, MoveTo(2, 6), Print("│     GAME BOARD       │"))?;
-                    execute!(renderer.stdout, MoveTo(2, 7), Print("│                      │"))?;
-                    execute!(renderer.stdout, MoveTo(2, 8), Print("│  🟦🟦🟨🟨🟩🟩🟪🟪  │"))?;
-                    execute!(renderer.stdout, MoveTo(2, 9), Print("│  🟦🟦🟨🟨🟩🟩🟪🟪  │"))?;
-                    execute!(renderer.stdout, MoveTo(2, 10), Print("│                      │"))?;
-                    execute!(renderer.stdout, MoveTo(2, 11), Print("└──────────────────────┘"))?;
-                    execute!(renderer.stdout, MoveTo(2, 13), Print("Controls:"))?;
-                    execute!(renderer.stdout, MoveTo(2, 14), Print("  WASD - Move/Rotate pieces"))?;
-                    execute!(renderer.stdout, MoveTo(2, 15), Print("  Q     - Quit game"))?;
-                    execute!(renderer.stdout, MoveTo(2, 17), Print("🎮 Game is running! Press keys to play! 🎮"))?;
+                    // Playing - 統一描画システムを使用
+                    let game_state = controller.get_game_state();
+                    render::draw_unified(&mut renderer, game_state)?;
                 }
                 2 => {
-                    // GameOver - ゲームオーバー画面
-                    use crossterm::{execute, style::Print, cursor::MoveTo, terminal::{Clear, ClearType}};
-                    
-                    execute!(renderer.stdout, Clear(ClearType::All))?;
-                    execute!(renderer.stdout, MoveTo(5, 5), Print("💀 === GAME OVER === 💀"))?;
-                    execute!(renderer.stdout, MoveTo(5, 7), Print("Thanks for playing!"))?;
-                    execute!(renderer.stdout, MoveTo(5, 9), Print("Press 'Q' again to quit"))?;
-                    execute!(renderer.stdout, MoveTo(5, 10), Print("or restart the game"))?;
+                    // GameOver - 統一描画システムを使用
+                    let game_state = controller.get_game_state();
+                    render::draw_unified(&mut renderer, game_state)?;
                 }
                 _ => {
                     // 未知のゲームモード - タイトル画面を表示
