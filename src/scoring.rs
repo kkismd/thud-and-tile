@@ -503,6 +503,16 @@ pub fn update_chain_bonus_on_piece_lock(
     custom_score.max_chains.chain_bonus = custom_score.max_chains.chain_bonus.saturating_add(increases);
 }
 
+/// Phase 4B-1: lock_piece()での新スコア計算統合関数
+pub fn lock_piece_with_integrated_scoring(
+    custom_score: &mut CustomScoreSystem,
+    board: &Vec<Vec<crate::cell::Cell>>,
+    cleared_line_indices: &[usize],
+) {
+    // 既存のlock_piece_with_total_score関数を呼び出して統合
+    lock_piece_with_total_score(custom_score, board, cleared_line_indices);
+}
+
 #[cfg(test)]
 mod phase4_tests {
     use super::*;
@@ -568,5 +578,33 @@ mod phase4_tests {
         // 減少時はCHAIN-BONUSは増加しない
         assert_eq!(custom_score.max_chains.cyan, 3);
         assert_eq!(custom_score.max_chains.chain_bonus, 2); // 変化なし
+    }
+
+    // Phase 4B-1: lock_piece()での新スコア計算使用テスト（RED段階）
+    #[test]
+    fn test_phase4b1_lock_piece_uses_total_score() {
+        use crate::cell::Cell;
+        use crate::game_color::GameColor;
+        
+        let mut custom_score = CustomScoreSystem::new();
+        let initial_total = custom_score.total_score;
+        
+        // MAX-CHAINを設定してスコア計算が可能にする
+        custom_score.max_chains.cyan = 2;
+        custom_score.max_chains.magenta = 3;
+        custom_score.max_chains.yellow = 1;
+        
+        // テスト用ボードを作成（1ライン分のブロック）
+        let mut board = vec![vec![Cell::Empty; 10]; 20];
+        for x in 0..10 {
+            board[19][x] = Cell::Occupied(GameColor::Cyan);
+        }
+        
+        // この関数は未実装のため失敗するはず
+        lock_piece_with_integrated_scoring(&mut custom_score, &board, &[19]);
+        
+        assert!(custom_score.total_score > initial_total);
+        // 既存のcolor_scoresは更新されないことを確認（並行期間中）
+        assert_eq!(custom_score.scores.total(), 0);
     }
 }
