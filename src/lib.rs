@@ -125,7 +125,7 @@ use game_input::GameInput;
 use random::{RandomProvider, create_default_random_provider};
 use cell::Cell;
 use scoring::CustomScoreSystem;
-use tetromino::get_srs_wall_kick_offsets_by_shape; // CLI版のSRS関数をimport
+use tetromino::{get_srs_wall_kick_offsets_by_shape, Tetromino}; // CLI版のSRS関数とTetrominoをimport
 use animation::{Animation, calculate_line_clear_score, process_line_clear};
 
 #[cfg(target_arch = "wasm32")]
@@ -422,72 +422,12 @@ impl SimpleTetromino {
     }
     
     pub fn get_blocks_at_rotation(&self, rotation: u8) -> Vec<(i8, i8)> {
-        // SRS標準座標系による4つの回転状態
-        match self.shape {
-            0 => { // I piece - SRS standard
-                match rotation {
-                    0 => vec![(0, 1), (1, 1), (2, 1), (3, 1)], // horizontal
-                    1 => vec![(2, 3), (2, 2), (2, 1), (2, 0)], // vertical
-                    2 => vec![(3, 2), (2, 2), (1, 2), (0, 2)], // horizontal
-                    3 => vec![(1, 0), (1, 1), (1, 2), (1, 3)], // vertical
-                    _ => vec![(0, 1), (1, 1), (2, 1), (3, 1)],
-                }
-            },
-            1 => { // O piece - SRS standard with True Rotation (wobble effect)
-                match rotation {
-                    0 => vec![(1, 1), (2, 1), (1, 2), (2, 2)], // State 0: TL,TR,BL,BR - A,B,C,D
-                    1 => vec![(2, 1), (2, 2), (1, 1), (1, 2)], // State 1: clockwise rotation - B,D,A,C
-                    2 => vec![(2, 2), (1, 2), (2, 1), (1, 1)], // State 2: 180 degree rotation - D,C,B,A
-                    3 => vec![(1, 2), (1, 1), (2, 2), (2, 1)], // State 3: counter-clockwise - C,A,D,B
-                    _ => vec![(1, 1), (2, 1), (1, 2), (2, 2)],
-                }
-            },
-            2 => { // T piece - SRS standard
-                match rotation {
-                    0 => vec![(1, 0), (0, 1), (1, 1), (2, 1)], // upward T
-                    1 => vec![(2, 1), (1, 0), (1, 1), (1, 2)], // rightward T
-                    2 => vec![(1, 2), (2, 1), (1, 1), (0, 1)], // downward T
-                    3 => vec![(0, 1), (1, 2), (1, 1), (1, 0)], // leftward T
-                    _ => vec![(1, 0), (0, 1), (1, 1), (2, 1)],
-                }
-            },
-            3 => { // L piece - SRS standard
-                match rotation {
-                    0 => vec![(2, 0), (0, 1), (1, 1), (2, 1)],
-                    1 => vec![(2, 2), (1, 0), (1, 1), (1, 2)],
-                    2 => vec![(0, 2), (2, 1), (1, 1), (0, 1)],
-                    3 => vec![(0, 0), (1, 2), (1, 1), (1, 0)],
-                    _ => vec![(2, 0), (0, 1), (1, 1), (2, 1)],
-                }
-            },
-            4 => { // J piece - SRS standard
-                match rotation {
-                    0 => vec![(0, 0), (0, 1), (1, 1), (2, 1)],
-                    1 => vec![(2, 0), (1, 0), (1, 1), (1, 2)],
-                    2 => vec![(2, 2), (2, 1), (1, 1), (0, 1)],
-                    3 => vec![(0, 2), (1, 2), (1, 1), (1, 0)],
-                    _ => vec![(0, 0), (0, 1), (1, 1), (2, 1)],
-                }
-            },
-            5 => { // S piece - SRS standard
-                match rotation {
-                    0 => vec![(1, 0), (2, 0), (0, 1), (1, 1)],
-                    1 => vec![(2, 1), (2, 2), (1, 0), (1, 1)],
-                    2 => vec![(1, 2), (0, 2), (2, 1), (1, 1)],
-                    3 => vec![(0, 1), (0, 0), (1, 2), (1, 1)],
-                    _ => vec![(1, 0), (2, 0), (0, 1), (1, 1)],
-                }
-            },
-            6 => { // Z piece - SRS standard coordinates with corrected physical rotation order
-                match rotation {
-                    0 => vec![(0, 0), (1, 0), (1, 1), (2, 1)], // State 0: A,B,C,D - standard Z shape
-                    1 => vec![(2, 0), (2, 1), (1, 1), (1, 2)], // State 1: A,B,C,D after 90° rotation
-                    2 => vec![(0, 1), (1, 1), (1, 2), (2, 2)], // State 2: A,B,C,D after 180° rotation  
-                    3 => vec![(1, 0), (1, 1), (0, 1), (0, 2)], // State 3: A,B,C,D after 270° rotation
-                    _ => vec![(0, 0), (1, 0), (1, 1), (2, 1)],
-                }
-            },
-            _ => vec![(0, 0)], // Default
+        // 共通のSHAPES配列を使用してCLI・Web版を統一
+        if let Some(coordinates) = Tetromino::get_shape_coordinates(self.shape as usize, rotation as usize) {
+            coordinates.to_vec()
+        } else {
+            // デフォルト座標（念のため）
+            vec![(0, 0)]
         }
     }
     

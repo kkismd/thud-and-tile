@@ -413,6 +413,16 @@ impl Tetromino {
             [(1, 0), (1, 1), (0, 1), (0, 2)], // State 3: A,B,C,D after 270° rotation
         ],
     ];
+
+    /// 共通のSHAPES配列にアクセスするためのパブリック関数
+    /// CLI・Web版両方で同じ座標データを使用するために提供
+    pub fn get_shape_coordinates(shape: usize, rotation: usize) -> Option<[(i8, i8); 4]> {
+        if shape < Self::SHAPES.len() && rotation < Self::SHAPES[shape].len() {
+            Some(Self::SHAPES[shape][rotation])
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
