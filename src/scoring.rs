@@ -268,42 +268,39 @@ mod tests {
     #[test]
     fn test_custom_score_system_display() {
         let mut system = CustomScoreSystem::new();
-        system.scores.add(GameColor::Cyan, 200);
-        system.scores.add(GameColor::Magenta, 420);
-        system.scores.add(GameColor::Yellow, 500);
+        // 新統合スコアシステムではtotal_scoreフィールドを使用
+        system.add_total_score(1120);
         system.max_chains.update_max(GameColor::Cyan, 2);
         system.max_chains.update_max(GameColor::Magenta, 4);
         system.max_chains.update_max(GameColor::Yellow, 5);
 
-        let expected = "SCORE:    1120\n  CYAN:    200\n  MAGENTA: 420\n  YELLOW:  500\n\nMAX-CHAIN: 5\n  CYAN:    2\n  MAGENTA: 4\n  YELLOW:  5";
+        let expected = "TOTAL SCORE: 1120\n\nMAX-CHAIN: 5\n  CYAN:    2\n  MAGENTA: 4\n  YELLOW:  5\n\nCHAIN-BONUS: 0";
         assert_eq!(format!("{}", system), expected);
     }
 
-    // Phase 5A-2: RED段階 - CustomScoreSystemの新旧整合性問題を示すテスト
+    // Phase 5A-2: 修正済み - CustomScoreSystemの新統合スコアシステム確認テスト
     #[test]
     fn test_custom_score_system_consistency_issue() {
-        // 現在のCustomScoreSystemは古いscoresフィールドに依存している
+        // 新統合スコアシステムではtotal_scoreフィールドを使用
         let mut system = CustomScoreSystem::new();
 
-        // 古いscores.add()を使用した場合の問題
-        system.scores.add(GameColor::Cyan, 100);
+        // 新しいadd_total_score()を使用
+        system.add_total_score(100);
 
-        // 新しいtotal_scoreは更新されない（不整合）
-        assert_eq!(system.scores.total(), 100);
-        assert_eq!(system.total_score, 0);
+        // 新システムでは整合性が保たれる
+        assert_eq!(system.total_score, 100);
 
-        // Display機能も古いscoresに依存している
+        // Display機能も新統合スコアシステムに対応
         let display_text = format!("{}", system);
         assert!(
-            display_text.contains("SCORE:    100"),
-            "Display should show old scores system"
+            display_text.contains("TOTAL SCORE: 100"),
+            "Display should show new integrated scores system"
         );
 
-        // 新システム用のテストは失敗することを確認（修正対象）
-        assert_ne!(
-            system.scores.total(),
-            system.total_score,
-            "新旧スコアシステムの不整合確認"
+        // 新統合スコアシステムの整合性確認（修正完了）
+        assert_eq!(
+            system.total_score, 100,
+            "新統合スコアシステムの整合性確認"
         );
     }
 
