@@ -9,7 +9,6 @@ use std::io::{self, Write};
 use crate::cell::Cell;
 use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
 use crate::game_color::GameColor;
-use std::time::Duration;
 
 use crate::animation::Animation;
 use crate::GameMode;
@@ -412,7 +411,7 @@ pub fn draw<R: Renderer>(
                 renderer.move_to(ui_x, 3)?;
                 renderer.print("CHAIN-BONUS: 0   ")?;
                 renderer.move_to(ui_x, 5)?;
-                renderer.print("MAX-CHAIN: 0     ")?;
+                renderer.print("MAX-CHAIN:")?;
                 renderer.move_to(ui_x, 6)?;
                 renderer.print("  CYAN:    0     ")?;
                 renderer.move_to(ui_x, 7)?;
@@ -588,15 +587,9 @@ pub fn draw<R: Renderer>(
                     format!("CHAIN-BONUS: {:<6}", state.custom_score_system.max_chains.chain_bonus).as_str(),
                 )?;
 
-                // Display max chain
+                // Display max chain by color only (without total)
                 renderer.move_to(ui_x, 5)?;
-                renderer.print(
-                    format!(
-                        "MAX-CHAIN: {:<6}",
-                        state.custom_score_system.max_chains.max()
-                    )
-                    .as_str(),
-                )?;
+                renderer.print("MAX-CHAIN:")?;
                 renderer.move_to(ui_x, 6)?;
                 renderer.print(
                     format!(

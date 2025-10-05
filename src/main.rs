@@ -591,36 +591,44 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
 
     // Process EraseLineアニメーション
     let mut erase_line_animations_to_process = Vec::new();
-    for animation in &state.animation {
+    for (index, animation) in state.animation.iter().enumerate() {
         if let Animation::EraseLine { .. } = animation {
-            erase_line_animations_to_process.push(animation.clone());
+            erase_line_animations_to_process.push(index);
         }
     }
 
-    for erase_line_animation in erase_line_animations_to_process {
-        if let Animation::EraseLine { 
+    for &animation_index in &erase_line_animations_to_process {
+        if let Some(Animation::EraseLine { 
             target_solid_lines, 
             current_step, 
             last_update, 
             chain_bonus_consumed 
-        } = erase_line_animation {
+        }) = state.animation.get(animation_index) {
+            let target_solid_lines = target_solid_lines.clone();
+            let current_step = *current_step;
+            let last_update = *last_update;
+            let chain_bonus_consumed = *chain_bonus_consumed;
+            
+            // 一時的なアニメーションオブジェクトを作成
+            let mut temp_animation = Animation::EraseLine { 
+                target_solid_lines, 
+                current_step, 
+                last_update, 
+                chain_bonus_consumed 
+            };
+            
             match process_erase_line_step(
-                &mut Animation::EraseLine { 
-                    target_solid_lines: target_solid_lines.clone(), 
-                    current_step, 
-                    last_update, 
-                    chain_bonus_consumed 
-                },
+                &mut temp_animation,
                 current_time,
                 &mut state.board,
                 &mut state.current_board_height,
             ) {
                 EraseLineStepResult::Continue => {
-                    // EraseLineアニメーション継続 - アニメーション状態更新
-                    for animation in &mut state.animation {
-                        if let Animation::EraseLine { current_step: step, last_update: update, .. } = animation {
-                            *step = current_step + 1;
-                            *update = current_time;
+                    // EraseLineアニメーション継続 - 実際のアニメーション状態を更新
+                    if let Animation::EraseLine { current_step: step, last_update: update, .. } = &mut state.animation[animation_index] {
+                        if let Animation::EraseLine { current_step: temp_step, last_update: temp_update, .. } = temp_animation {
+                            *step = temp_step;
+                            *update = temp_update;
                         }
                     }
                 }
@@ -628,7 +636,7 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                     // EraseLineアニメーション完了
                     
                     // CHAIN-BONUS消費
-                    let _consumed = consume_chain_bonus_for_erase_line(
+                    let consumed = consume_chain_bonus_for_erase_line(
                         &mut state.custom_score_system.max_chains.chain_bonus,
                         lines_erased
                     );

@@ -114,14 +114,8 @@ pub fn update_animations(
                 
                 // TODO: update_animations関数のリファクタリング必要
                 // Phase 9-4完了後に統合処理として修正
-                // match process_erase_line_step(&mut animation, current_time, board, current_height) {
-                //     EraseLineStepResult::Continue => {
-                //         result.continuing_animations.push(animation);
-                //     }
-                //     EraseLineStepResult::Complete { lines_erased: _ } => {
-                //         // EraseLineアニメーション完了 - 継続アニメーションには追加しない
-                //     }
-                // }
+                // EraseLineアニメーション処理は現在main.rsで個別処理
+                result.continuing_animations.push(animation);
             }
         }
     }
@@ -194,8 +188,9 @@ pub fn process_erase_line_step(
     {
         // 120ミリ秒ごとに1ライン消去
         let erase_interval = Duration::from_millis(120);
+        let elapsed = current_time - *last_update;
 
-        if current_time - *last_update >= erase_interval {
+        if elapsed >= erase_interval {
             if *current_step < target_solid_lines.len() {
                 // 実際にSolidライン除去を実行
                 let removed = remove_solid_line_from_bottom(board, current_height);
