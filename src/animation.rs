@@ -112,14 +112,16 @@ pub fn update_animations(
                     chain_bonus_consumed,
                 };
                 
-                match process_erase_line_step(&mut animation, current_time) {
-                    EraseLineStepResult::Continue => {
-                        result.continuing_animations.push(animation);
-                    }
-                    EraseLineStepResult::Complete { lines_erased: _ } => {
-                        // EraseLineアニメーション完了 - 継続アニメーションには追加しない
-                    }
-                }
+                // TODO: update_animations関数のリファクタリング必要
+                // Phase 9-4完了後に統合処理として修正
+                // match process_erase_line_step(&mut animation, current_time, board, current_height) {
+                //     EraseLineStepResult::Continue => {
+                //         result.continuing_animations.push(animation);
+                //     }
+                //     EraseLineStepResult::Complete { lines_erased: _ } => {
+                //         // EraseLineアニメーション完了 - 継続アニメーションには追加しない
+                //     }
+                // }
             }
         }
     }
@@ -169,16 +171,19 @@ pub enum PushDownStepResult {
 }
 
 /// EraseLineステップの結果
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum EraseLineStepResult {
     Continue,
     Complete { lines_erased: u32 },
 }
 
 /// EraseLineアニメーション処理（1ステップ実行）
+/// Phase 9-4 統合版: 実際のSolidライン除去を実行
 pub fn process_erase_line_step(
     animation: &mut Animation,
     current_time: Duration,
+    board: &mut crate::cell::Board,
+    current_height: &mut usize,
 ) -> EraseLineStepResult {
     if let Animation::EraseLine {
         target_solid_lines,
@@ -192,16 +197,26 @@ pub fn process_erase_line_step(
 
         if current_time - *last_update >= erase_interval {
             if *current_step < target_solid_lines.len() {
-                *current_step += 1;
-                *chain_bonus_consumed += 1;
-                *last_update = current_time;
+                // 実際にSolidライン除去を実行
+                let removed = remove_solid_line_from_bottom(board, current_height);
+                
+                if removed.is_some() {
+                    *current_step += 1;
+                    *chain_bonus_consumed += 1;
+                    *last_update = current_time;
 
-                if *current_step >= target_solid_lines.len() {
-                    EraseLineStepResult::Complete { 
-                        lines_erased: target_solid_lines.len() as u32 
+                    if *current_step >= target_solid_lines.len() {
+                        EraseLineStepResult::Complete { 
+                            lines_erased: target_solid_lines.len() as u32 
+                        }
+                    } else {
+                        EraseLineStepResult::Continue
                     }
                 } else {
-                    EraseLineStepResult::Continue
+                    // Solidライン不足による完了
+                    EraseLineStepResult::Complete { 
+                        lines_erased: *current_step as u32 
+                    }
                 }
             } else {
                 EraseLineStepResult::Complete { 

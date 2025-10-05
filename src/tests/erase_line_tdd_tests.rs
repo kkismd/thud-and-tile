@@ -43,6 +43,8 @@ fn test_erase_line_animation_structure() {
 /// TDD Cycle 9-1-2: EraseLineアニメーションステップ処理のテスト
 #[test]
 fn test_erase_line_animation_step_processing() {
+    use crate::cell::{Cell, Board};
+    
     let mut animation = Animation::EraseLine {
         target_solid_lines: vec![19, 18, 17],
         current_step: 0,
@@ -50,8 +52,11 @@ fn test_erase_line_animation_step_processing() {
         chain_bonus_consumed: 0,
     };
     
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    let mut current_height = 20;
+    
     // 120ms経過後にステップ処理
-    let result = process_erase_line_step(&mut animation, Duration::from_millis(120));
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
     
     // 1ステップ進行することを確認
     if let Animation::EraseLine { current_step, chain_bonus_consumed, .. } = animation {
@@ -66,6 +71,8 @@ fn test_erase_line_animation_step_processing() {
 /// TDD Cycle 9-1-2: EraseLineアニメーション完了のテスト
 #[test]
 fn test_erase_line_animation_completion() {
+    use crate::cell::{Cell, Board};
+    
     let mut animation = Animation::EraseLine {
         target_solid_lines: vec![19],
         current_step: 0,
@@ -73,8 +80,11 @@ fn test_erase_line_animation_completion() {
         chain_bonus_consumed: 0,
     };
     
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    let mut current_height = 20;
+    
     // 120ms経過後にステップ処理
-    let result = process_erase_line_step(&mut animation, Duration::from_millis(120));
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
     
     // アニメーション完了を確認
     assert!(matches!(result, EraseLineStepResult::Complete { lines_erased: 1 }));
@@ -83,6 +93,8 @@ fn test_erase_line_animation_completion() {
 /// TDD Cycle 9-1-2: 時間未経過でのステップ処理テスト
 #[test]
 fn test_erase_line_animation_time_not_elapsed() {
+    use crate::cell::{Cell, Board};
+    
     let mut animation = Animation::EraseLine {
         target_solid_lines: vec![19, 18],
         current_step: 0,
@@ -90,8 +102,11 @@ fn test_erase_line_animation_time_not_elapsed() {
         chain_bonus_consumed: 0,
     };
     
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    let mut current_height = 20;
+    
     // 60ms経過（120ms未満）
-    let result = process_erase_line_step(&mut animation, Duration::from_millis(60));
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(60), &mut board, &mut current_height);
     
     // ステップが進行しないことを確認
     if let Animation::EraseLine { current_step, chain_bonus_consumed, .. } = animation {
@@ -282,3 +297,224 @@ fn test_remove_solid_line_adds_empty_row_on_top() {
     // 元のトップラインが1行下にずれていることを確認（21行目）
     assert_eq!(board[1][0], Cell::Occupied(GameColor::Cyan));
 }
+
+// ===================== Phase 9-4: 統合テストとエッジケース ======================
+// RED段階: 統合テストシナリオの実装
+// - 完全なEraseLine アニメーション シーケンステスト
+// - CHAIN-BONUS枯渇時の動作検証  
+// - 複数アニメーション連鎖の動作確認
+// - エッジケース: Solid ライン不足、空盤面、制限動作
+
+#[test]
+fn phase9_4_test_complete_erase_line_sequence() {
+    // RED: 完全なEraseLine animation sequenceのテスト
+    // シナリオ: CHAIN-BONUS 3, Solidライン 5個, target_solid_lines 2の場合
+    use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, count_solid_lines_from_bottom};
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    use std::time::Duration;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    
+    // Solidライン5個をボトムから配置
+    for y in 15..20 {
+        for x in 0..10 {
+            board[y][x] = Cell::Occupied(GameColor::Grey);
+        }
+    }
+    
+    let mut animation = Animation::EraseLine {
+        target_solid_lines: vec![19, 18], // 2個のSolidライン対象
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
+    
+    let mut current_height = 20;
+    
+    // 初期状態を確認
+    let initial_solid_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(initial_solid_count, 5); // 5個のSolidラインが設定されていることを確認
+    
+    // 1回目の process_erase_line_step 実行
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
+    
+    // 1個目のSolidライン除去を確認
+    assert_eq!(result, EraseLineStepResult::Continue);
+    if let Animation::EraseLine { current_step, chain_bonus_consumed, .. } = animation {
+        assert_eq!(current_step, 1);
+        assert_eq!(chain_bonus_consumed, 1);
+    }
+    
+    // Solidライン が4個残ることを確認
+    let remaining_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(remaining_count, 4);
+    
+    // ボード高さが21になることを確認（相殺効果）
+    assert_eq!(board.len(), 21);
+    assert_eq!(current_height, 21); // current_heightも同期していることを確認
+}
+
+#[test]
+fn phase9_4_test_chain_bonus_exhaustion_scenario() {
+    // RED: CHAIN-BONUS枯渇時の動作テスト
+    use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, count_solid_lines_from_bottom};
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    use std::time::Duration;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    
+    // Solidライン3個配置
+    for y in 17..20 {
+        for x in 0..10 {
+            board[y][x] = Cell::Occupied(GameColor::Grey);
+        }
+    }
+    
+    // CHAIN-BONUS制限による target_solid_lines の決定をテスト
+    let chain_bonus = 1; // 枯渇直前
+    let solid_lines_count = count_solid_lines_from_bottom(&board);
+    let erase_line_count = crate::animation::determine_erase_line_count(chain_bonus, solid_lines_count);
+    
+    // min(1, 3) = 1 となることを確認
+    assert_eq!(erase_line_count, 1);
+    
+    let mut animation = Animation::EraseLine {
+        target_solid_lines: vec![19], // 制限により1個のみ
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
+    
+    let mut current_height = 20;
+    
+    // 1回目実行: 成功して完了
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
+    assert_eq!(result, EraseLineStepResult::Complete { lines_erased: 1 });
+    
+    // Solidライン が2個残ることを確認
+    let remaining_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(remaining_count, 2);
+}
+
+#[test]
+fn phase9_4_test_insufficient_solid_lines_edge_case() {
+    // RED: Solid ライン不足時のエッジケーステスト
+    use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, count_solid_lines_from_bottom};
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    use std::time::Duration;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    
+    // Solidライン1個のみ配置
+    for x in 0..10 {
+        board[19][x] = Cell::Occupied(GameColor::Grey);
+    }
+    
+    // CHAIN-BONUSが十分でも、Solidライン数が制限要因
+    let chain_bonus = 5;
+    let solid_lines_count = count_solid_lines_from_bottom(&board);
+    let erase_line_count = crate::animation::determine_erase_line_count(chain_bonus, solid_lines_count);
+    
+    // min(5, 1) = 1 となることを確認
+    assert_eq!(erase_line_count, 1);
+    
+    let mut animation = Animation::EraseLine {
+        target_solid_lines: vec![19], // 1個のみ利用可能
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
+    
+    let mut current_height = 20;
+    
+    // 1回目実行: 1個除去で完了
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
+    assert_eq!(result, EraseLineStepResult::Complete { lines_erased: 1 });
+    
+    // Solidライン が0個になることを確認
+    let remaining_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(remaining_count, 0);
+}
+
+#[test]
+fn phase9_4_test_empty_board_edge_case() {
+    // RED: 空盤面でのエッジケーステスト
+    use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, count_solid_lines_from_bottom};
+    use crate::cell::{Cell, Board};
+    use std::time::Duration;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    
+    // CHAIN-BONUSが十分でも、Solidライン数が0
+    let chain_bonus = 10;
+    let solid_lines_count = count_solid_lines_from_bottom(&board);
+    let erase_line_count = crate::animation::determine_erase_line_count(chain_bonus, solid_lines_count);
+    
+    // min(10, 0) = 0 となることを確認
+    assert_eq!(erase_line_count, 0);
+    
+    let mut animation = Animation::EraseLine {
+        target_solid_lines: vec![], // 空のターゲット
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
+    
+    let mut current_height = 20;
+    
+    // 空盤面での実行: 即座に完了
+    let result = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
+    assert_eq!(result, EraseLineStepResult::Complete { lines_erased: 0 });
+    
+    // ボード状態も変化なし
+    assert_eq!(board.len(), 20);
+    let remaining_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(remaining_count, 0);
+}
+
+#[test]
+fn phase9_4_test_chain_bonus_consumption_integration() {
+    // RED: CHAIN-BONUS消費の統合テスト
+    use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, consume_chain_bonus_for_erase_line};
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    use std::time::Duration;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    
+    // Solidライン2個配置
+    for y in 18..20 {
+        for x in 0..10 {
+            board[y][x] = Cell::Occupied(GameColor::Grey);
+        }
+    }
+    
+    let mut animation = Animation::EraseLine {
+        target_solid_lines: vec![19, 18], // 2個のSolidライン対象
+        current_step: 0,
+        last_update: Duration::from_millis(0),
+        chain_bonus_consumed: 0,
+    };
+    
+    let mut current_height = 20;
+    
+    // 2ステップ実行してアニメーション完了
+    let result1 = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
+    assert_eq!(result1, EraseLineStepResult::Continue);
+    
+    let result2 = process_erase_line_step(&mut animation, Duration::from_millis(240), &mut board, &mut current_height);
+    assert_eq!(result2, EraseLineStepResult::Complete { lines_erased: 2 });
+    
+    // CHAIN-BONUS消費シミュレーション
+    let mut chain_bonus = 10;
+    let consumed = consume_chain_bonus_for_erase_line(&mut chain_bonus, 2);
+    
+    // 2ライン消去で2のCHAIN-BONUSが消費されることを確認
+    assert_eq!(consumed, 2);
+    assert_eq!(chain_bonus, 8); // 10 - 2 = 8
+}
+
+// Phase 9-4 tests: 18 total (13 previous + 5 new integration/edge case tests)
