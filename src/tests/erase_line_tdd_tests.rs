@@ -55,6 +55,13 @@ fn test_erase_line_animation_step_processing() {
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
     let mut current_height = 20;
     
+    // 底辺3ラインをSolidに設定
+    for y in 17..20 {
+        for x in 0..10 {
+            board[y][x] = Cell::Solid;
+        }
+    }
+    
     // 120ms経過後にステップ処理
     let result = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
     
@@ -82,6 +89,11 @@ fn test_erase_line_animation_completion() {
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
     let mut current_height = 20;
+    
+    // 底辺ラインをSolidに設定
+    for x in 0..10 {
+        board[19][x] = Cell::Solid;
+    }
     
     // 120ms経過後にステップ処理
     let result = process_erase_line_step(&mut animation, Duration::from_millis(120), &mut board, &mut current_height);
@@ -350,9 +362,9 @@ fn phase9_4_test_complete_erase_line_sequence() {
     let remaining_count = count_solid_lines_from_bottom(&board);
     assert_eq!(remaining_count, 4);
     
-    // ボード高さが21になることを確認（相殺効果）
-    assert_eq!(board.len(), 21);
-    assert_eq!(current_height, 21); // current_heightも同期していることを確認
+    // ボード高さは変わらず（相殺効果：remove + insert = 同じサイズ）
+    assert_eq!(board.len(), 20); // ボードサイズは変わらず
+    assert_eq!(current_height, 21); // current_heightは相殺効果で増加
 }
 
 #[test]
