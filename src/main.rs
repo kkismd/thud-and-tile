@@ -81,7 +81,7 @@ mod cell;
 use cell::{Board, Cell};
 
 mod scoring;
-use scoring::{CustomScoreSystem, calculate_line_clear_total_score};
+use scoring::{CustomScoreSystem, calculate_line_clear_total_score, calculate_chain_increases};
 
 mod tetromino;
 use tetromino::Tetromino;
@@ -198,8 +198,15 @@ impl GameState {
 
         self.update_connected_block_counts();
 
+        // CHAIN-BONUS自動更新: MAX-CHAIN更新前の値を保存
+        let old_max_chains = self.custom_score_system.max_chains.clone();
+
         // Update MAX-CHAIN based on current connected block counts
         self.update_max_chains();
+        
+        // CHAIN-BONUS自動更新: 増加分を計算してCHAIN-BONUSに加算
+        let total_increase = calculate_chain_increases(&old_max_chains, &self.custom_score_system.max_chains);
+        self.custom_score_system.max_chains.add_chain_bonus(total_increase);
 
         // Calculate scores for lines to be cleared (before clearing)
         for &line_y in &lines_to_clear {

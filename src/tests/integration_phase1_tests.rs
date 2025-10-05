@@ -1,5 +1,6 @@
 //! Integration Phase I テスト
 //! TDD Cycle I-1: mainループの新スコア計算切り替え
+//! TDD Cycle I-2: CHAIN-BONUS自動更新統合
 
 use crate::cell::{Board, Cell};
 use crate::config::BOARD_WIDTH;
@@ -11,6 +12,18 @@ fn setup_line_clear_scenario(state: &mut GameState) {
     // 底辺ライン（y=19）を完成状況にセットアップ
     for x in 0..BOARD_WIDTH {
         state.board[19][x] = Cell::Occupied(GameColor::Cyan);
+    }
+}
+
+/// テストヘルパー: CHAIN増加シナリオをセットアップ
+fn setup_chain_increase_scenario(state: &mut GameState, color: GameColor, new_chain_count: u32) {
+    // 指定色の連結ブロックを配置
+    // bottom line (y=19) にchain_countサイズの連結ブロックを配置
+    for x in 0..new_chain_count.min(BOARD_WIDTH as u32) as usize {
+        state.board[19][x] = Cell::Connected { 
+            color, 
+            count: new_chain_count as u8 
+        };
     }
 }
 
@@ -91,4 +104,68 @@ fn test_new_score_calculation_edge_cases() {
     partial_board[19][1] = Cell::Occupied(GameColor::Cyan);
     let score_partial = crate::scoring::calculate_line_clear_total_score(&partial_board, 19, &max_chains);
     assert_eq!(score_partial, 40); // 2 * 2 * 10 = 40
+}
+
+/// TDD Cycle I-2: CHAIN-BONUS自動更新統合テスト
+#[test]
+fn test_chain_bonus_auto_update_on_piece_lock() {
+    let mut state = GameState::new();
+    
+    // 初期MAX-CHAIN状態設定
+    state.custom_score_system.max_chains.cyan = 2;
+    state.custom_score_system.max_chains.chain_bonus = 1;
+    
+    // MAX-CHAINが増加する状況をセットアップ（cyan色で5個連結）
+    setup_chain_increase_scenario(&mut state, GameColor::Cyan, 5);
+    
+    let time_provider = MockTimeProvider::new();
+    state.lock_piece(&time_provider);
+    
+    // MAX-CHAIN更新確認
+    assert_eq!(
+        state.custom_score_system.max_chains.cyan, 5,
+        "MAX-CHAIN（cyan）が2から5に更新されるべき"
+    );
+    
+    // CHAIN-BONUS増加確認（1 + (5-2) = 4）
+    assert_eq!(
+        state.custom_score_system.max_chains.chain_bonus, 4,
+        "CHAIN-BONUSが1から4に増加するべき（増分3を加算）"
+    );
+}
+
+/// TDD Cycle I-2追加: 複数色でのCHAIN-BONUS統合テスト
+#[test]
+fn test_chain_bonus_update_multiple_colors() {
+    let mut state = GameState::new();
+    
+    // 初期状態
+    state.custom_score_system.max_chains.cyan = 3;
+    state.custom_score_system.max_chains.magenta = 2;
+    state.custom_score_system.max_chains.chain_bonus = 5;
+    
+    // 複数色でCHAIN増加をセットアップ
+    setup_chain_increase_scenario(&mut state, GameColor::Cyan, 6);
+    // Y座標を変えて別色を配置
+    for x in 0..4_usize {
+        state.board[18][x] = Cell::Connected { 
+            color: GameColor::Magenta, 
+            count: 4 
+        };
+    }
+    
+    let time_provider = MockTimeProvider::new();
+    state.lock_piece(&time_provider);
+    
+    // MAX-CHAIN更新確認
+    assert_eq!(state.custom_score_system.max_chains.cyan, 6);
+    assert_eq!(state.custom_score_system.max_chains.magenta, 4);
+    
+    // CHAIN-BONUS増加確認
+    // cyan: 6-3=3増加, magenta: 4-2=2増加, 合計5増加
+    // 初期5 + 増加5 = 10
+    assert_eq!(
+        state.custom_score_system.max_chains.chain_bonus, 10,
+        "複数色のCHAIN-BONUS増加が合計されるべき"
+    );
 }
