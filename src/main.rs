@@ -89,9 +89,10 @@ use tetromino::Tetromino;
 mod board_logic;
 
 use animation::{
-    update_animations, Animation, PushDownStepResult, process_push_down_step,
-    count_solid_lines_from_bottom, determine_erase_line_count
-}; // 共通アニメーション関数
+    Animation, update_animations, PushDownStepResult, process_push_down_step,
+    count_solid_lines_from_bottom, determine_erase_line_count,
+    process_erase_line_step, EraseLineStepResult, consume_chain_bonus_for_erase_line
+}; // アニメーション処理関数
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GameMode {
@@ -584,6 +585,62 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                     gray_line_y: new_gray_line_y,
                     start_time: current_time,
                 });
+            }
+        }
+    }
+
+    // Process EraseLineアニメーション
+    let mut erase_line_animations_to_process = Vec::new();
+    for animation in &state.animation {
+        if let Animation::EraseLine { .. } = animation {
+            erase_line_animations_to_process.push(animation.clone());
+        }
+    }
+
+    for erase_line_animation in erase_line_animations_to_process {
+        if let Animation::EraseLine { 
+            target_solid_lines, 
+            current_step, 
+            last_update, 
+            chain_bonus_consumed 
+        } = erase_line_animation {
+            match process_erase_line_step(
+                &mut Animation::EraseLine { 
+                    target_solid_lines: target_solid_lines.clone(), 
+                    current_step, 
+                    last_update, 
+                    chain_bonus_consumed 
+                },
+                current_time,
+                &mut state.board,
+                &mut state.current_board_height,
+            ) {
+                EraseLineStepResult::Continue => {
+                    // EraseLineアニメーション継続 - アニメーション状態更新
+                    for animation in &mut state.animation {
+                        if let Animation::EraseLine { current_step: step, last_update: update, .. } = animation {
+                            *step = current_step + 1;
+                            *update = current_time;
+                        }
+                    }
+                }
+                EraseLineStepResult::Complete { lines_erased } => {
+                    // EraseLineアニメーション完了
+                    
+                    // CHAIN-BONUS消費
+                    let _consumed = consume_chain_bonus_for_erase_line(
+                        &mut state.custom_score_system.max_chains.chain_bonus,
+                        lines_erased
+                    );
+                    
+                    // EraseLineアニメーション除去
+                    state.animation.retain(|anim| !matches!(anim, Animation::EraseLine { .. }));
+                    
+                    // アニメーションが空になったら新ピース生成
+                    if state.animation.is_empty() {
+                        state.spawn_piece();
+                    }
+                }
             }
         }
     }
