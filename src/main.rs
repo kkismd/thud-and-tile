@@ -81,7 +81,7 @@ mod cell;
 use cell::{Board, Cell};
 
 mod scoring;
-use scoring::CustomScoreSystem;
+use scoring::{CustomScoreSystem, calculate_line_clear_total_score};
 
 mod tetromino;
 use tetromino::Tetromino;
@@ -203,6 +203,7 @@ impl GameState {
 
         // Calculate scores for lines to be cleared (before clearing)
         for &line_y in &lines_to_clear {
+            // OLD SYSTEM: Keep existing scores system
             let scores = animation::calculate_line_clear_score(
                 &self.board,
                 line_y,
@@ -211,6 +212,14 @@ impl GameState {
             for (color, points) in scores {
                 self.custom_score_system.scores.add(color, points);
             }
+            
+            // NEW SYSTEM: Add total_score calculation in parallel
+            let total_score_points = calculate_line_clear_total_score(
+                &self.board,
+                line_y,
+                &self.custom_score_system.max_chains,
+            );
+            self.custom_score_system.add_total_score(total_score_points);
         }
 
         if !lines_to_clear.is_empty() {
@@ -332,6 +341,7 @@ impl GameState {
 
         // Calculate scores for lines to be cleared (before clearing)
         for &line_y in lines {
+            // OLD SYSTEM: Keep existing scores system
             let scores = animation::calculate_line_clear_score(
                 &self.board,
                 line_y,
@@ -340,6 +350,14 @@ impl GameState {
             for (color, points) in scores {
                 self.custom_score_system.scores.add(color, points);
             }
+            
+            // NEW SYSTEM: Add total_score calculation in parallel
+            let total_score_points = calculate_line_clear_total_score(
+                &self.board,
+                line_y,
+                &self.custom_score_system.max_chains,
+            );
+            self.custom_score_system.add_total_score(total_score_points);
         }
 
         for &y in lines {

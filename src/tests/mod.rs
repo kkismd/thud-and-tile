@@ -7,6 +7,7 @@ mod debug_score_tests;
 // mod erase_line_animation_tests; // 古いテスト、一時的にコメントアウト
 mod erase_line_tdd_tests; // Phase 9-1 TDD tests
 mod game_state_tests;
+mod integration_phase1_tests; // Integration Phase I テスト
 mod phase6_integration_tests;
 mod phase8_ui_tests;
 mod phase8_2_render_tests;
