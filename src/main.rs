@@ -88,7 +88,10 @@ use tetromino::Tetromino;
 
 mod board_logic;
 
-use animation::{process_push_down_step, update_animations, Animation, PushDownStepResult}; // 共通アニメーション関数
+use animation::{
+    update_animations, Animation, PushDownStepResult, process_push_down_step,
+    count_solid_lines_from_bottom, determine_erase_line_count
+}; // 共通アニメーション関数
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GameMode {
@@ -547,6 +550,25 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
             PushDownStepResult::Completed => {
                 // Push down completed - update connected blocks as board structure changed
                 state.update_all_connected_block_counts();
+
+                // PushDown完了時：EraseLineアニメーション判定
+                let solid_count = count_solid_lines_from_bottom(&state.board);
+                let chain_bonus = state.custom_score_system.max_chains.chain_bonus;
+                let erasable_lines = determine_erase_line_count(chain_bonus, solid_count);
+                
+                if erasable_lines > 0 {
+                    let board_height = state.board.len();
+                    let target_lines: Vec<usize> = (0..erasable_lines)
+                        .map(|i| board_height - 1 - i)
+                        .collect();
+                    
+                    state.animation.push(Animation::EraseLine {
+                        target_solid_lines: target_lines,
+                        current_step: 0,
+                        last_update: current_time,
+                        chain_bonus_consumed: 0,
+                    });
+                }
 
                 // Potentially spawn new piece
                 if state.animation.is_empty() {
