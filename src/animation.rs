@@ -338,11 +338,11 @@ pub fn consume_chain_bonus_for_erase_line(chain_bonus: &mut u32, lines_erased: u
 /// Phase 9-3: Solidライン操作システム関数群
 /// ============================================================================
 
-/// 底辺からSolidライン（完全グレー行）の数をカウント
+/// 底辺からSolidライン（完全Solid行）の数をカウント
 /// 
 /// Solidラインの定義：
-/// - ボードの幅（10セル）全てがCell::Occupied(GameColor::Grey)で埋まっている行
-/// - 空セル、他の色、Connected等が混在する行は非Solid
+/// - ボードの幅（10セル）全てがCell::Solidで埋まっている行
+/// - 空セル、Occupied、Connected等が混在する行は非Solid
 /// 
 /// # Arguments
 /// * `board` - ゲームボード
@@ -352,7 +352,6 @@ pub fn consume_chain_bonus_for_erase_line(chain_bonus: &mut u32, lines_erased: u
 pub fn count_solid_lines_from_bottom(board: &crate::cell::Board) -> usize {
     use crate::cell::Cell;
     use crate::config::BOARD_WIDTH;
-    use crate::game_color::GameColor;
     
     let mut count = 0;
     let board_height = board.len();
@@ -361,14 +360,14 @@ pub fn count_solid_lines_from_bottom(board: &crate::cell::Board) -> usize {
     for y in (0..board_height).rev() {
         let mut is_solid_line = true;
         
-        // 行が完全にグレー（Solid）で埋まっているかチェック
+        // 行が完全にSolidブロックで埋まっているかチェック
         for x in 0..BOARD_WIDTH {
             match board[y][x] {
-                Cell::Occupied(GameColor::Grey) => {
-                    // グレーセルは継続
+                Cell::Solid => {
+                    // Solidセルは継続
                 }
                 _ => {
-                    // グレー以外（空、他の色、Connected等）があれば非Solid
+                    // Solid以外（空、Occupied、Connected等）があれば非Solid
                     is_solid_line = false;
                     break;
                 }

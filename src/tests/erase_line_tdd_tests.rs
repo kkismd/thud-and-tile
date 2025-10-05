@@ -193,10 +193,10 @@ fn test_count_solid_lines_from_bottom() {
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
     
-    // 底辺から3行をSolidライン（完全にグレーで埋める）にする
+    // 底辺から3行をSolidライン（完全にSolidで埋める）にする
     for y in 17..20 {
         for x in 0..10 {
-            board[y][x] = Cell::Occupied(GameColor::Grey);
+            board[y][x] = Cell::Solid;
         }
     }
     
@@ -215,7 +215,7 @@ fn test_partial_solid_lines_not_counted() {
     
     // 底辺ラインを部分的に埋める（完全Solidではない）
     for x in 0..5 {  // 10セル中5セルのみ
-        board[19][x] = Cell::Occupied(GameColor::Grey);
+        board[19][x] = Cell::Solid;
     }
     
     let solid_count = count_solid_lines_from_bottom(&board);
@@ -233,7 +233,7 @@ fn test_mixed_color_lines_not_solid() {
     
     // 底辺ラインを完全に埋めるが、グレー以外も含む
     for x in 0..9 {
-        board[19][x] = Cell::Occupied(GameColor::Grey);
+        board[19][x] = Cell::Solid;
     }
     board[19][9] = Cell::Occupied(GameColor::Cyan); // 最後だけシアン
     
@@ -254,7 +254,7 @@ fn test_remove_solid_line_from_bottom() {
     // 底辺に2行のSolidライン配置
     for y in 18..20 {
         for x in 0..10 {
-            board[y][x] = Cell::Occupied(GameColor::Grey);
+            board[y][x] = Cell::Solid;
         }
     }
     
@@ -282,7 +282,7 @@ fn test_remove_solid_line_adds_empty_row_on_top() {
     
     // 底辺に1行のSolidライン配置
     for x in 0..10 {
-        board[19][x] = Cell::Occupied(GameColor::Grey);
+        board[19][x] = Cell::Solid;
     }
     
     // Solidライン除去前のトップライン状態を記録
@@ -319,7 +319,7 @@ fn phase9_4_test_complete_erase_line_sequence() {
     // Solidライン5個をボトムから配置
     for y in 15..20 {
         for x in 0..10 {
-            board[y][x] = Cell::Occupied(GameColor::Grey);
+            board[y][x] = Cell::Solid;
         }
     }
     
@@ -368,7 +368,7 @@ fn phase9_4_test_chain_bonus_exhaustion_scenario() {
     // Solidライン3個配置
     for y in 17..20 {
         for x in 0..10 {
-            board[y][x] = Cell::Occupied(GameColor::Grey);
+            board[y][x] = Cell::Solid;
         }
     }
     
@@ -410,7 +410,7 @@ fn phase9_4_test_insufficient_solid_lines_edge_case() {
     
     // Solidライン1個のみ配置
     for x in 0..10 {
-        board[19][x] = Cell::Occupied(GameColor::Grey);
+        board[19][x] = Cell::Solid;
     }
     
     // CHAIN-BONUSが十分でも、Solidライン数が制限要因
@@ -488,7 +488,7 @@ fn phase9_4_test_chain_bonus_consumption_integration() {
     // Solidライン2個配置
     for y in 18..20 {
         for x in 0..10 {
-            board[y][x] = Cell::Occupied(GameColor::Grey);
+            board[y][x] = Cell::Solid;
         }
     }
     
