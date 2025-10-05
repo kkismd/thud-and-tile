@@ -318,3 +318,95 @@ pub fn consume_chain_bonus_for_erase_line(chain_bonus: &mut u32, lines_erased: u
     *chain_bonus -= consumed;
     consumed
 }
+
+/// ============================================================================
+/// Phase 9-3: Solidライン操作システム関数群
+/// ============================================================================
+
+/// 底辺からSolidライン（完全グレー行）の数をカウント
+/// 
+/// Solidラインの定義：
+/// - ボードの幅（10セル）全てがCell::Occupied(GameColor::Grey)で埋まっている行
+/// - 空セル、他の色、Connected等が混在する行は非Solid
+/// 
+/// # Arguments
+/// * `board` - ゲームボード
+/// 
+/// # Returns
+/// 底辺から連続するSolidライン数
+pub fn count_solid_lines_from_bottom(board: &crate::cell::Board) -> usize {
+    use crate::cell::Cell;
+    use crate::config::BOARD_WIDTH;
+    use crate::game_color::GameColor;
+    
+    let mut count = 0;
+    let board_height = board.len();
+    
+    // 底辺から上に向かってチェック（連続性が重要）
+    for y in (0..board_height).rev() {
+        let mut is_solid_line = true;
+        
+        // 行が完全にグレー（Solid）で埋まっているかチェック
+        for x in 0..BOARD_WIDTH {
+            match board[y][x] {
+                Cell::Occupied(GameColor::Grey) => {
+                    // グレーセルは継続
+                }
+                _ => {
+                    // グレー以外（空、他の色、Connected等）があれば非Solid
+                    is_solid_line = false;
+                    break;
+                }
+            }
+        }
+        
+        if is_solid_line {
+            count += 1;
+        } else {
+            // 連続が途切れたらカウント終了（底辺からの連続性チェック）
+            break;
+        }
+    }
+    
+    count
+}
+
+/// 底辺のSolidライン1行を除去し、上部に空行を追加
+/// 
+/// EraseLineアニメーションの物理的な処理：
+/// 1. 底辺のSolidライン1行を削除
+/// 2. 上部（index 0）に新しい空行を挿入
+/// 3. ボード高を1行拡張（相殺効果）
+/// 
+/// # Arguments
+/// * `board` - ゲームボード（可変参照）
+/// * `current_height` - 現在のボード高（可変参照、拡張される）
+/// 
+/// # Returns
+/// 除去が成功した場合はSome(除去された行番号)、失敗した場合はNone
+pub fn remove_solid_line_from_bottom(
+    board: &mut crate::cell::Board,
+    current_height: &mut usize,
+) -> Option<usize> {
+    use crate::cell::Cell;
+    use crate::config::BOARD_WIDTH;
+    
+    // 底辺にSolidラインがあるかチェック
+    if count_solid_lines_from_bottom(board) == 0 {
+        return None;
+    }
+    
+    let board_height = board.len();
+    let bottom_line_y = board_height - 1;
+    
+    // 底辺ライン除去
+    board.remove(bottom_line_y);
+    
+    // 上部に空行追加（相殺のための空間確保）
+    board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+    
+    // ボード高を1行拡張（相殺効果でプレイ領域が拡大）
+    *current_height += 1;
+    
+    Some(bottom_line_y)
+}

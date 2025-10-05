@@ -4,7 +4,8 @@
 
 use crate::animation::{
     process_erase_line_step, Animation, EraseLineStepResult,
-    determine_erase_line_count, consume_chain_bonus_for_erase_line
+    determine_erase_line_count, consume_chain_bonus_for_erase_line,
+    count_solid_lines_from_bottom, remove_solid_line_from_bottom
 };
 use std::time::Duration;
 
@@ -162,4 +163,122 @@ fn test_chain_bonus_exhaustion_limits_consumption() {
     // 1しかCHAIN-BONUSがない場合、1のみ消費
     assert_eq!(consumed, 1);
     assert_eq!(initial_chain_bonus, 0); // 1 - 1 = 0
+}
+
+/// ============================================================================
+/// Phase 9-3: Solidライン操作システムのテスト
+/// ============================================================================
+
+/// TDD Cycle 9-3-1: Solidライン検出とカウントのテスト
+#[test]
+fn test_count_solid_lines_from_bottom() {
+    // RED: 底辺からのSolidライン数カウントをテスト
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    
+    // 底辺から3行をSolidライン（完全にグレーで埋める）にする
+    for y in 17..20 {
+        for x in 0..10 {
+            board[y][x] = Cell::Occupied(GameColor::Grey);
+        }
+    }
+    
+    let solid_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(solid_count, 3);
+}
+
+/// TDD Cycle 9-3-1: 部分的Solidライン（カウントしない）のテスト
+#[test]
+fn test_partial_solid_lines_not_counted() {
+    // RED: 部分的なSolidライン（完全でない）はカウントしないことをテスト
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    
+    // 底辺ラインを部分的に埋める（完全Solidではない）
+    for x in 0..5 {  // 10セル中5セルのみ
+        board[19][x] = Cell::Occupied(GameColor::Grey);
+    }
+    
+    let solid_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(solid_count, 0); // 部分的な行はカウントしない
+}
+
+/// TDD Cycle 9-3-1: 混在ライン（グレー以外含む）はSolidでないテスト
+#[test]
+fn test_mixed_color_lines_not_solid() {
+    // RED: グレー以外の色が混在する完全ラインはSolidでないことをテスト
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    
+    // 底辺ラインを完全に埋めるが、グレー以外も含む
+    for x in 0..9 {
+        board[19][x] = Cell::Occupied(GameColor::Grey);
+    }
+    board[19][9] = Cell::Occupied(GameColor::Cyan); // 最後だけシアン
+    
+    let solid_count = count_solid_lines_from_bottom(&board);
+    assert_eq!(solid_count, 0); // グレー以外が混在する行はSolidでない
+}
+
+/// TDD Cycle 9-3-2: Solidライン除去処理のテスト
+#[test]
+fn test_remove_solid_line_from_bottom() {
+    // RED: 底辺のSolidライン1行を除去するテスト
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    let mut current_height = 20;
+    
+    // 底辺に2行のSolidライン配置
+    for y in 18..20 {
+        for x in 0..10 {
+            board[y][x] = Cell::Occupied(GameColor::Grey);
+        }
+    }
+    
+    // 底辺のSolidライン1行を除去
+    let result = remove_solid_line_from_bottom(&mut board, &mut current_height);
+    
+    // 1行除去されることを確認
+    assert!(result.is_some());
+    assert_eq!(current_height, 21); // ボード高が1行拡張される
+    
+    // 残りのSolidライン数を確認
+    let remaining_solid = count_solid_lines_from_bottom(&board);
+    assert_eq!(remaining_solid, 1);
+}
+
+/// TDD Cycle 9-3-2: Solidライン除去で空行が上に追加されるテスト
+#[test]
+fn test_remove_solid_line_adds_empty_row_on_top() {
+    // RED: Solidライン除去時に上部に空行が追加されることをテスト
+    use crate::cell::{Cell, Board};
+    use crate::game_color::GameColor;
+    
+    let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
+    let mut current_height = 20;
+    
+    // 底辺に1行のSolidライン配置
+    for x in 0..10 {
+        board[19][x] = Cell::Occupied(GameColor::Grey);
+    }
+    
+    // Solidライン除去前のトップライン状態を記録
+    board[0][0] = Cell::Occupied(GameColor::Cyan); // マーカー
+    
+    // 底辺のSolidライン1行を除去
+    remove_solid_line_from_bottom(&mut board, &mut current_height);
+    
+    // 新しいトップライン（0行目）が空になっていることを確認
+    assert_eq!(board[0][0], Cell::Empty);
+    
+    // 元のトップラインが1行下にずれていることを確認（21行目）
+    assert_eq!(board[1][0], Cell::Occupied(GameColor::Cyan));
 }
