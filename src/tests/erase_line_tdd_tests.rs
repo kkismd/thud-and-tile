@@ -201,7 +201,6 @@ fn test_chain_bonus_exhaustion_limits_consumption() {
 fn test_count_solid_lines_from_bottom() {
     // RED: 底辺からのSolidライン数カウントをテスト
     use crate::cell::{Cell, Board};
-    use crate::game_color::GameColor;
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
     
@@ -221,7 +220,6 @@ fn test_count_solid_lines_from_bottom() {
 fn test_partial_solid_lines_not_counted() {
     // RED: 部分的なSolidライン（完全でない）はカウントしないことをテスト
     use crate::cell::{Cell, Board};
-    use crate::game_color::GameColor;
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
     
@@ -258,7 +256,6 @@ fn test_mixed_color_lines_not_solid() {
 fn test_remove_solid_line_from_bottom() {
     // RED: 底辺のSolidライン1行を除去するテスト
     use crate::cell::{Cell, Board};
-    use crate::game_color::GameColor;
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
     let mut current_height = 20;
@@ -323,7 +320,6 @@ fn phase9_4_test_complete_erase_line_sequence() {
     // シナリオ: CHAIN-BONUS 3, Solidライン 5個, target_solid_lines 2の場合
     use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, count_solid_lines_from_bottom};
     use crate::cell::{Cell, Board};
-    use crate::game_color::GameColor;
     use std::time::Duration;
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
@@ -372,7 +368,6 @@ fn phase9_4_test_chain_bonus_exhaustion_scenario() {
     // RED: CHAIN-BONUS枯渇時の動作テスト
     use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, count_solid_lines_from_bottom};
     use crate::cell::{Cell, Board};
-    use crate::game_color::GameColor;
     use std::time::Duration;
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
@@ -415,7 +410,6 @@ fn phase9_4_test_insufficient_solid_lines_edge_case() {
     // RED: Solid ライン不足時のエッジケーステスト
     use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, count_solid_lines_from_bottom};
     use crate::cell::{Cell, Board};
-    use crate::game_color::GameColor;
     use std::time::Duration;
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
@@ -492,7 +486,6 @@ fn phase9_4_test_chain_bonus_consumption_integration() {
     // RED: CHAIN-BONUS消費の統合テスト
     use crate::animation::{Animation, process_erase_line_step, EraseLineStepResult, consume_chain_bonus_for_erase_line};
     use crate::cell::{Cell, Board};
-    use crate::game_color::GameColor;
     use std::time::Duration;
     
     let mut board: Board = vec![vec![Cell::Empty; 10]; 20];
