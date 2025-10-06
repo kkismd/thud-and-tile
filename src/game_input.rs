@@ -20,6 +20,9 @@ pub enum GameInput {
     Restart, // Enter: ゲーム開始/再開
     Pause,   // 'p': 一時停止（将来用）
 
+    // 設定
+    ToggleEraseLine, // 'e': EraseLineアニメーション有効/無効切り替え
+
     // その他
     Unknown, // 未対応キー
 }
@@ -81,6 +84,7 @@ impl InputProvider for CrosstermInputProvider {
                     KeyCode::Char('q') | KeyCode::Char('Q') => GameInput::Quit,
                     KeyCode::Enter => GameInput::Restart,
                     KeyCode::Char('p') | KeyCode::Char('P') => GameInput::Pause,
+                    KeyCode::Char('e') | KeyCode::Char('E') => GameInput::ToggleEraseLine,
                     _ => GameInput::Unknown,
                 };
 
@@ -181,6 +185,7 @@ impl GameInput {
             GameInput::Quit => "Quit Game",
             GameInput::Restart => "Restart/Start Game",
             GameInput::Pause => "Pause Game",
+            GameInput::ToggleEraseLine => "Toggle EraseLine Animation",
             GameInput::Unknown => "Unknown Input",
         }
     }

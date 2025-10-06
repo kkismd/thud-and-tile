@@ -112,6 +112,7 @@ struct GameState {
     fall_speed: Duration,
     current_board_height: usize,
     custom_score_system: CustomScoreSystem,
+    enable_erase_line: bool,
 }
 
 impl GameState {
@@ -126,6 +127,7 @@ impl GameState {
             fall_speed: FALL_SPEED_START,
             current_board_height: BOARD_HEIGHT,
             custom_score_system: CustomScoreSystem::new(),
+            enable_erase_line: false, // デフォルトで無効
         }
     }
 
@@ -557,7 +559,8 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                 let chain_bonus = state.custom_score_system.max_chains.chain_bonus;
                 let erasable_lines = determine_erase_line_count(chain_bonus, solid_count);
                 
-                if erasable_lines > 0 {
+                // enable_erase_lineフラグをチェック
+                if state.enable_erase_line && erasable_lines > 0 {
                     let board_height = state.board.len();
                     let target_lines: Vec<usize> = (0..erasable_lines)
                         .map(|i| board_height - 1 - i)
@@ -675,7 +678,7 @@ fn main() -> io::Result<()> {
     let mut prev_state = state.clone();
     let mut last_fall = time_provider.now();
 
-    render::draw_title_screen(&mut renderer)?;
+    render::draw_title_screen_with_options(&mut renderer, state.enable_erase_line)?;
 
     loop {
         if state.mode != GameMode::Title {
@@ -689,9 +692,12 @@ fn main() -> io::Result<()> {
                     if let Some(input) = input_provider.read_input()? {
                         match input {
                             GameInput::Restart => {
-                                state = GameState::new();
                                 state.mode = GameMode::Playing;
                                 state.spawn_piece();
+                            }
+                            GameInput::ToggleEraseLine => {
+                                state.enable_erase_line = !state.enable_erase_line;
+                                render::draw_title_screen_with_options(&mut renderer, state.enable_erase_line)?;
                             }
                             GameInput::Quit => break,
                             _ => {}
@@ -742,8 +748,10 @@ fn main() -> io::Result<()> {
                         match input {
                             GameInput::Quit => break,
                             GameInput::Restart => {
+                                let enable_erase_line = state.enable_erase_line; // 設定を保持
                                 state = GameState::new();
-                                render::draw_title_screen(&mut renderer)?;
+                                state.enable_erase_line = enable_erase_line; // 設定を復元
+                                render::draw_title_screen_with_options(&mut renderer, state.enable_erase_line)?;
                             }
                             _ => {}
                         }

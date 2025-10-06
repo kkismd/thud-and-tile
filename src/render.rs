@@ -325,28 +325,68 @@ mod tests {
 }
 
 pub fn draw_title_screen<R: Renderer>(renderer: &mut R) -> io::Result<()> {
+    draw_title_screen_with_options(renderer, true)
+}
+
+pub fn draw_title_screen_with_options<R: Renderer>(
+    renderer: &mut R, 
+    enable_erase_line: bool
+) -> io::Result<()> {
     renderer.clear_screen()?;
     let title = "THUD & TILE";
     let start_msg = "Press Enter to Start";
     let quit_msg = "Press 'q' to Quit";
+    let toggle_msg = "Press 'E': EraseLine";  // 短縮版に変更
+    let status_msg = if enable_erase_line {
+        "EraseLine: ON"
+    } else {
+        "EraseLine: OFF"
+    };
 
-    let title_x = (BOARD_WIDTH * 2 + 3 - title.len()) as u16 / 2;
-    let title_y = (BOARD_HEIGHT / 2) as u16 - 2;
+    let title_x = if title.len() <= BOARD_WIDTH * 2 + 3 {
+        (BOARD_WIDTH * 2 + 3 - title.len()) as u16 / 2
+    } else { 0 };
+    let title_y = (BOARD_HEIGHT / 2) as u16 - 3;
 
-    let start_x = (BOARD_WIDTH * 2 + 3 - start_msg.len()) as u16 / 2;
-    let start_y = (BOARD_HEIGHT / 2) as u16;
+    let start_x = if start_msg.len() <= BOARD_WIDTH * 2 + 3 {
+        (BOARD_WIDTH * 2 + 3 - start_msg.len()) as u16 / 2
+    } else { 0 };
+    let start_y = (BOARD_HEIGHT / 2) as u16 - 1;
 
-    let quit_x = (BOARD_WIDTH * 2 + 3 - quit_msg.len()) as u16 / 2;
-    let quit_y = (BOARD_HEIGHT / 2) as u16 + 1;
+    let quit_x = if quit_msg.len() <= BOARD_WIDTH * 2 + 3 {
+        (BOARD_WIDTH * 2 + 3 - quit_msg.len()) as u16 / 2
+    } else { 0 };
+    let quit_y = (BOARD_HEIGHT / 2) as u16;
+
+    let toggle_x = if toggle_msg.len() <= BOARD_WIDTH * 2 + 3 {
+        (BOARD_WIDTH * 2 + 3 - toggle_msg.len()) as u16 / 2
+    } else { 0 };
+    let toggle_y = (BOARD_HEIGHT / 2) as u16 + 2;
+
+    let status_x = if status_msg.len() <= BOARD_WIDTH * 2 + 3 {
+        (BOARD_WIDTH * 2 + 3 - status_msg.len()) as u16 / 2
+    } else { 0 };
+    let status_y = (BOARD_HEIGHT / 2) as u16 + 4;
 
     renderer.set_foreground_color(GameColor::Yellow)?;
     renderer.move_to(title_x, title_y)?;
     renderer.print(title)?;
+    
     renderer.set_foreground_color(GameColor::White)?;
     renderer.move_to(start_x, start_y)?;
     renderer.print(start_msg)?;
     renderer.move_to(quit_x, quit_y)?;
     renderer.print(quit_msg)?;
+    
+    renderer.set_foreground_color(GameColor::Cyan)?;
+    renderer.move_to(toggle_x, toggle_y)?;
+    renderer.print(toggle_msg)?;
+    
+    let status_color = if enable_erase_line { GameColor::Green } else { GameColor::Red };
+    renderer.set_foreground_color(status_color)?;
+    renderer.move_to(status_x, status_y)?;
+    renderer.print(status_msg)?;
+    
     renderer.reset_color()?;
     renderer.flush()
 }
