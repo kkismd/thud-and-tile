@@ -11,6 +11,9 @@ use wasm_bindgen::prelude::*; // BFS用とAnimation管理用
 // 共通モジュールのimport
 mod animation;
 
+// Core Logic Module (CLI版とWASM版で共有)
+mod core;
+
 // JavaScript console.log への出力用マクロ
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 #[wasm_bindgen]
