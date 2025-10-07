@@ -130,15 +130,26 @@ pub fn remove_solid_line_from_bottom(
         return (board, current_height, false);
     }
     
-    // CLI版準拠：底辺ライン除去
-    // 1. 上の行を1つずつ下にシフト（底辺ライン削除効果）
-    //    底辺から上に向かって、一つ上の行をコピーする
-    for y in (1..current_height).rev() {
-        board[y] = board[y - 1];  // 上の行を下の行にコピー
+    // CLI版準拠：物理的底辺ライン除去
+    // 物理的底辺から最も下のSolidラインを特定
+    let mut bottom_solid_line: Option<usize> = None;
+    for y in (0..BOARD_HEIGHT).rev() {
+        if board[y].iter().all(|cell| matches!(cell, Cell::Solid)) {
+            bottom_solid_line = Some(y);
+            break;
+        }
     }
     
-    // 2. 最上部（index 0）を空行にクリア
-    board[0] = [Cell::Empty; BOARD_WIDTH];
+    if let Some(solid_y) = bottom_solid_line {
+        // CLI版準拠：底辺ライン除去 + 上から下へシフト
+        // 底辺ライン除去をシミュレート：上の行を1つずつ下にシフト
+        for y in (1..=solid_y).rev() {
+            board[y] = board[y - 1];  // 上の行を下の行にコピー
+        }
+        
+        // 最上部（index 0）に新しい空行を挿入
+        board[0] = [Cell::Empty; BOARD_WIDTH];
+    }
     
     // 3. ボード高を1行拡張（相殺効果でプレイ領域が拡大）
     let new_height = std::cmp::min(current_height + 1, BOARD_HEIGHT);
@@ -347,8 +358,40 @@ mod tests {
 
     #[test]
     fn test_remove_solid_line_from_bottom() {
-        // TODO: シンプルで明確なテストケースを再作成
-        // count_solid_lines_from_bottomとremove_solid_line_from_bottomの連携を正しく検証
+        // テストケース1: Solidラインが無い場合（除去失敗）
+        let empty_board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+        let initial_height = 5;
+        let (result_board, result_height, success) = remove_solid_line_from_bottom(empty_board, initial_height);
+        
+        assert!(!success, "Solidラインが無い場合は除去失敗すべき");
+        assert_eq!(result_height, initial_height, "除去失敗時は高さ変更なし");
+        // ボードも変更されていないことを確認
+        for y in 0..BOARD_HEIGHT {
+            for x in 0..BOARD_WIDTH {
+                assert_eq!(result_board[y][x], Cell::Empty, "除去失敗時はボード変更なし");
+            }
+        }
+        
+        // テストケース2: 物理的底辺に1行のSolidライン（除去成功）
+        let mut board_with_solid = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+        // 物理的底辺（BOARD_HEIGHT-1）にSolidライン作成
+        for x in 0..BOARD_WIDTH {
+            board_with_solid[BOARD_HEIGHT - 1][x] = Cell::Solid;
+        }
+        
+        let initial_height = 10;
+        let solid_count_before = count_solid_lines_from_bottom(board_with_solid);
+        println!("除去前のSolidライン数: {}", solid_count_before);
+        
+        let (result_board, result_height, success) = remove_solid_line_from_bottom(board_with_solid, initial_height);
+        
+        assert!(success, "Solidラインがある場合は除去成功すべき");
+        assert_eq!(result_height, initial_height + 1, "除去成功時は高さ+1");
+        
+        let solid_count_after = count_solid_lines_from_bottom(result_board);
+        println!("除去後のSolidライン数: {}", solid_count_after);
+        
+        assert_eq!(solid_count_after, 0, "除去後はSolidライン数が0になるべき");
     }
 
     #[test]
