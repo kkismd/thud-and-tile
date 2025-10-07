@@ -129,19 +129,18 @@ pub fn remove_solid_line_from_bottom(
         return (board, current_height, false);
     }
     
-    // CLI版準拠：ボード全体を上にシフト（底辺ライン除去）
-    // ボードをVecと同様に扱い、底辺ライン削除&上部に空行挿入をシミュレート
-    for y in 0..current_height - 1 {
-        board[y] = board[y + 1];
+    // CLI版準拠：底辺ライン除去
+    // 1. 上の行を1つずつ下にシフト（底辺ライン削除効果）
+    //    底辺から上に向かって、一つ上の行をコピーする
+    for y in (1..current_height).rev() {
+        board[y] = board[y - 1];  // 上の行を下の行にコピー
     }
     
-    // ボード高を1行拡張（相殺効果でプレイ領域が拡大）
+    // 2. 最上部（index 0）を空行にクリア
+    board[0] = [Cell::Empty; BOARD_WIDTH];
+    
+    // 3. ボード高を1行拡張（相殺効果でプレイ領域が拡大）
     let new_height = std::cmp::min(current_height + 1, BOARD_HEIGHT);
-    
-    // 新しく追加された行（最上部）に空行を設定
-    for y in current_height..new_height {
-        board[y] = [Cell::Empty; BOARD_WIDTH];
-    }
     
     (board, new_height, true)
 }
@@ -300,7 +299,16 @@ mod tests {
     #[test]
     fn test_remove_solid_line_from_bottom() {
         let initial_height = BOARD_HEIGHT - 5; // 拡張余地を作る
-        let board = create_test_board_with_solid_lines_at_height(2, initial_height);
+        
+        // 底辺から連続する2つのSolidラインを作成
+        let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+        
+        // 底辺（current_height-1）とその上（current_height-2）にSolidライン作成
+        for y in (initial_height-2)..initial_height {
+            for x in 0..BOARD_WIDTH {
+                board[y][x] = Cell::Solid;
+            }
+        }
         
         // デバッグ：Solidライン数を確認
         let solid_count_before = count_solid_lines_from_bottom(board, initial_height);
