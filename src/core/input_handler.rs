@@ -212,6 +212,33 @@ fn lock_current_piece(mut state: CoreGameState, current_time_ms: u64, events: &m
             shape: piece.shape,
         });
 
+        // CLI版準拠：隣接色スキャンとchain_bonus増加処理
+        // 1. ライン消去対象の特定（connected block処理前）
+        let mut lines_to_clear: Vec<usize> = (0..state.current_board_height)
+            .filter(|&y| {
+                use crate::cell::Cell;
+                (0..crate::config::BOARD_WIDTH).all(|x| {
+                    matches!(state.board[y][x], 
+                        Cell::Occupied(_) | Cell::Connected { .. })
+                })
+            })
+            .collect();
+        lines_to_clear.sort_by(|a, b| b.cmp(a)); // 下から上へ
+
+        // 2. 隣接ブロック検出とConnected変換（CLI版のfind_and_connect_adjacent_blocks相当）
+        let components = crate::core::board_logic::find_connected_components(state.board, &lines_to_clear);
+        state = state.apply_connected_components(components);
+
+        // 3. CHAIN-BONUS自動更新: MAX-CHAIN更新前の値を保存
+        let old_max_chains = state.max_chains.clone();
+
+        // 4. MAX-CHAIN更新（CLI版準拠）
+        state = state.update_max_chains_from_board();
+        
+        // 5. CHAIN-BONUS自動更新: 増加分を計算してCHAIN-BONUSに加算
+        let total_increase = crate::core::game_state::CoreColorMaxChains::calculate_chain_increases(&old_max_chains, &state.max_chains);
+        state = state.add_chain_bonus(total_increase);
+
         // ライン消去チェック
         let complete_lines = crate::core::board_logic::find_complete_lines(state.board, state.current_board_height);
         

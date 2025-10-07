@@ -100,6 +100,37 @@ impl CoreColorMaxChains {
             _ => {},
         }
     }
+
+    /// 【純粋関数】旧チェーンと新チェーンの増加分を計算（CLI版準拠）
+    pub fn calculate_chain_increases(old_chains: &CoreColorMaxChains, new_chains: &CoreColorMaxChains) -> u32 {
+        let mut total_increases = 0u32;
+
+        // 各色のMAX-CHAIN増加量を計算（減少時は0）
+        if new_chains.cyan > old_chains.cyan {
+            total_increases = total_increases.saturating_add(new_chains.cyan - old_chains.cyan);
+        }
+        if new_chains.magenta > old_chains.magenta {
+            total_increases = total_increases.saturating_add(new_chains.magenta - old_chains.magenta);
+        }
+        if new_chains.yellow > old_chains.yellow {
+            total_increases = total_increases.saturating_add(new_chains.yellow - old_chains.yellow);
+        }
+        // 他の色も同様に処理
+        if new_chains.red > old_chains.red {
+            total_increases = total_increases.saturating_add(new_chains.red - old_chains.red);
+        }
+        if new_chains.green > old_chains.green {
+            total_increases = total_increases.saturating_add(new_chains.green - old_chains.green);
+        }
+        if new_chains.blue > old_chains.blue {
+            total_increases = total_increases.saturating_add(new_chains.blue - old_chains.blue);
+        }
+        if new_chains.grey > old_chains.grey {
+            total_increases = total_increases.saturating_add(new_chains.grey - old_chains.grey);
+        }
+
+        total_increases
+    }
 }
 
 /// ゲーム状態更新結果
@@ -286,6 +317,43 @@ impl CoreGameState {
         if chain_count > current_max {
             self.max_chains.set(color, chain_count);
         }
+        self
+    }
+
+    /// 【純粋関数】ボード上のConnectedブロックからMAX-CHAIN更新（CLI版準拠）
+    pub fn update_max_chains_from_board(mut self) -> Self {
+        use crate::cell::Cell;
+        
+        // ボード全体をスキャンして各色の最大Connected数を見つける
+        for y in 0..self.current_board_height {
+            for x in 0..crate::config::BOARD_WIDTH {
+                if let Cell::Connected { color, count } = self.board[y][x] {
+                    let current_max = self.max_chains.get(color);
+                    if count as u32 > current_max {
+                        self.max_chains.set(color, count as u32);
+                    }
+                }
+            }
+        }
+        self
+    }
+
+    /// 【純粋関数】連結コンポーネントをボードに適用（CLI版準拠）
+    pub fn apply_connected_components(mut self, components: Vec<crate::core::board_logic::ConnectedComponent>) -> Self {
+        use crate::cell::Cell;
+        
+        self.board = crate::core::board_logic::apply_connected_components(self.board, &components);
+        
+        // 各Connectedブロックに正確なカウント数を設定
+        for component in &components {
+            let count = component.positions.len() as u8;
+            for &crate::core::board_logic::Point(x, y) in &component.positions {
+                if let Cell::Connected { color, count: _ } = self.board[y][x] {
+                    self.board[y][x] = Cell::Connected { color, count };
+                }
+            }
+        }
+        
         self
     }
     
