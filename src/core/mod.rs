@@ -8,6 +8,9 @@ pub mod erase_line_logic;
 pub mod game_state;
 pub mod input_handler;
 
+#[cfg(test)]
+pub mod tests;
+
 pub use animation_logic::*;
 pub use board_logic::*;
 pub use game_state::*;

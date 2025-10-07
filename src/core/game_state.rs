@@ -266,6 +266,19 @@ impl CoreGameState {
         self.score += points as u64;
         self
     }
+
+    /// 【純粋関数】チェーンボーナス追加（EraseLineアニメーション用）
+    pub fn add_chain_bonus(mut self, bonus: u32) -> Self {
+        self.chain_bonus = self.chain_bonus.saturating_add(bonus);
+        self
+    }
+
+    /// 【純粋関数】チェーンボーナス消費（EraseLineアニメーション用）
+    pub fn consume_chain_bonus(mut self, amount: u32) -> (Self, u32) {
+        let consumed = self.chain_bonus.min(amount);
+        self.chain_bonus = self.chain_bonus.saturating_sub(consumed);
+        (self, consumed)
+    }
     
     /// 【純粋関数】チェーン倍率更新
     pub fn update_chain_multiplier(mut self, color: GameColor, chain_count: u32) -> Self {

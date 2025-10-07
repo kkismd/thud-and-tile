@@ -100,6 +100,8 @@ impl CLIBridge {
         cli_state.lines_cleared = self.core_state.lines_cleared;
         cli_state.current_board_height = self.core_state.current_board_height;
         cli_state.enable_erase_line = self.core_state.enable_erase_line; // core側の値を使用
+        // chain_bonus同期（EraseLineアニメーション用）
+        cli_state.custom_score_system.max_chains.chain_bonus = self.core_state.chain_bonus;
         // 既存のCLI固有のフィールド
         cli_state.next_piece = self.next_piece.clone();
         cli_state.fall_speed = self.fall_speed;
@@ -113,6 +115,8 @@ impl CLIBridge {
         self.core_state.lines_cleared = cli_state.lines_cleared;
         self.core_state.current_board_height = cli_state.current_board_height;
         self.core_state.enable_erase_line = cli_state.enable_erase_line; // CLI側の値を使用
+        // chain_bonus同期（EraseLineアニメーション用）
+        self.core_state.chain_bonus = cli_state.custom_score_system.max_chains.chain_bonus;
         // CLI固有のフィールドを保持
         self.next_piece = cli_state.next_piece.clone();
         self.fall_speed = cli_state.fall_speed;
