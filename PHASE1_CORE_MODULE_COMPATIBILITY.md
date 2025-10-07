@@ -100,20 +100,33 @@ pub fn remove_solid_line_from_bottom(board: FixedBoard, lines_to_remove: usize) 
 
 1. **AnimationState.lines**: `Vec<usize>`
    - **現状**: 動的配列
-   - **Layer 1推奨**: `[Option<usize>; 4]` (最大4ライン消去)
+   - **分析結果**: テトリス理論最大4ライン同時消去
+   - **Layer 1推奨**: `[usize; 4]` + `lines_count: usize`
    - **影響度**: 軽微（WASM境界での問題可能性）
 
 2. **CoreGameState.animations**: `Vec<AnimationState>`
    - **現状**: 動的配列
-   - **評価**: 状態管理のみで許容範囲
+   - **分析結果**: ボード高さ分（20行）の同時アニメーション可能
+   - **Layer 1推奨**: `[AnimationState; 20]` + `animations_count: usize`
    - **影響度**: 軽微
 
-### 📝 **推奨改善**
+### 📝 **Phase 1実装改善**
 ```rust
-// 改善案
+// Vec usage分析結果に基づく改善案
 #[derive(Debug, Clone, Copy)]
 pub struct AnimationState {
-    pub lines: [Option<usize>; 4], // 固定サイズ化
+    pub animation_type: AnimationType,
+    pub lines: [usize; 4],          // テトリス最大4ライン
+    pub lines_count: usize,         // 実際の使用数
+    pub current_step: usize,
+    pub max_steps: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct CoreGameState {
+    pub board: FixedBoard,
+    pub animations: [AnimationState; 20],  // ボード高さ分
+    pub animations_count: usize,           // 実際の使用数
     // ... 他フィールド
 }
 ```
@@ -133,8 +146,16 @@ pub struct AnimationState {
 
 ### **Phase 2進行判定**: ✅ **承認**
 
+### **Phase 1優先タスク**: ✅ **Vec使用箇所の固定サイズ化**
+
+**Vec usage分析に基づく改善タスク**:
+1. AnimationState.lines: Vec<usize> → [usize; 4] + lines_count
+2. CoreGameState.animations: Vec<AnimationState> → [AnimationState; 20] + animations_count
+
 **理由**:
 1. 核心機能（EraseLineロジック）は完全にLayer 1適合
+2. Vec usage分析により具体的サイズが確定（lines: 4, animations: 20）
+3. 固定配列化でWASM境界安全性が向上
 2. 軽微なVec使用は後続Phase で対応可能
 3. 借用チェッカー安全性は完全確保済み
 4. データコピーパターンは理想的実装
