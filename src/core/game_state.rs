@@ -19,8 +19,9 @@ pub struct CoreGameState {
     /// 現在のボード高さ
     pub current_board_height: usize,
     
-    /// アクティブなアニメーション群
-    pub animations: Vec<AnimationState>,
+    /// アクティブなアニメーション群（固定サイズ配列）
+    pub animations: [AnimationState; 20],  // ボード高さ分の同時アニメーション
+    pub animations_count: usize,           // 実際に使用中のアニメーション数
     
     /// 現在のピース（Option for safety）
     pub current_piece: Option<Tetromino>,
@@ -173,12 +174,35 @@ impl Default for CoreGameState {
 }
 
 impl CoreGameState {
+    /// 固定配列にアニメーションを追加するヘルパー
+    fn add_animation(&mut self, animation: AnimationState) {
+        if self.animations_count < 20 {
+            self.animations[self.animations_count] = animation;
+            self.animations_count += 1;
+        }
+    }
+    
+    /// 現在のアニメーション配列をVecとして取得するヘルパー
+    fn get_active_animations(&self) -> Vec<AnimationState> {
+        self.animations[..self.animations_count].to_vec()
+    }
+    
+    /// アニメーション配列をVecから更新するヘルパー
+    fn update_animations_from_vec(&mut self, animations: Vec<AnimationState>) {
+        let count = animations.len().min(20);
+        for (i, animation) in animations.into_iter().take(20).enumerate() {
+            self.animations[i] = animation;
+        }
+        self.animations_count = count;
+    }
+    
     /// 新しいゲーム状態を作成
     pub fn new() -> Self {
         Self {
             board: [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT],
             current_board_height: 0,
-            animations: Vec::new(),
+            animations: [AnimationState::default(); 20],
+            animations_count: 0,
             current_piece: None,
             game_mode: CoreGameMode::Title,
             score: 0,
@@ -202,8 +226,9 @@ impl CoreGameState {
         self.elapsed_time_ms = current_time_ms;
         
         // アニメーション状態更新
-        let animation_result = update_all_animation_states(self.animations, current_time_ms);
-        self.animations = animation_result.updated_animations;
+        let active_animations = self.get_active_animations();
+        let animation_result = update_all_animation_states(active_animations, current_time_ms);
+        self.update_animations_from_vec(animation_result.updated_animations);
         
         // 完了したアニメーション処理
         for _completed_lines in animation_result.completed_line_blinks {
@@ -240,7 +265,7 @@ impl CoreGameState {
         use crate::core::animation_logic::create_line_blink_animation;
         
         let animation = create_line_blink_animation(lines, start_time_ms);
-        self.animations.push(animation);
+        self.add_animation(animation);
         self
     }
     
@@ -249,7 +274,7 @@ impl CoreGameState {
         use crate::core::animation_logic::create_push_down_animation;
         
         let animation = create_push_down_animation(gray_line_y, start_time_ms);
-        self.animations.push(animation);
+        self.add_animation(animation);
         self
     }
     
@@ -258,7 +283,7 @@ impl CoreGameState {
         use crate::core::animation_logic::create_erase_line_animation;
         
         let animation = create_erase_line_animation(target_lines, start_time_ms);
-        self.animations.push(animation);
+        self.add_animation(animation);
         self
     }
     
@@ -406,17 +431,17 @@ impl CoreGameState {
     
     /// アニメーション実行中かどうか
     pub fn has_animations(&self) -> bool {
-        !self.animations.is_empty()
+        self.animations_count > 0
     }
     
     /// アクティブなアニメーション数
     pub fn animation_count(&self) -> usize {
-        self.animations.len()
+        self.animations_count
     }
     
     /// 指定タイプのアニメーションが実行中かどうか
     pub fn has_animation_type(&self, animation_type: AnimationType) -> bool {
-        self.animations.iter().any(|anim| anim.animation_type == animation_type)
+        self.animations[..self.animations_count].iter().any(|anim| anim.animation_type == animation_type)
     }
 }
 

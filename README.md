@@ -177,7 +177,12 @@ GitHub Issuesで以下の情報と共に報告してください：
 - **Phase 3**: `PHASE3_WASM_BOUNDARY_REDESIGN.md` - WASM境界安全設計
 - **Phase 4**: `PHASE4_INTEGRATION_PLAN_REBUILT.md` - 統合計画再構築完了報告
 
-### 🛡️ リスク管理・移行戦略
+### � 実装ガイド・ロードマップ
+- **実装開始ガイド**: `IMPLEMENTATION_ROADMAP.md` - 次フェーズ着手とトラッキング戦略
+- **統合実装計画**: `WASM_CORE_INTEGRATION_PLAN.md` - 4フェーズ実装ロードマップ
+- **技術仕様書**: `WASM_CORE_INTEGRATION_TECHNICAL.md` - WASM境界安全設計詳細
+
+### �🛡️ リスク管理・移行戦略
 - **包括的リスク管理**: `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md` - WASM統合全体のリスク管理マスター文書
 - **CLI移行戦略**: `PHASE2_CLI_MIGRATION_STRATEGY.md` - CLI Layer移行の詳細戦略・テクニック
 - **Phase 2計画改訂**: `PHASE2_PLAN_REVISION.md` - 段階的移行戦略とロールバック計画
