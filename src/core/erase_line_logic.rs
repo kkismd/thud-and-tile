@@ -131,25 +131,15 @@ pub fn remove_solid_line_from_bottom(
     }
     
     // CLI版準拠：物理的底辺ライン除去
-    // 物理的底辺から最も下のSolidラインを特定
-    let mut bottom_solid_line: Option<usize> = None;
-    for y in (0..BOARD_HEIGHT).rev() {
-        if board[y].iter().all(|cell| matches!(cell, Cell::Solid)) {
-            bottom_solid_line = Some(y);
-            break;
-        }
+    let bottom_line_y = BOARD_HEIGHT - 1;
+    
+    // 底辺ライン除去をシミュレート：上の行を1つずつ下にシフト
+    for y in (1..=bottom_line_y).rev() {
+        board[y] = board[y - 1];  // 上の行を下の行にコピー
     }
     
-    if let Some(solid_y) = bottom_solid_line {
-        // CLI版準拠：底辺ライン除去 + 上から下へシフト
-        // 底辺ライン除去をシミュレート：上の行を1つずつ下にシフト
-        for y in (1..=solid_y).rev() {
-            board[y] = board[y - 1];  // 上の行を下の行にコピー
-        }
-        
-        // 最上部（index 0）に新しい空行を挿入
-        board[0] = [Cell::Empty; BOARD_WIDTH];
-    }
+    // 最上部（index 0）に新しい空行を挿入
+    board[0] = [Cell::Empty; BOARD_WIDTH];
     
     // 3. ボード高を1行拡張（相殺効果でプレイ領域が拡大）
     let new_height = std::cmp::min(current_height + 1, BOARD_HEIGHT);
