@@ -39,6 +39,9 @@ pub struct CoreGameState {
     /// その他の統計
     pub pieces_placed: u32,
     pub elapsed_time_ms: u64,
+    
+    /// EraseLineアニメーション有効フラグ
+    pub enable_erase_line: bool,
 }
 
 /// 統合ゲームモード
@@ -153,6 +156,7 @@ impl CoreGameState {
             max_chains: CoreColorMaxChains::default(),
             pieces_placed: 0,
             elapsed_time_ms: 0,
+            enable_erase_line: false, // デフォルトで無効
         }
     }
     

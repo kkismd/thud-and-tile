@@ -4,6 +4,7 @@
 
 pub mod animation_logic;
 pub mod board_logic;
+pub mod erase_line_logic;
 pub mod game_state;
 pub mod input_handler;
 

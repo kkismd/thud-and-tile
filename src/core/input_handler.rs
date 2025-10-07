@@ -42,8 +42,8 @@ fn process_title_input(mut state: CoreGameState, input: GameInput, _current_time
             render_required = true;
         }
         GameInput::ToggleEraseLine => {
-            // EraseLineアニメーション切り替え（将来の実装用）
-            // 現時点では入力として受け付けるのみ
+            // EraseLineアニメーション切り替え
+            state.enable_erase_line = !state.enable_erase_line;
             input_consumed = true;
             render_required = true;
         }
@@ -336,12 +336,18 @@ mod tests {
     fn test_title_input_toggle_erase_line() {
         let mut state = CoreGameState::new();
         state.game_mode = CoreGameMode::Title;
+        assert!(!state.enable_erase_line); // 初期状態はfalse
         
         let result = process_input(state, GameInput::ToggleEraseLine, 0);
         
         assert!(result.input_consumed);
         assert!(result.render_required);
         assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
+        assert!(result.new_state.enable_erase_line); // トグルされてtrue
+        
+        // もう一度トグルしてfalseに戻る
+        let result2 = process_input(result.new_state, GameInput::ToggleEraseLine, 0);
+        assert!(!result2.new_state.enable_erase_line); // trueからfalseに戻る
     }
 
     #[test]

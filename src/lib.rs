@@ -14,6 +14,9 @@ mod animation;
 // Core Logic Module (CLI版とWASM版で共有)
 mod core;
 
+// CLI Integration Bridge for Phase 1 Week 2
+mod cli_bridge;
+
 // JavaScript console.log への出力用マクロ
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 #[wasm_bindgen]

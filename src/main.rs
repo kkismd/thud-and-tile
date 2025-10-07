@@ -14,6 +14,12 @@ mod game_color;
 mod game_input;
 mod random;
 mod scheduler; // 共通アニメーション処理モジュール
+
+// Core Logic Module (CLI版とWASM版で共有)
+mod core;
+
+// CLI Integration Bridge for Phase 1 Week 2
+mod cli_bridge;
 use config::*;
 use game_color::GameColor;
 use game_input::{CrosstermInputProvider, GameInput, InputProvider};
