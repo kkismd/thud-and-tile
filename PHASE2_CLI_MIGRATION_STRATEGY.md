@@ -1,7 +1,12 @@
-# Phase 2リスク分析と安全な移行戦略
+# Phase 2 CLI移行戦略: 安全な段階的移行計画
 
 **作成日**: 2025年10月7日  
-**対象**: フェーズ 2「Layer 2 CLI実装」の「既存CLI機能移行」リスク対応
+**特化対象**: フェーズ 2「Layer 2 CLI実装」専門戦略  
+**目的**: 既存CLI機能の安全な移行とテスト保護
+
+**📋 関連文書**: 
+- 包括的リスク分析: `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md`
+- フェーズ2計画改訂: `PHASE2_PLAN_REVISION.md`
 
 ---
 
@@ -14,23 +19,24 @@
 
 ---
 
-## 🔍 **現在の実装構造分析**
+## 🎯 **CLI移行戦略の特化範囲**
 
-### **CLI機能の依存関係**
+### **対象範囲（CLI Layer専門）**
 ```rust
 main.rs (エントリーポイント)
-├── crossterm (terminal制御)
-├── render.rs (描画システム)
-├── game_input.rs (入力処理)
-├── scheduler.rs (時間管理)
-├── cli_bridge.rs (CLIブリッジ)
-└── core/ (共通ロジック - 既にLayer 1適合)
+├── crossterm (terminal制御) ← 移行対象
+├── render.rs (描画システム) ← 移行対象  
+├── game_input.rs (入力処理) ← 移行対象
+├── scheduler.rs (時間管理) ← 移行対象
+├── cli_bridge.rs (CLIブリッジ) ← 移行対象
+└── core/ (共通ロジック) ← Phase 1完了、Layer 1適合済み
 ```
 
-### **テスト構造**
-- **総テスト数**: 92個 (全て通過)
-- **Core Logic**: 15個 (Layer 1 - 既に安全)
-- **CLI Integration**: 77個 (移行対象 - 高リスク)
+### **対象外（他文書で管理）**
+- **WASM境界リスク** → `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md`
+- **JavaScript統合** → `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md`  
+- **Feature Flag管理** → `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md`
+- **Core Module変更** → Phase 1完了済み
 
 ---
 

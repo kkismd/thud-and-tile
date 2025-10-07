@@ -4,6 +4,10 @@
 **改訂理由**: 過去のAPI変更テスト失敗インシデント対策  
 **対象**: WASM_CORE_INTEGRATION_PLAN.md フェーズ2改訂
 
+**📋 関連戦略文書**:
+- CLI移行戦略: `PHASE2_CLI_MIGRATION_STRATEGY.md` - CLI移行の詳細戦略・テクニック
+- 包括的リスク管理: `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md` - 全体リスク管理
+
 ---
 
 ## 🚨 **改訂の背景**

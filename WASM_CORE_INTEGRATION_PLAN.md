@@ -239,45 +239,46 @@ impl CliGameState {**期間**: 1日
 
 - EraseLineAnimationStarted/Completedイベントテスト
 
-### **実装フェーズ 3: Layer 3（WASM専用レイヤー）実装** (1.5日)- 複数イベント同時発生処理テスト
+### **実装フェーズ 3: Layer 3（WASM専用レイヤー）実装** (1.5日)
+
+**🚨 重要**: CLI移行以外のマイグレーションリスク対策統合済み
 
 **目標**: Phase 3設計に基づく安全なWASM境界実装
 
-#### Step 4.2: イベント処理統合実装
+#### **3.1: WASM Layer基盤作成（0.3日）**
+**リスク**: WASMテスト失敗による統合停止
 
-#### **3.1: WASM Layer基盤作成**- Core ModuleイベントのWASM境界での受信・変換
-
-```rust- JavaScript側への適切なイベント通知メカニズム
-
-// src/wasm/mod.rs- イベントキューの効率的な管理
-
+```rust
+// src/wasm/mod.rs
 pub mod wasm_game_engine;
-
-pub mod wasm_types;### Phase 5: 型安全性・エラーハンドリング強化
-
-pub mod wasm_animation;**期間**: 1日  
-
-pub mod wasm_bridge;**目標**: WASM境界での型安全性とエラーハンドリングの統一
-
+pub mod wasm_types;
+pub mod wasm_animation;
+pub mod wasm_bridge;
 ```
 
-#### Step 5.1: 型安全性テスト作成
+**検証**: WASMテスト保護戦略実行
+```bash
+# 基盤作成後の全環境テスト
+cargo test --lib                    # 92 tests → 維持必須
+cargo test --features wasm-test     # 171 tests → 影響監視
+cargo test --features nodejs-test   # Node.js環境確認
 
-#### **3.2: WasmGameEngine実装**- 不正input_code処理テスト
+# Feature Flag整合性確認
+for feature in native-bin wasm wasm-test nodejs-test; do
+    cargo test --features $feature || exit 1
+done
+```
 
-```rust- WASM境界での型変換エラーテスト
+#### **3.2: WasmGameEngine段階的実装（0.7日）**
+**戦略**: 後方互換API保持 + 段階的内部移行
 
-// src/wasm/wasm_game_engine.rs- メモリ安全性確認テスト
-
+```rust
+// src/wasm/wasm_game_engine.rs
 #[wasm_bindgen]
-
-pub struct WasmGameEngine {#### Step 5.2: 型安全性強化実装
-
-    core_snapshot: CoreGameState,  // Layer 1データコピー保持- input_code範囲チェック強化
-
-    last_update_ms: u64,- WASM境界でのResult型活用
-
-    last_error_code: u32,- エラー状態の適切なJavaScript側通知
+pub struct WasmGameEngine {
+    core_snapshot: CoreGameState,  // Layer 1データコピー保持
+    last_update_ms: u64,
+    last_error_code: u32,
 
 }
 

@@ -178,7 +178,8 @@ GitHub Issuesで以下の情報と共に報告してください：
 - **Phase 4**: `PHASE4_INTEGRATION_PLAN_REBUILT.md` - 統合計画再構築完了報告
 
 ### 🛡️ リスク管理・移行戦略
-- **Phase 2リスク分析**: `PHASE2_MIGRATION_RISK_ANALYSIS.md` - CLI機能移行時のテスト失敗リスク対策
+- **包括的リスク管理**: `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md` - WASM統合全体のリスク管理マスター文書
+- **CLI移行戦略**: `PHASE2_CLI_MIGRATION_STRATEGY.md` - CLI Layer移行の詳細戦略・テクニック
 - **Phase 2計画改訂**: `PHASE2_PLAN_REVISION.md` - 段階的移行戦略とロールバック計画
 
 ### 🌐 Web版
