@@ -4,6 +4,16 @@
 
 ## 移動理由と日付
 
+### 2025-10-07 - WASM統合再設計による文書整理
+
+#### 再設計により置き換えられた統合文書
+- `GRADUAL_MIGRATION_PLAN.md` - 段階的移行実装計画 → `WASM_REDESIGN_PHASE_ANALYSIS.md`のPhase別アプローチで置き換え
+- `CLI_WASM_UNIFIED_ARCHITECTURE.md` - 統合アーキテクチャ戦略 → `CLI_WASM_INTEGRATION_REDESIGN.md`の3層分離設計で置き換え  
+- `WASM_API_LAYER_DESIGN.md` - WASM APIレイヤー設計 → データコピー最優先原則による新設計で置き換え予定
+- `UNIFIED_ARCHITECTURE_RETROSPECTIVE.md` - アーキテクチャ振り返り → Phase別再設計プロセスで置き換え
+
+**移動理由**: CLI_WASM_INTEGRATION_REDESIGN.mdの設計原則（データコピー最優先、Layer分離、借用チェッカー安全性）に準拠した新しいアプローチによる全面見直しのため
+
 ### 2024-10-03 - Phase 2A完了による大規模アーカイブ
 
 #### 計画・分析文書（実装完了により不要）
@@ -25,9 +35,15 @@
 #### レガシー管理文書（新構造への移行により不要）
 - `session_state.json` - 旧式状況管理ファイル → 3ファイル構造に置き換えにより不要
 
-## 新しい文書構造（Phase 2A完了後）
+## 新しい文書構造（2025年10月7日時点）
 
-現在有効な文書：
+現在有効な設計文書：
+- `CLI_WASM_INTEGRATION_REDESIGN.md` - 設計基準文書（過去インシデント教訓）
+- `WASM_REDESIGN_PHASE_ANALYSIS.md` - Phase別依存関係分析
+- `WASM_CORE_INTEGRATION_PLAN.md` - 統合プラン（Phase 4で改訂予定）
+- `WASM_CORE_INTEGRATION_TECHNICAL.md` - 技術詳細（Phase 4で改訂予定）
+
+プロジェクト管理文書：
 - `current_status.json` - 現在状況の軽量サマリー
 - `ROADMAP.md` - 優先度付き次ステップと詳細計画
 - `HISTORY.md` - 完了タスクの履歴（追記専用）
