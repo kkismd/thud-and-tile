@@ -112,6 +112,14 @@ fn process_playing_input(mut state: CoreGameState, input: GameInput, current_tim
                     render_required = true;
                 }
             }
+            GameInput::RotateCounterClockwise => {
+                let rotated_piece = current_piece.rotated_counter_clockwise();
+                if state.can_place_piece(&rotated_piece) {
+                    state.current_piece = Some(rotated_piece);
+                    input_consumed = true;
+                    render_required = true;
+                }
+            }
             GameInput::HardDrop => {
                 // 最下位置まで即座に移動してロック
                 let mut drop_piece = current_piece.clone();
@@ -266,6 +274,40 @@ mod tests {
         let new_piece = result.new_state.current_piece.as_ref().unwrap();
         let new_first_block = new_piece.iter_blocks().next().unwrap();
         assert_eq!(new_first_block.0.0, original_first_block.0.0 - 1);
+        assert!(result.input_consumed);
+        assert!(result.render_required);
+    }
+
+    #[test]
+    fn test_playing_input_rotation_clockwise() {
+        let mut state = CoreGameState::new();
+        state.game_mode = CoreGameMode::Playing;
+        state = state.spawn_piece();
+
+        let original_piece = state.current_piece.as_ref().unwrap().clone();
+        
+        let result = process_input(state, GameInput::RotateClockwise, 0);
+        
+        // 回転後のピースが異なることを確認
+        let new_piece = result.new_state.current_piece.as_ref().unwrap();
+        assert_ne!(new_piece.get_rotation_state(), original_piece.get_rotation_state());
+        assert!(result.input_consumed);
+        assert!(result.render_required);
+    }
+
+    #[test]
+    fn test_playing_input_rotation_counter_clockwise() {
+        let mut state = CoreGameState::new();
+        state.game_mode = CoreGameMode::Playing;
+        state = state.spawn_piece();
+
+        let original_piece = state.current_piece.as_ref().unwrap().clone();
+        
+        let result = process_input(state, GameInput::RotateCounterClockwise, 0);
+        
+        // 回転後のピースが異なることを確認
+        let new_piece = result.new_state.current_piece.as_ref().unwrap();
+        assert_ne!(new_piece.get_rotation_state(), original_piece.get_rotation_state());
         assert!(result.input_consumed);
         assert!(result.render_required);
     }
