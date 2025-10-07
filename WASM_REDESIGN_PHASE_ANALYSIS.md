@@ -4,6 +4,36 @@
 **目的**: CLI_WASM_INTEGRATION_REDESIGN.mdの原則に準拠したWASM統合設計の段階的再検討  
 **重要**: 本ドキュメントにより、既存の`WASM_CORE_INTEGRATION_PLAN.md`と`WASM_CORE_INTEGRATION_TECHNICAL.md`は**Phase 4完了時に全面改訂**されます
 
+## 📚 **関連文書の役割と構造**
+
+### **🔴 アクティブ文書（現在使用中）**
+| 文書名 | 役割 | 状態 |
+|--------|------|------|
+| **WASM_REDESIGN_PHASE_ANALYSIS.md** | 🎯 **メインプロセス** - 再設計全体管理 | 本文書 |
+| **CLI_WASM_INTEGRATION_REDESIGN.md** | 📋 設計基準・原則定義 | 参照のみ |
+| **PHASE1_CORE_MODULE_COMPATIBILITY.md** | 📊 Phase 1検証結果レポート | 完了 |
+| **PHASE2_LAYER_SEPARATION_DESIGN.md** | 🏗️ Phase 2詳細設計書 | 設計完了 |
+
+### **🟡 見直し対象文書（Phase 4で改訂予定）**
+| 文書名 | 現在の問題 | Phase 4での対応 |
+|--------|------------|----------------|
+| **WASM_CORE_INTEGRATION_PLAN.md** | 2層統合設計（3層分離未反映） | 全面改訂 |
+| **WASM_CORE_INTEGRATION_TECHNICAL.md** | データコピー原則未反映 | 技術詳細更新 |
+
+### **🔵 作成予定文書（Phase 3-4で生成）**
+| 文書名 | 目的 | 作成時期 |
+|--------|------|----------|
+| **PHASE3_WASM_BOUNDARY_REDESIGN.md** | WASM境界安全設計 | Phase 3実行中 |
+| **PHASE4_INTEGRATION_PLAN_REBUILT.md** | 最終統合プラン | Phase 4実行中 |
+
+### **⚫ 廃止済み文書（obsolete_docs/に移動済み）**
+- `CLI_WASM_UNIFIED_ARCHITECTURE.md` - 統合アーキテクチャ（3層分離で置き換え）
+- `WASM_API_LAYER_DESIGN.md` - API設計（データコピー原則で見直し）
+- `GRADUAL_MIGRATION_PLAN.md` - 段階移行計画（Phase別アプローチで置き換え）
+- `UNIFIED_ARCHITECTURE_RETROSPECTIVE.md` - 振り返り（再設計プロセスで包含）
+
+---
+
 ## 📋 背景：設計適合性課題の特定
 
 ### 🚨 **統合プラン作成時に発見された原則乖離**
@@ -64,39 +94,39 @@
 
 ---
 
-### **Phase 2: Layer分離アーキテクチャの適用検討**
-**優先度**: 🟡 高 | **期間**: 1-2日 | **依存**: Phase 1完了
+### **Phase 2: Layer分離アーキテクチャの適用検討（✅ 完了）**
+**優先度**: 🟡 高 | **期間**: 1-2日 | **依存**: Phase 1完了 | **結果**: ✅ 3層設計承認
 
 #### 🔍 **検討スコープ**
-1. **3層分離の適用可能性分析**
+1. **3層分離の適用可能性分析** - ✅ **承認済み**
    ```
    現在の2層構造:
    [Core Module] → [WASM API]
    
-   提案の3層構造:
-   [Layer 1: 共通コア] → [Layer 2: CLI専用] → [Layer 3: WASM専用]
+   新設計の3層構造（独立依存）:
+   [Layer 1: 共通コア] ← [Layer 2: CLI専用]
+                        ← [Layer 3: WASM専用]
    ```
 
-2. **既存Core Moduleの位置づけ**
-   - Layer 1として利用可能か
-   - Layer 2への分離が必要か
-   - 新規Layer設計の必要性
+2. **依存関係の明確化** - ✅ **確認済み**
+   - **Layer 1 → Layer 2**: Core Logic → CLI Integration（Rust native機能活用）
+   - **Layer 1 → Layer 3**: Core Logic → WASM API（JavaScript安全性重視）
+   - **Layer 2 ⊥ Layer 3**: CLI層とWASM層は完全独立（相互依存なし）
 
-3. **移行戦略の検討**
-   - 段階的移行 vs 一括移行
-   - 既存機能への影響評価
-   - テスト戦略の調整
+3. **既存Core Moduleの位置づけ** - ✅ **決定済み**
+   - Layer 1として95%活用可能（Phase 1検証済み）
+   - 軽微調整のみ（Vec→固定配列）で対応
+   - 既存機能完全保持
 
 #### 📋 **検討アクション**
-- [ ] Layer分離の費用対効果分析
-- [ ] Core Module再利用可能性評価
-- [ ] CLI版への影響度評価
-- [ ] 移行リスク・工数評価
+- [x] Layer分離の費用対効果分析 → ✅ 高効果確認（過去WASM事故防止）
+- [x] Core Module再利用可能性評価 → ✅ 95%再利用可能
+- [x] CLI版への影響度評価 → ✅ 最小影響（ラッパー層追加のみ）
+- [x] 移行リスク・工数評価 → ✅ 低リスク（段階的移行）
 
-#### 🎯 **検討結果による分岐**
-- **3層適用**: Layer分離設計でPhase 3へ
-- **2層維持**: 現構造強化でPhase 3へ
-- **段階移行**: 部分的Layer分離でPhase 3へ
+#### 🎯 **検討結果**: **✅ 3層設計で確定**
+- **詳細設計**: `PHASE2_LAYER_SEPARATION_DESIGN.md`参照
+- **実装準備**: Phase 2.3で実装開始
 
 ---
 
