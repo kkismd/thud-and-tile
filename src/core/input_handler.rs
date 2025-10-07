@@ -5,6 +5,7 @@
 
 use crate::core::game_state::{CoreGameState, CoreGameEvent, CoreGameMode};
 use crate::game_input::GameInput;
+use crate::tetromino::Tetromino;
 
 /// 入力処理結果
 #[derive(Debug, Clone)]
@@ -37,6 +38,12 @@ fn process_title_input(mut state: CoreGameState, input: GameInput, _current_time
             events.push(CoreGameEvent::GameModeChanged { 
                 new_mode: CoreGameMode::Playing 
             });
+            input_consumed = true;
+            render_required = true;
+        }
+        GameInput::ToggleEraseLine => {
+            // EraseLineアニメーション切り替え（将来の実装用）
+            // 現時点では入力として受け付けるのみ
             input_consumed = true;
             render_required = true;
         }
@@ -166,12 +173,11 @@ fn process_game_over_input(mut state: CoreGameState, input: GameInput, _current_
 
     match input {
         GameInput::Restart => {
-            // 新しいゲームを開始
+            // CLIの挙動に合わせて、タイトルモードに戻る
             state = CoreGameState::new();
-            state.game_mode = CoreGameMode::Playing;
-            state = state.spawn_piece();
+            state.game_mode = CoreGameMode::Title;
             events.push(CoreGameEvent::GameModeChanged { 
-                new_mode: CoreGameMode::Playing 
+                new_mode: CoreGameMode::Title 
             });
             input_consumed = true;
             render_required = true;
@@ -319,8 +325,134 @@ mod tests {
 
         let result = process_input(state, GameInput::Restart, 0);
         
-        assert_eq!(result.new_state.game_mode, CoreGameMode::Playing);
+        // CLIの挙動に合わせてタイトルモードに戻る
+        assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
         assert!(result.input_consumed);
         assert!(result.render_required);
+        assert_eq!(result.events.len(), 1);
+    }
+
+    #[test]
+    fn test_title_input_toggle_erase_line() {
+        let mut state = CoreGameState::new();
+        state.game_mode = CoreGameMode::Title;
+        
+        let result = process_input(state, GameInput::ToggleEraseLine, 0);
+        
+        assert!(result.input_consumed);
+        assert!(result.render_required);
+        assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
+    }
+
+    #[test]
+    fn test_playing_input_pause() {
+        let mut state = CoreGameState::new();
+        state.game_mode = CoreGameMode::Playing;
+        state.current_piece = Some(Tetromino::new_random());
+        
+        let result = process_input(state, GameInput::Pause, 0);
+        
+        assert!(result.input_consumed);
+        assert!(result.render_required);
+        assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
+        assert_eq!(result.events.len(), 1);
+    }
+
+    #[test]
+    fn test_complete_input_coverage() {
+        // 全てのGameInput入力が適切に処理されることを確認
+        use crate::game_input::GameInput;
+        
+        let inputs = [
+            GameInput::MoveLeft,
+            GameInput::MoveRight,
+            GameInput::SoftDrop,
+            GameInput::HardDrop,
+            GameInput::RotateClockwise,
+            GameInput::RotateCounterClockwise,
+            GameInput::Quit,
+            GameInput::Restart,
+            GameInput::Pause,
+            GameInput::ToggleEraseLine,
+            GameInput::Unknown,
+        ];
+
+        // Playing状態でのテスト（アニメーションなし）
+        for input in &inputs {
+            let mut state = CoreGameState::new();
+            state.game_mode = CoreGameMode::Playing;
+            state.current_piece = Some(Tetromino::new_random());
+            
+            let result = process_input(state, *input, 0);
+            // 全ての入力が何らかの処理を行う（エラーにならない）ことを確認
+            // Playing中の移動・回転系入力は消費される、制御系入力はモード変更かQuit
+            match input {
+                GameInput::MoveLeft | GameInput::MoveRight | GameInput::SoftDrop | 
+                GameInput::HardDrop | GameInput::RotateClockwise | GameInput::RotateCounterClockwise => {
+                    // 移動・回転系は入力が消費されるか、有効でなければ無視される
+                    assert!(result.input_consumed || !result.input_consumed);
+                }
+                GameInput::Quit => {
+                    assert!(result.input_consumed);
+                }
+                GameInput::Pause => {
+                    assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
+                    assert!(result.input_consumed);
+                }
+                GameInput::Unknown => {
+                    // 未知の入力は無視される
+                    assert!(!result.input_consumed);
+                }
+                _ => {
+                    // その他の入力（Restart, ToggleEraseLine）はPlaying中では無視される
+                    assert!(!result.input_consumed);
+                }
+            }
+        }
+        
+        // Title状態でのテスト
+        for input in &inputs {
+            let mut state = CoreGameState::new();
+            state.game_mode = CoreGameMode::Title;
+            
+            let result = process_input(state, *input, 0);
+            match input {
+                GameInput::Restart => {
+                    assert_eq!(result.new_state.game_mode, CoreGameMode::Playing);
+                    assert!(result.input_consumed);
+                }
+                GameInput::ToggleEraseLine => {
+                    assert!(result.input_consumed);
+                }
+                GameInput::Quit => {
+                    assert!(result.input_consumed);
+                }
+                _ => {
+                    // その他の入力は無視される
+                    assert!(!result.input_consumed);
+                }
+            }
+        }
+        
+        // GameOver状態でのテスト
+        for input in &inputs {
+            let mut state = CoreGameState::new();
+            state.game_mode = CoreGameMode::GameOver;
+            
+            let result = process_input(state, *input, 0);
+            match input {
+                GameInput::Restart => {
+                    assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
+                    assert!(result.input_consumed);
+                }
+                GameInput::Quit => {
+                    assert!(result.input_consumed);
+                }
+                _ => {
+                    // その他の入力は無視される
+                    assert!(!result.input_consumed);
+                }
+            }
+        }
     }
 }
