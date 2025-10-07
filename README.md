@@ -159,10 +159,30 @@ GitHub Issuesで以下の情報と共に報告してください：
 
 ## 📚 関連資料
 
-- **ゲーム仕様**: `game_spec.md`
-- **開発履歴**: `HISTORY.md`
-- **ロードマップ**: `ROADMAP.md`
-- **Web版**: [thud-and-tile-web リポジトリ](https://github.com/kkismd/thud-and-tile-web)
+### 🎮 ゲーム仕様・履歴
+- **ゲーム仕様**: `game_spec.md` - ゲームルールとメカニクス詳細
+- **開発履歴**: `HISTORY.md` - プロジェクト開発経緯
+- **ロードマップ**: `ROADMAP.md` - 今後の開発計画
+- **完了レポート**: `FINAL_COMPLETION_REPORT.md` - Phase 1完了報告
+
+### 🏗️ WASM統合設計（Phase 2準備）
+- **統合再設計指針**: `CLI_WASM_INTEGRATION_REDESIGN.md` - 3層分離アーキテクチャ基本方針
+- **Phase 1-4分析**: `WASM_REDESIGN_PHASE_ANALYSIS.md` - 4段階設計プロセス管理文書
+- **統合実装計画**: `WASM_CORE_INTEGRATION_PLAN.md` - 4フェーズ実装ロードマップ
+- **技術仕様書**: `WASM_CORE_INTEGRATION_TECHNICAL.md` - WASM境界安全設計詳細
+
+### 📋 Phase別設計文書
+- **Phase 1**: `PHASE1_CORE_MODULE_COMPATIBILITY.md` - Core Module適合性検証結果
+- **Phase 2**: `PHASE2_LAYER_SEPARATION_DESIGN.md` - 3層分離アーキテクチャ設計
+- **Phase 3**: `PHASE3_WASM_BOUNDARY_REDESIGN.md` - WASM境界安全設計
+- **Phase 4**: `PHASE4_INTEGRATION_PLAN_REBUILT.md` - 統合計画再構築完了報告
+
+### 🛡️ リスク管理・移行戦略
+- **Phase 2リスク分析**: `PHASE2_MIGRATION_RISK_ANALYSIS.md` - CLI機能移行時のテスト失敗リスク対策
+- **Phase 2計画改訂**: `PHASE2_PLAN_REVISION.md` - 段階的移行戦略とロールバック計画
+
+### 🌐 Web版
+- **Web版リポジトリ**: [thud-and-tile-web](https://github.com/kkismd/thud-and-tile-web)
 
 ## 📄 ライセンス
 

@@ -108,35 +108,84 @@ pub struct AnimationState {- WasmGameState初期化テスト
 
 - ToggleEraseLine（input_code: 8）専用テスト
 
-### **実装フェーズ 2: Layer 2（CLI専用レイヤー）実装** (1日)- Core Moduleイベント発生確認テスト
+### **実装フェーズ 2: Layer 2（CLI専用レイヤー）実装** (1.2日)
 
-**目標**: 既存CLI機能をLayer 2として分離、Layer 1との統合- **追加必要**: データコピー最優先パターンの検証
+**🚨 重要**: 過去のAPI変更でテスト大量失敗→ロールバック事象対策済み
 
+**戦略**: 段階的移行（Strangler Fig Pattern）+ テスト駆動 + 後方互換性
 
-
-#### **2.1: CLI Layer基盤作成**#### Step 2.2: handle_input関数のCore Module統合実装
-
-```rust- `process_input`関数をWASM境界で呼び出す新実装
-
-// src/cli/mod.rs- input_code → GameInput変換の完全対応
-
-pub mod cli_game_state;- Core Module戻り値（InputProcessResult）のWASM境界変換
-
-pub mod cli_animation;- **重要**: 再設計書の「値渡し」「借用チェッカー安全」原則に準拠
-
-pub mod cli_input_handler;
-
-pub mod cli_renderer;#### Step 2.3: ToggleEraseLine機能実装
-
-```- input_code: 8のToggleEraseLineマッピング追加
-
-- enable_erase_line状態のWASM API露出
-
-#### **2.2: CLI Game State実装**- EraseLineアニメーション開始条件の統合テスト
+#### **2.1: 安全なCLI Layer基盤作成（0.3日）**
+**リスク**: ゼロ（既存コード無変更）
 
 ```rust
+// src/cli/mod.rs - 新規作成
+pub mod renderer;     // render.rs → Layer 2移行先  
+pub mod input;        // game_input.rs → Layer 2移行先
+pub mod scheduler;    // scheduler.rs → Layer 2移行先
+pub mod bridge;       // CLI-Core統合管理
+```
 
-// src/cli/cli_game_state.rs#### Step 2.4: chain_bonus自動増加機能統合
+**検証**: `cargo test` → 92/92 passed 維持必須
+
+#### **2.2: 段階的機能移行（0.8日）**
+
+**2.2.1 描画機能移行（0.2日）**
+```rust  
+// 目標: render.rs → src/cli/renderer.rs
+// 理由: 独立性高、依存関係最小でリスク最小
+
+// 後方互換API保持（テスト変更なし）
+pub fn draw_game_state(renderer: &mut CrosstermRenderer, state: &GameState) {
+    // 内部でLayer 2呼び出し
+    cli::renderer::draw(renderer, state);
+}
+
+// Layer 2新実装
+pub mod cli {
+    pub mod renderer {
+        pub fn draw(renderer: &mut CrosstermRenderer, state: &GameState) {
+            // Layer 2実装
+        }
+    }
+}
+```
+**ロールバック**: `git checkout -- src/render.rs` (影響局所化)
+
+**2.2.2 入力機能移行（0.3日）**
+```rust
+// 目標: game_input.rs → src/cli/input.rs  
+// 前提: 2.2.1完了、テスト通過確認済み
+
+// InputProviderトレイト保持（既存テスト維持）
+impl InputProvider for CrosstermInputProvider {
+    fn get_input(&mut self) -> GameInput {
+        // 内部でLayer 2呼び出し
+        cli::input::process()
+    }
+}
+```
+**ロールバック**: `git checkout -- src/game_input.rs`
+
+**2.2.3 スケジューリング機能移行（0.3日）**
+```rust
+// 目標: scheduler.rs → src/cli/scheduler.rs
+// 前提: 2.2.1, 2.2.2完了、テスト通過確認済み
+
+// Schedulerトレイト保持（時間管理API維持）
+pub fn create_default_scheduler() -> impl Scheduler {
+    // 内部でLayer 2実装返却
+    cli::scheduler::DefaultScheduler::new()
+}
+```
+**ロールバック**: `git checkout -- src/scheduler.rs`
+
+#### **2.3: 統合と最適化（0.1日）**
+**前提**: 全移行完了、92テスト通過確認済み
+
+1. main.rs でLayer 2 API直接呼び出し
+2. 旧実装ファイル削除  
+3. 最終統合テスト実行
+4. **緊急時**: `git reset --hard phase2-start`でフェーズ全体復元
 
 pub struct CliGameState {- Core Moduleの`lock_current_piece`機能をWASM APIに統合
 
