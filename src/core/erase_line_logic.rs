@@ -233,9 +233,15 @@ pub fn should_start_erase_line_animation(
     let solid_count = count_solid_lines_from_bottom(board);
     let erasable_lines = determine_erase_line_count(chain_bonus, solid_count);
     
-    if erasable_lines > 0 {
+    if erasable_lines > 0 && current_height > 0 {
         let target_lines: Vec<usize> = (0..erasable_lines)
-            .map(|i| current_height - 1 - i)
+            .filter_map(|i| {
+                if current_height > i {
+                    Some(current_height - 1 - i)
+                } else {
+                    None
+                }
+            })
             .collect();
         (true, target_lines)
     } else {
