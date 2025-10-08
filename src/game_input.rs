@@ -41,6 +41,7 @@ pub trait InputProvider {
 
 /// crossterm用の入力プロバイダー実装（ターミナル環境用）
 #[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
 pub struct CrosstermInputProvider;
 
 #[cfg(not(target_arch = "wasm32"))]

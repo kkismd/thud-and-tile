@@ -2,14 +2,14 @@
 
 **3色システムを採用したテトリス風パズルゲーム**
 
-> **✅ 新メカニクス実装完了** (2025年10月6日更新)  
-> CHAIN-BONUSシステム・Solidライン相殺システムが完全実装されました
+> **🚀 Phase 2A完了: CLI Layer基盤作成** (2025年10月8日更新)  
+> 3-Layer Architecture実現により、WASM統合に向けた基盤が完成しました
 
 ## 🎮 ゲーム概要
 
 Thud & Tileは、従来のテトリスに新しい要素を加えたパズルゲームです：
 
-- システム*アン、マゼンタ、イエローの3色のみを使用
+- **3色システム**: シアン、マゼンタ、イエローの3色のみを使用
 - **連結システム**: 同色ブロック同士が自動で連結し、数字表示される  
 - **CHAIN-BONUSシステム**: ピース着地時のMAX-CHAIN増加で蓄積されるボーナス
 - **Solidライン相殺**: CHAIN-BONUSを消費してSolidラインを消去するアニメーション
@@ -97,6 +97,8 @@ thud-and-tile/
 ├── src/
 │   ├── main.rs              # CLI版エントリーポイント
 │   ├── lib.rs               # 共通ライブラリ + WASM API
+│   ├── core/                # Core Layer (Phase 1で整備済み)
+│   ├── cli/                 # CLI Layer (Phase 2Aで作成完了)
 │   ├── tetromino.rs         # テトロミノ定義・回転ロジック
 │   ├── board_logic.rs       # ボード処理・連結システム
 │   ├── animation.rs         # アニメーション共通処理
@@ -112,10 +114,16 @@ thud-and-tile/
 
 ## 🔧 技術仕様
 
-### アーキテクチャ
-- **共通コア**: Rustで実装されたゲームロジック
-- **CLI版**: crossterm使用のターミナルUI
-- **Web版**: wasm-bindgen経由でWebAssemblyとして動作
+### アーキテクチャ (Phase 2A確立)
+```
+Core Layer (src/core/)     - ゲームロジック・状態管理
+    ↓
+CLI Layer (src/cli/)       - CLI特化機能・インターフェース  
+    ↓
+Main Layer (main_*.rs)     - メインプログラム
+```
+
+**重要原則**: 3-Layer Architecture分離によるWASMセーフ設計
 
 ### フィーチャーフラグ
 - `native-bin`: CLI版ビルド用（デフォルト）
@@ -172,9 +180,6 @@ GitHub Issuesで以下の情報と共に報告してください：
 
 ### 🌐 関連プロジェクト
 - **Web版**: [thud-and-tile-web](https://github.com/kkismd/thud-and-tile-web)
-
-
-
 
 
 ### � 実装ガイド・ロードマップ

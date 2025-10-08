@@ -18,6 +18,12 @@ name = "main_phase2a"
 path = "src/main_phase2a.rs"
 required-features = ["native-bin"]
 
+# Phase 2B: CLI Input統合テスト用バイナリ
+[[bin]]
+name = "main_phase2b"
+path = "src/main_phase2b.rs"
+required-features = ["native-bin"]
+
 [dependencies]
 rand = "0.8.5"
 lazy_static = "1.4.0"

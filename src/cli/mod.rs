@@ -13,3 +13,6 @@ pub use cli_game_state::CliGameState;
 pub use cli_animation::CliAnimationManager;
 pub use cli_input_handler_simple::CliInputHandler;
 pub use cli_renderer_simple::{CliRenderer, CliRenderSettings};
+
+// Core layerからの必要な型の再公開（CLI Layerでのみ必要なもの）
+pub use crate::core::game_state::CoreGameEvent;
