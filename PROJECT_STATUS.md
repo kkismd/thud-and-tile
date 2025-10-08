@@ -39,6 +39,41 @@
 - Phase 3: WASM統合最終実装
 - Phase 4: 最終テスト・デプロイ
 
+## 開発者向け文書一覧
+
+### 📋 Phase 2A (CLI Layer基盤作成) - ✅ 完了
+- **学習ログ**: `PHASE2A_LEARNING_LOG.md` - 実装過程で得た重要な学習内容
+- **完了報告**: `PHASE2A_COMPLETION.md` - Phase 2A達成事項まとめ
+- **実装ログ**: `PHASE2A_IMPLEMENTATION_LOG.md` - 詳細な実装過程記録
+- **意思決定分析**: `PHASE2A_DECISION_ANALYSIS.md` - 主要な設計判断の記録
+- **コンテキスト回復**: `PHASE2A_CONTEXT_LOSS_ANALYSIS.md` - コンテキスト損失分析
+
+### 🎯 Phase 2B (CLI Inputマッピング実装) - 次フェーズ
+- **コンテキスト回復**: `PHASE2B_CONTEXT_RECOVERY.md` - Phase 2B開始用包括情報
+- **実装計画**: `PHASE2B_NEXT_STEPS.md` - 具体的実装ステップ
+
+### 🏗️ WASM統合設計アーカイブ (参考文書)
+- **統合再設計指針**: `CLI_WASM_INTEGRATION_REDESIGN.md` - 3層分離アーキテクチャ基本方針
+- **Phase 1-4分析**: `WASM_REDESIGN_PHASE_ANALYSIS.md` - 4段階設計プロセス管理文書
+- **実装開始ガイド**: `IMPLEMENTATION_ROADMAP.md` - 次フェーズ着手とトラッキング戦略
+- **統合実装計画**: `WASM_CORE_INTEGRATION_PLAN.md` - 4フェーズ実装ロードマップ
+- **技術仕様書**: `WASM_CORE_INTEGRATION_TECHNICAL.md` - WASM境界安全設計詳細
+
+### 🛡️ リスク管理・移行戦略
+- **包括的リスク管理**: `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md` - WASM統合リスク管理マスター文書
+- **CLI移行戦略**: `PHASE2_CLI_MIGRATION_STRATEGY.md` - CLI Layer移行の詳細戦略・テクニック
+- **Phase 2計画改訂**: `PHASE2_PLAN_REVISION.md` - 段階的移行戦略とロールバック計画
+
+### 📋 Phase別設計文書 (参考)
+- **Phase 1**: `PHASE1_CORE_MODULE_COMPATIBILITY.md` - Core Module適合性検証結果
+- **Phase 2**: `PHASE2_LAYER_SEPARATION_DESIGN.md` - 3層分離アーキテクチャ設計
+- **Phase 3**: `PHASE3_WASM_BOUNDARY_REDESIGN.md` - WASM境界安全設計
+- **Phase 4**: `PHASE4_INTEGRATION_PLAN_REBUILT.md` - 統合計画再構築完了報告
+
+### 🎮 ゲーム関連文書
+- **完了レポート**: `FINAL_COMPLETION_REPORT.md` - 初期開発完了報告
+- **ロードマップ**: `ROADMAP.md` - 今後の開発計画 (参考)
+
 ## 技術状況
 
 ### アーキテクチャ (Phase 2A確立)

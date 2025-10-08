@@ -9,7 +9,7 @@
 
 Thud & Tileは、従来のテトリスに新しい要素を加えたパズルゲームです：
 
-- **3色システム**: シアン、マゼンタ、イエローの3色のみを使用
+- システム*アン、マゼンタ、イエローの3色のみを使用
 - **連結システム**: 同色ブロック同士が自動で連結し、数字表示される  
 - **CHAIN-BONUSシステム**: ピース着地時のMAX-CHAIN増加で蓄積されるボーナス
 - **Solidライン相殺**: CHAIN-BONUSを消費してSolidラインを消去するアニメーション
@@ -157,25 +157,25 @@ GitHub Issuesで以下の情報と共に報告してください：
 3. 変更を実装・テスト
 4. プルリクエストを送信
 
-## 📚 関連資料
+## 📚 プロジェクト情報
 
-### 🎮 ゲーム仕様・履歴
+### � 開発状況・技術情報
+**👉 [PROJECT_STATUS.md](PROJECT_STATUS.md)**  
+- 全フェーズ進行状況
+- 技術アーキテクチャ詳細  
+- 開発者向け文書一覧
+- Phase別実装記録
+
+### �🎮 ゲーム関連
 - **ゲーム仕様**: `game_spec.md` - ゲームルールとメカニクス詳細
 - **開発履歴**: `HISTORY.md` - プロジェクト開発経緯
-- **ロードマップ**: `ROADMAP.md` - 今後の開発計画
-- **完了レポート**: `FINAL_COMPLETION_REPORT.md` - Phase 1完了報告
 
-### 🏗️ WASM統合設計（Phase 2準備）
-- **統合再設計指針**: `CLI_WASM_INTEGRATION_REDESIGN.md` - 3層分離アーキテクチャ基本方針
-- **Phase 1-4分析**: `WASM_REDESIGN_PHASE_ANALYSIS.md` - 4段階設計プロセス管理文書
-- **統合実装計画**: `WASM_CORE_INTEGRATION_PLAN.md` - 4フェーズ実装ロードマップ
-- **技術仕様書**: `WASM_CORE_INTEGRATION_TECHNICAL.md` - WASM境界安全設計詳細
+### 🌐 関連プロジェクト
+- **Web版**: [thud-and-tile-web](https://github.com/kkismd/thud-and-tile-web)
 
-### 📋 Phase別設計文書
-- **Phase 1**: `PHASE1_CORE_MODULE_COMPATIBILITY.md` - Core Module適合性検証結果
-- **Phase 2**: `PHASE2_LAYER_SEPARATION_DESIGN.md` - 3層分離アーキテクチャ設計
-- **Phase 3**: `PHASE3_WASM_BOUNDARY_REDESIGN.md` - WASM境界安全設計
-- **Phase 4**: `PHASE4_INTEGRATION_PLAN_REBUILT.md` - 統合計画再構築完了報告
+
+
+
 
 ### � 実装ガイド・ロードマップ
 - **実装開始ガイド**: `IMPLEMENTATION_ROADMAP.md` - 次フェーズ着手とトラッキング戦略
@@ -187,8 +187,7 @@ GitHub Issuesで以下の情報と共に報告してください：
 - **CLI移行戦略**: `PHASE2_CLI_MIGRATION_STRATEGY.md` - CLI Layer移行の詳細戦略・テクニック
 - **Phase 2計画改訂**: `PHASE2_PLAN_REVISION.md` - 段階的移行戦略とロールバック計画
 
-### 🌐 Web版
-- **Web版リポジトリ**: [thud-and-tile-web](https://github.com/kkismd/thud-and-tile-web)
+
 
 ## 📄 ライセンス
 
