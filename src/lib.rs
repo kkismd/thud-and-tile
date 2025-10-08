@@ -3,7 +3,6 @@
 //! このモジュールは、Thud & TileゲームのWASM環境用エントリーポイントを提供します。
 //! JavaScript環境からアクセス可能なAPIを実装し、ゲームロジックとUI間の橋渡しを行います。
 
-use std::collections::{HashSet, VecDeque};
 use std::time::Duration;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen::prelude::*; // BFS用とAnimation管理用
@@ -11,8 +10,11 @@ use wasm_bindgen::prelude::*; // BFS用とAnimation管理用
 // 共通モジュールのimport
 mod animation;
 
-// Core Logic Module (CLI版とWASM版で共有)
+// Core Logic Module (CLI版とWASM版で共有) - Layer 1
 mod core;
+
+// CLI Layer Module - Layer 2 (Phase 2A追加)
+pub mod cli;
 
 // CLI Integration Bridge for Phase 1 Week 2
 mod cli_bridge;
@@ -116,9 +118,9 @@ impl TimeProvider for MockTimeProvider {
 
 // モジュールのインポート
 mod board_logic;
-mod cell;
+pub mod cell;
 mod config;
-mod game_color;
+pub mod game_color;
 mod game_input;
 mod random;
 mod scheduler;

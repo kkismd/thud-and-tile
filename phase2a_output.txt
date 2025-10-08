@@ -1,0 +1,794 @@
+warning: unused import: `crate::cell::Cell`
+ --> src/core/animation_logic.rs:6:5
+  |
+6 | use crate::cell::Cell;
+  |     ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `BOARD_HEIGHT` and `BOARD_WIDTH`
+ --> src/core/animation_logic.rs:8:44
+  |
+8 |     BLINK_ANIMATION_STEP, BLINK_COUNT_MAX, BOARD_HEIGHT, BOARD_WIDTH, PUSH_DOWN...
+  |                                            ^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `crate::game_color::GameColor`
+  --> src/core/animation_logic.rs:10:5
+   |
+10 | use crate::game_color::GameColor;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+  --> src/core/animation_logic.rs:11:5
+   |
+11 | use std::time::Duration;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tetromino::Tetromino`
+ --> src/core/input_handler.rs:8:5
+  |
+8 | use crate::tetromino::Tetromino;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `animation_logic::*`
+  --> src/core/mod.rs:14:9
+   |
+14 | pub use animation_logic::*;
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `board_logic::*`
+  --> src/core/mod.rs:15:9
+   |
+15 | pub use board_logic::*;
+   |         ^^^^^^^^^^^^^^
+
+warning: unused import: `input_handler::*`
+  --> src/core/mod.rs:17:9
+   |
+17 | pub use input_handler::*;
+   |         ^^^^^^^^^^^^^^^^
+
+warning: unused macro definition: `console_log`
+  --> src/lib.rs:41:14
+   |
+41 | macro_rules! console_log {
+   |              ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_macros)]` on by default
+
+warning: unused imports: `Animation`, `calculate_line_clear_score`, and `process_line_clear`
+   --> src/lib.rs:130:17
+    |
+130 | use animation::{calculate_line_clear_score, process_line_clear, Animation};
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `cell::Cell`
+   --> src/lib.rs:131:5
+    |
+131 | use cell::Cell;
+    |     ^^^^^^^^^^
+
+warning: unused import: `game_input::GameInput`
+   --> src/lib.rs:134:5
+    |
+134 | use game_input::GameInput;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `scoring::CustomScoreSystem`
+   --> src/lib.rs:136:5
+    |
+136 | use scoring::CustomScoreSystem;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `TetrominoBag` and `get_srs_wall_kick_offsets_by_shape`
+   --> src/lib.rs:137:17
+    |
+137 | ...mino::{get_srs_wall_kick_offsets_by_shape, Tetromino, TetrominoBag, Tetrom...
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^             ^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src/animation.rs:108:21
+    |
+108 |                 let mut animation = Animation::EraseLine {
+    |                     ----^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `lines`
+  --> src/core/animation_logic.rs:98:5
+   |
+98 |     lines: Vec<usize>,
+   |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_lines`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `gray_line_y`
+   --> src/core/animation_logic.rs:117:5
+    |
+117 |     gray_line_y: usize,
+    |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_gray_line_y`
+
+warning: variants `LineBlink`, `PushDown`, and `EraseLine` are never constructed
+  --> src/animation.rs:15:5
+   |
+14 | pub enum Animation {
+   |          --------- variants in this enum
+15 |     LineBlink {
+   |     ^^^^^^^^^
+...
+20 |     PushDown {
+   |     ^^^^^^^^
+...
+24 |     EraseLine {
+   |     ^^^^^^^^^
+   |
+   = note: `Animation` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: struct `AnimationResult` is never constructed
+  --> src/animation.rs:34:12
+   |
+34 | pub struct AnimationResult {
+   |            ^^^^^^^^^^^^^^^
+   |
+   = note: `AnimationResult` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `new` is never used
+  --> src/animation.rs:41:12
+   |
+40 | impl AnimationResult {
+   | -------------------- associated function in this implementation
+41 |     pub fn new() -> Self {
+   |            ^^^
+
+warning: function `update_animations` is never used
+  --> src/animation.rs:53:8
+   |
+53 | pub fn update_animations(
+   |        ^^^^^^^^^^^^^^^^^
+
+warning: function `process_push_down_step` is never used
+   --> src/animation.rs:127:8
+    |
+127 | pub fn process_push_down_step(
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `PushDownStepResult` is never used
+   --> src/animation.rs:162:10
+    |
+162 | pub enum PushDownStepResult {
+    |          ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `PushDownStepResult` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: variants `Continue` and `Complete` are never constructed
+   --> src/animation.rs:170:5
+    |
+169 | pub enum EraseLineStepResult {
+    |          ------------------- variants in this enum
+170 |     Continue,
+    |     ^^^^^^^^
+171 |     Complete { lines_erased: u32 },
+    |     ^^^^^^^^
+    |
+    = note: `EraseLineStepResult` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `process_erase_line_step` is never used
+   --> src/animation.rs:176:8
+    |
+176 | pub fn process_erase_line_step(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `calculate_line_clear_score` is never used
+   --> src/animation.rs:231:8
+    |
+231 | pub fn calculate_line_clear_score(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `process_line_clear` is never used
+   --> src/animation.rs:258:8
+    |
+258 | pub fn process_line_clear(
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `determine_erase_line_count` is never used
+   --> src/animation.rs:313:8
+    |
+313 | pub fn determine_erase_line_count(chain_bonus: u32, solid_lines_count: usize)...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `consume_chain_bonus_for_erase_line` is never used
+   --> src/animation.rs:326:8
+    |
+326 | pub fn consume_chain_bonus_for_erase_line(chain_bonus: &mut u32, lines_erased...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `count_solid_lines_from_bottom` is never used
+   --> src/animation.rs:347:8
+    |
+347 | pub fn count_solid_lines_from_bottom(board: &crate::cell::Board) -> usize {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remove_solid_line_from_bottom` is never used
+   --> src/animation.rs:396:8
+    |
+396 | pub fn remove_solid_line_from_bottom(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `count_connected_blocks_above_line` is never used
+   --> src/core/board_logic.rs:181:8
+    |
+181 | pub fn count_connected_blocks_above_line(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `find_isolated_blocks` is never used
+   --> src/core/board_logic.rs:221:8
+    |
+221 | pub fn find_isolated_blocks(board: FixedBoard, above_line: usize) -> Vec<Poin...
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remove_isolated_blocks_from_board` is never used
+   --> src/core/board_logic.rs:278:8
+    |
+278 | pub fn remove_isolated_blocks_from_board(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `count_solid_lines_from_bottom` is never used
+   --> src/core/board_logic.rs:290:8
+    |
+290 | pub fn count_solid_lines_from_bottom(board: FixedBoard, current_height: usize...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `is_valid_position` is never used
+   --> src/core/board_logic.rs:314:8
+    |
+314 | pub fn is_valid_position(x: i32, y: i32) -> bool {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: variants `Continue` and `Complete` are never constructed
+  --> src/core/erase_line_logic.rs:13:5
+   |
+12 | pub enum EraseLineStepResult {
+   |          ------------------- variants in this enum
+13 |     Continue,
+   |     ^^^^^^^^
+14 |     Complete { lines_erased: u32 },
+   |     ^^^^^^^^
+   |
+   = note: `EraseLineStepResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: associated function `new` is never used
+  --> src/core/erase_line_logic.rs:28:12
+   |
+27 | impl EraseLineAnimationState {
+   | ---------------------------- associated function in this implementation
+28 |     pub fn new(target_lines: Vec<usize>, start_time_ms: u64) -> Self {
+   |            ^^^
+
+warning: function `determine_erase_line_count` is never used
+  --> src/core/erase_line_logic.rs:48:8
+   |
+48 | pub fn determine_erase_line_count(chain_bonus: u32, solid_lines_count: usize) ...
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `consume_chain_bonus_for_erase_line` is never used
+  --> src/core/erase_line_logic.rs:60:8
+   |
+60 | pub fn consume_chain_bonus_for_erase_line(chain_bonus: u32, lines_erased: u32)...
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `count_solid_lines_from_bottom` is never used
+  --> src/core/erase_line_logic.rs:79:8
+   |
+79 | pub fn count_solid_lines_from_bottom(board: FixedBoard) -> usize {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remove_solid_line_from_bottom` is never used
+   --> src/core/erase_line_logic.rs:124:8
+    |
+124 | pub fn remove_solid_line_from_bottom(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `process_erase_line_step` is never used
+   --> src/core/erase_line_logic.rs:161:8
+    |
+161 | pub fn process_erase_line_step(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `should_start_erase_line_animation` is never used
+   --> src/core/erase_line_logic.rs:223:8
+    |
+223 | pub fn should_start_erase_line_animation(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `input_consumed` and `render_required` are never read
+  --> src/core/input_handler.rs:15:9
+   |
+12 | pub struct InputProcessResult {
+   |            ------------------ fields in this struct
+...
+15 |     pub input_consumed: bool,
+   |         ^^^^^^^^^^^^^^
+16 |     pub render_required: bool,
+   |         ^^^^^^^^^^^^^^^
+   |
+   = note: `InputProcessResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `last_input_time` is never read
+  --> src/cli/cli_input_handler_simple.rs:13:5
+   |
+11 | pub struct CliInputHandler {
+   |            --------------- field in this struct
+12 |     /// 最後の入力時刻
+13 |     last_input_time: Option<Duration>,
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `CliInputHandler` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `animation_manager` is never read
+  --> src/cli/cli_renderer_simple.rs:15:5
+   |
+13 | pub struct CliRenderer {
+   |            ----------- field in this struct
+14 |     /// CLI特化: アニメーション管理
+15 |     animation_manager: CliAnimationManager,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: method `color_to_ansi` is never used
+   --> src/cli/cli_renderer_simple.rs:130:8
+    |
+47  | impl CliRenderer {
+    | ---------------- method in this implementation
+...
+130 |     fn color_to_ansi(&self, color: &GameColor) -> &'static str {
+    |        ^^^^^^^^^^^^^
+
+warning: variants `Title`, `Playing`, and `GameOver` are never constructed
+  --> src/cli_bridge.rs:15:5
+   |
+14 | pub enum CLIGameMode {
+   |          ----------- variants in this enum
+15 |     Title,
+   |     ^^^^^
+16 |     Playing,
+   |     ^^^^^^^
+17 |     GameOver,
+   |     ^^^^^^^^
+   |
+   = note: `CLIGameMode` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: struct `CLIBridge` is never constructed
+  --> src/cli_bridge.rs:35:12
+   |
+35 | pub struct CLIBridge {
+   |            ^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src/cli_bridge.rs:43:12
+    |
+42  | impl CLIBridge {
+    | -------------- associated items in this implementation
+43  |     pub fn new() -> Self {
+    |            ^^^
+...
+53  |     pub fn convert_board_to_fixed(board: &crate::cell::Board) -> FixedBoard {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+64  |     pub fn convert_fixed_to_board(fixed_board: &FixedBoard) -> crate::cell::B...
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+72  |     pub fn handle_input_core(&mut self, input: GameInput, current_time_ms: u6...
+    |            ^^^^^^^^^^^^^^^^^
+...
+79  |     pub fn convert_mode_to_cli(core_mode: CoreGameMode) -> CLIGameMode {
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+87  |     pub fn convert_mode_to_core(cli_mode: CLIGameMode) -> CoreGameMode {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+96  |     pub fn sync_to_cli_state(&self, cli_state: &mut CLIGameState) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+111 |     pub fn sync_from_cli_state(&mut self, cli_state: &CLIGameState) {
+    |            ^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `Point` is never used
+ --> src/board_logic.rs:6:10
+  |
+6 | pub type Point = (usize, usize);
+  |          ^^^^^
+
+warning: function `find_and_connect_adjacent_blocks` is never used
+ --> src/board_logic.rs:8:8
+  |
+8 | pub fn find_and_connect_adjacent_blocks(board: &mut Board, lines_to_clear: &[us...
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `count_connected_blocks` is never used
+  --> src/board_logic.rs:76:8
+   |
+76 | pub fn count_connected_blocks(board: &Board, cleared_line_y: usize) -> Vec<(Po...
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remove_isolated_blocks` is never used
+   --> src/board_logic.rs:138:8
+    |
+138 | pub fn remove_isolated_blocks(board: &mut Board, cleared_line_y: usize) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `FALL_SPEED_START` is never used
+ --> src/config.rs:6:11
+  |
+6 | pub const FALL_SPEED_START: std::time::Duration = std::time::Duration::from_mil...
+  |           ^^^^^^^^^^^^^^^^
+
+warning: method `read_all_pending` is never used
+  --> src/game_input.rs:39:8
+   |
+31 | pub trait InputProvider {
+   |           ------------- method in this trait
+...
+39 |     fn read_all_pending(&mut self) -> io::Result<Vec<GameInput>>;
+   |        ^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> src/game_input.rs:48:12
+   |
+47 | impl CrosstermInputProvider {
+   | --------------------------- associated function in this implementation
+48 |     pub fn new() -> Self {
+   |            ^^^
+
+warning: associated function `with_seed` is never used
+  --> src/random.rs:75:12
+   |
+59 | impl NativeRandomProvider {
+   | ------------------------- associated function in this implementation
+...
+75 |     pub fn with_seed(seed: u64) -> Self {
+   |            ^^^^^^^^^
+
+warning: variant `Deterministic` is never constructed
+   --> src/random.rs:227:5
+    |
+222 | pub enum RandomProviderImpl {
+    |          ------------------ variant in this enum
+...
+227 |     Deterministic(DeterministicRandomProvider),
+    |     ^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> src/random.rs:289:12
+    |
+288 | impl DeterministicRandomProvider {
+    | -------------------------------- associated function in this implementation
+289 |     pub fn new(values: Vec<usize>) -> Self {
+    |            ^^^
+
+warning: method `wait_for_next_frame` is never used
+  --> src/scheduler.rs:16:8
+   |
+9  | pub trait Scheduler {
+   |           --------- method in this trait
+...
+16 |     fn wait_for_next_frame(&self) {
+   |        ^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> src/scheduler.rs:25:12
+   |
+24 | impl NativeScheduler {
+   | -------------------- associated function in this implementation
+25 |     pub fn new() -> Self {
+   |            ^^^
+
+warning: associated items `new`, `get_sleep_count`, and `reset_sleep_count` are never used
+  --> src/scheduler.rs:85:12
+   |
+84 | impl DeterministicScheduler {
+   | --------------------------- associated items in this implementation
+85 |     pub fn new() -> Self {
+   |            ^^^
+...
+91 |     pub fn get_sleep_count(&self) -> usize {
+   |            ^^^^^^^^^^^^^^^
+...
+95 |     pub fn reset_sleep_count(&self) {
+   |            ^^^^^^^^^^^^^^^^^
+
+warning: variants `Native` and `Deterministic` are never constructed
+   --> src/scheduler.rs:109:5
+    |
+108 | pub enum SchedulerImpl {
+    |          ------------- variants in this enum
+109 |     Native(NativeScheduler),
+    |     ^^^^^^
+...
+112 |     Deterministic(DeterministicScheduler),
+    |     ^^^^^^^^^^^^^
+
+warning: function `create_default_scheduler` is never used
+   --> src/scheduler.rs:127:8
+    |
+127 | pub fn create_default_scheduler() -> SchedulerImpl {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `add`, and `total` are never used
+  --> src/scoring.rs:13:12
+   |
+12 | impl ColorScores {
+   | ---------------- associated items in this implementation
+13 |     pub fn new() -> Self {
+   |            ^^^
+...
+33 |     pub fn add(&mut self, color: GameColor, points: u32) {
+   |            ^^^
+...
+43 |     pub fn total(&self) -> u32 {
+   |            ^^^^^
+
+warning: associated items `new`, `get`, `update_max`, `add_chain_bonus`, and `consume_chain_bonus` are never used
+   --> src/scoring.rs:58:12
+    |
+57  | impl ColorMaxChains {
+    | ------------------- associated items in this implementation
+58  |     pub fn new() -> Self {
+    |            ^^^
+...
+68  |     pub fn get(&self, color: GameColor) -> u32 {
+    |            ^^^
+...
+78  |     pub fn update_max(&mut self, color: GameColor, chain_count: u32) {
+    |            ^^^^^^^^^^
+...
+105 |     pub fn add_chain_bonus(&mut self, amount: u32) {
+    |            ^^^^^^^^^^^^^^^
+...
+110 |     pub fn consume_chain_bonus(&mut self, max_amount: u32) -> u32 {
+    |            ^^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new` and `add_total_score` are never used
+   --> src/scoring.rs:126:12
+    |
+125 | impl CustomScoreSystem {
+    | ---------------------- associated items in this implementation
+126 |     pub fn new() -> Self {
+    |            ^^^
+...
+135 |     pub fn add_total_score(&mut self, points: u32) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: function `calculate_line_clear_total_score` is never used
+   --> src/scoring.rs:393:8
+    |
+393 | pub fn calculate_line_clear_total_score(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `calculate_chain_increases` is never used
+   --> src/scoring.rs:438:8
+    |
+438 | pub fn calculate_chain_increases(old_chains: &ColorMaxChains, new_chains: &Co...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `update_chain_bonus_from_increases` is never used
+   --> src/scoring.rs:458:8
+    |
+458 | pub fn update_chain_bonus_from_increases(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `lock_piece_with_total_score` is never used
+   --> src/scoring.rs:473:8
+    |
+473 | pub fn lock_piece_with_total_score(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `update_chain_bonus_on_piece_lock` is never used
+   --> src/scoring.rs:486:8
+    |
+486 | pub fn update_chain_bonus_on_piece_lock(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `lock_piece_with_integrated_scoring` is never used
+   --> src/scoring.rs:503:8
+    |
+503 | pub fn lock_piece_with_integrated_scoring(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_srs_wall_kick_offsets_by_shape` is never used
+  --> src/tetromino.rs:82:8
+   |
+82 | pub fn get_srs_wall_kick_offsets_by_shape(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new_instance` is never used
+   --> src/tetromino.rs:132:12
+    |
+119 | impl TetrominoBag {
+    | ----------------- associated function in this implementation
+...
+132 |     pub fn new_instance() -> Self {
+    |            ^^^^^^^^^^^^
+
+warning: `thud-and-tile` (lib) generated 77 warnings (run `cargo fix --lib -p thud-and-tile` to apply 14 suggestions)
+warning: unused import: `CliRenderSettings`
+  --> src/main_phase2a.rs:17:19
+   |
+17 |     CliGameState, CliRenderSettings
+   |                   ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: `thud-and-tile` (bin "main_phase2a") generated 1 warning (run `cargo fix --bin "main_phase2a"` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running `target/debug/main_phase2a`
+[?1049h[?25l[>2uPhase 2A: CLI Layer版 THUD&TILE開始
+任意のキーを押して5秒間テスト実行
+[2J[1;1H=== THUD&TILE (CLI Layer版) ===
+Frame: 1 | FPS: 0.0
+Score: 0
+Lines: 0
+Mode: Title
+Input Events: 0
+
+--- Board ---
+ 0 |          |
+ 1 |          |
+ 2 |          |
+ 3 |          |
+ 4 |          |
+ 5 |          |
+ 6 |          |
+ 7 |          |
+ 8 |          |
+ 9 |          |
+10 |          |
+11 |          |
+12 |          |
+13 |          |
+14 |          |
+15 |          |
+16 |          |
+17 |          |
+18 |          |
+19 |          |
+   +----------+
+
+--- CLI Layer Status ---
+Render State: CliRenderState { needs_full_redraw: true, needs_board_redraw: false, needs_ui_redraw: false, active_animations: [] }
+Needs Redraw: true
+[2J[1;1H=== THUD&TILE (CLI Layer版) ===
+Frame: 61 | FPS: 52.6
+Score: 0
+Lines: 0
+Mode: Title
+Input Events: 0
+
+--- Board ---
+ 0 |          |
+ 1 |          |
+ 2 |          |
+ 3 |          |
+ 4 |          |
+ 5 |          |
+ 6 |          |
+ 7 |          |
+ 8 |          |
+ 9 |          |
+10 |          |
+11 |          |
+12 |          |
+13 |          |
+14 |          |
+15 |          |
+16 |          |
+17 |          |
+18 |          |
+19 |          |
+   +----------+
+
+--- CLI Layer Status ---
+Render State: CliRenderState { needs_full_redraw: true, needs_board_redraw: false, needs_ui_redraw: false, active_animations: [] }
+Needs Redraw: true
+[2J[1;1H=== THUD&TILE (CLI Layer版) ===
+Frame: 121 | FPS: 55.6
+Score: 0
+Lines: 0
+Mode: Title
+Input Events: 0
+
+--- Board ---
+ 0 |          |
+ 1 |          |
+ 2 |          |
+ 3 |          |
+ 4 |          |
+ 5 |          |
+ 6 |          |
+ 7 |          |
+ 8 |          |
+ 9 |          |
+10 |          |
+11 |          |
+12 |          |
+13 |          |
+14 |          |
+15 |          |
+16 |          |
+17 |          |
+18 |          |
+19 |          |
+   +----------+
+
+--- CLI Layer Status ---
+Render State: CliRenderState { needs_full_redraw: true, needs_board_redraw: false, needs_ui_redraw: false, active_animations: [] }
+Needs Redraw: true
+[2J[1;1H=== THUD&TILE (CLI Layer版) ===
+Frame: 181 | FPS: 47.6
+Score: 0
+Lines: 0
+Mode: Title
+Input Events: 0
+
+--- Board ---
+ 0 |          |
+ 1 |          |
+ 2 |          |
+ 3 |          |
+ 4 |          |
+ 5 |          |
+ 6 |          |
+ 7 |          |
+ 8 |          |
+ 9 |          |
+10 |          |
+11 |          |
+12 |          |
+13 |          |
+14 |          |
+15 |          |
+16 |          |
+17 |          |
+18 |          |
+19 |          |
+   +----------+
+
+--- CLI Layer Status ---
+Render State: CliRenderState { needs_full_redraw: true, needs_board_redraw: false, needs_ui_redraw: false, active_animations: [] }
+Needs Redraw: true
+[2J[1;1H=== THUD&TILE (CLI Layer版) ===
+Frame: 241 | FPS: 50.0
+Score: 0
+Lines: 0
+Mode: Title
+Input Events: 0
+
+--- Board ---
+ 0 |          |
+ 1 |          |
+ 2 |          |
+ 3 |          |
+ 4 |          |
+ 5 |          |
+ 6 |          |
+ 7 |          |
+ 8 |          |
+ 9 |          |
+10 |          |
+11 |          |
+12 |          |
+13 |          |
+14 |          |
+15 |          |
+16 |          |
+17 |          |
+18 |          |
+19 |          |
+   +----------+
+
+--- CLI Layer Status ---
+Render State: CliRenderState { needs_full_redraw: true, needs_board_redraw: false, needs_ui_redraw: false, active_animations: [] }
+Needs Redraw: true
+Phase 2A: CLI Layer テスト完了
+[0m[?25h[?1049l[<1u
