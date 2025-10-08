@@ -71,6 +71,7 @@ impl InputProvider for CrosstermInputProvider {
                 }
 
                 let input = match key_event.code {
+                    // 矢印キー
                     KeyCode::Left => GameInput::MoveLeft,
                     KeyCode::Right => GameInput::MoveRight,
                     KeyCode::Down => {
@@ -81,11 +82,21 @@ impl InputProvider for CrosstermInputProvider {
                         }
                     }
                     KeyCode::Up => GameInput::RotateCounterClockwise,
-                    KeyCode::Char(' ') => GameInput::SoftDrop,
+                    
+                    // 文字キー（WASD）
+                    KeyCode::Char('a') | KeyCode::Char('A') => GameInput::MoveLeft,
+                    KeyCode::Char('d') | KeyCode::Char('D') => GameInput::MoveRight,
+                    KeyCode::Char('s') | KeyCode::Char('S') => GameInput::SoftDrop,
+                    KeyCode::Char('w') | KeyCode::Char('W') => GameInput::RotateCounterClockwise,
+                    
+                    // その他のキー
+                    KeyCode::Char(' ') => GameInput::HardDrop, // Spaceキーはハードドロップ
                     KeyCode::Char('q') | KeyCode::Char('Q') => GameInput::Quit,
+                    KeyCode::Char('r') | KeyCode::Char('R') => GameInput::Restart,
                     KeyCode::Enter => GameInput::Restart,
                     KeyCode::Char('p') | KeyCode::Char('P') => GameInput::Pause,
                     KeyCode::Char('e') | KeyCode::Char('E') => GameInput::ToggleEraseLine,
+                    KeyCode::Esc => GameInput::Quit,
                     _ => GameInput::Unknown,
                 };
 

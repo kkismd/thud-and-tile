@@ -27,6 +27,13 @@ fn main() -> io::Result<()> {
     let mut cli_renderer = CliRenderer::new();
     let mut input_handler = CliInputHandler::new();
     
+    // テスト用にクールダウンを短く設定
+    input_handler.set_cooldown_ms(20); // 20msに短縮
+    
+    // テスト用: ゲームをPlayingモードで開始
+    // これによりA/D/S/W キーの動作をテストできます
+    cli_state.start_playing_mode();
+    
     println!("🚀 リアルタイム入力テストを開始します（10秒間）...");
     println!("💡 入力統計とイベント検出をテストしています");
     
@@ -40,6 +47,11 @@ fn main() -> io::Result<()> {
         match input_handler.poll_input(&mut cli_state) {
             Ok(events) => {
                 total_events += events.len();
+                
+                // デバッグ: イベント詳細表示（最初の数回のみ）
+                if total_events < 5 && !events.is_empty() {
+                    println!("🔍 デバッグ: {} 個のイベント検出: {:?}", events.len(), events);
+                }
                 
                 // イベント処理
                 for event in events {

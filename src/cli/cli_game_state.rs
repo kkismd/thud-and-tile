@@ -180,6 +180,12 @@ impl CliGameState {
         self.input_event_count += 1;
         self.render_state.needs_full_redraw = true;
     }
+    
+    /// テスト用: Playingモードで開始
+    pub fn start_playing_mode(&mut self) {
+        self.core.game_mode = crate::core::game_state::CoreGameMode::Playing;
+        self.core = self.core.clone().spawn_piece();
+    }
 }
 
 impl Default for CliGameState {
