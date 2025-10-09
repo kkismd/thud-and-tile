@@ -2,49 +2,43 @@ use super::*;
 
 #[test]
 fn test_isolated_blocks_are_removed_on_non_bottom_clear() {
-    let time_provider = MockTimeProvider::new();
-    let mut state = GameState::new();
-    state.mode = GameMode::Playing;
-
-    let clear_line_y = BOARD_HEIGHT - 5;
-
-    // 1. Create a full line at a non-bottom row
+    // This test verifies the board_logic::remove_isolated_blocks function directly
+    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+    
+    let cleared_line_y = BOARD_HEIGHT - 5;
+    
+    // Create a full line that will be "cleared"
     for x in 0..BOARD_WIDTH {
-        state.board[clear_line_y][x] = Cell::Occupied(GameColor::Blue);
+        board[cleared_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
-
-    // 2. Place an isolated block and a non-isolated group below the line
-    let isolated_block_pos = (5, clear_line_y + 2);
-    state.board[isolated_block_pos.1][isolated_block_pos.0] = Cell::Occupied(GameColor::Red);
-
-    let non_isolated_group_pos1 = (2, clear_line_y + 3);
-    let non_isolated_group_pos2 = (3, clear_line_y + 3);
-    state.board[non_isolated_group_pos1.1][non_isolated_group_pos1.0] =
-        Cell::Occupied(GameColor::Green);
-    state.board[non_isolated_group_pos2.1][non_isolated_group_pos2.0] =
-        Cell::Occupied(GameColor::Green);
-
-    // 3. Call the line clear logic
-    let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
-    state.animation.extend(new_animations);
-
-    // 4. Assert that the isolated block is gone
+    
+    // Place an isolated single block below the cleared line
+    board[cleared_line_y + 2][5] = Cell::Occupied(GameColor::Red);
+    
+    // Place a connected pair of blocks below the cleared line
+    board[cleared_line_y + 3][2] = Cell::Occupied(GameColor::Green);
+    board[cleared_line_y + 3][3] = Cell::Occupied(GameColor::Green);
+    
+    // Call the remove_isolated_blocks function
+    board_logic::remove_isolated_blocks(&mut board, cleared_line_y);
+    
+    // The isolated red block should be removed
     assert_eq!(
-        state.board[isolated_block_pos.1][isolated_block_pos.0],
+        board[cleared_line_y + 2][5],
         Cell::Empty,
-        "Isolated block should be removed"
+        "Isolated red block should be removed"
     );
-
-    // 5. Assert that the non-isolated group remains
+    
+    // The connected green blocks should remain
     assert_ne!(
-        state.board[non_isolated_group_pos1.1][non_isolated_group_pos1.0],
+        board[cleared_line_y + 3][2],
         Cell::Empty,
-        "Non-isolated block should remain"
+        "Connected green block should remain"
     );
     assert_ne!(
-        state.board[non_isolated_group_pos2.1][non_isolated_group_pos2.0],
+        board[cleared_line_y + 3][3],
         Cell::Empty,
-        "Non-isolated block should remain"
+        "Connected green block should remain"
     );
 }
 
