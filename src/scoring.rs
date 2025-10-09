@@ -105,6 +105,7 @@ impl ColorMaxChains {
 pub struct CustomScoreSystem {
     pub scores: ColorScores,
     pub max_chains: ColorMaxChains,
+    pub chain_bonus: u32,
 }
 
 impl CustomScoreSystem {
@@ -112,7 +113,20 @@ impl CustomScoreSystem {
         Self {
             scores: ColorScores::new(),
             max_chains: ColorMaxChains::new(),
+            chain_bonus: 0,
         }
+    }
+
+    /// chain_bonusに段数を加算する。上限は10段。
+    pub fn add_chain_bonus(&mut self, lines: u32) {
+        self.chain_bonus = (self.chain_bonus + lines).min(10);
+    }
+
+    /// chain_bonusから指定段数を消費する。足りない場合は0になる。
+    pub fn consume_chain_bonus(&mut self, lines: u32) -> u32 {
+        let consumed = self.chain_bonus.min(lines);
+        self.chain_bonus -= consumed;
+        consumed
     }
 }
 
@@ -208,6 +222,54 @@ mod tests {
         let system = CustomScoreSystem::new();
         assert_eq!(system.scores.total(), 0);
         assert_eq!(system.max_chains.max(), 0);
+        assert_eq!(system.chain_bonus, 0);
+    }
+
+    #[test]
+    fn test_chain_bonus_add() {
+        let mut system = CustomScoreSystem::new();
+
+        // 通常の加算
+        system.add_chain_bonus(3);
+        assert_eq!(system.chain_bonus, 3);
+
+        // 累積
+        system.add_chain_bonus(5);
+        assert_eq!(system.chain_bonus, 8);
+
+        // 上限テスト：10段を超えない
+        system.add_chain_bonus(5);
+        assert_eq!(system.chain_bonus, 10);
+
+        // さらに加算しても10のまま
+        system.add_chain_bonus(3);
+        assert_eq!(system.chain_bonus, 10);
+    }
+
+    #[test]
+    fn test_chain_bonus_consume() {
+        let mut system = CustomScoreSystem::new();
+        system.add_chain_bonus(7);
+
+        // 一部消費
+        let consumed = system.consume_chain_bonus(3);
+        assert_eq!(consumed, 3);
+        assert_eq!(system.chain_bonus, 4);
+
+        // さらに消費
+        let consumed = system.consume_chain_bonus(2);
+        assert_eq!(consumed, 2);
+        assert_eq!(system.chain_bonus, 2);
+
+        // 残り以上を消費しようとした場合
+        let consumed = system.consume_chain_bonus(5);
+        assert_eq!(consumed, 2); // 実際には2しかない
+        assert_eq!(system.chain_bonus, 0);
+
+        // 0の状態で消費
+        let consumed = system.consume_chain_bonus(3);
+        assert_eq!(consumed, 0);
+        assert_eq!(system.chain_bonus, 0);
     }
 
     #[test]
