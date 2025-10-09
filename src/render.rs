@@ -11,9 +11,9 @@ use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
 use crate::game_color::GameColor;
 use std::time::Duration;
 
-use crate::GameState; // Import GameState from main.rs
+use crate::animation::Animation;
 use crate::GameMode;
-use crate::animation::Animation; // 共通Animationを使用
+use crate::GameState; // Import GameState from main.rs // 共通Animationを使用
 
 pub trait Renderer {
     fn clear_screen(&mut self) -> io::Result<()>;
@@ -52,7 +52,10 @@ impl Renderer for CrosstermRenderer {
 
     fn set_background_color(&mut self, color: GameColor) -> io::Result<()> {
         // Add this method
-        execute!(self.stdout, crossterm::style::SetBackgroundColor(color.into()))
+        execute!(
+            self.stdout,
+            crossterm::style::SetBackgroundColor(color.into())
+        )
     }
 
     fn print(&mut self, s: &str) -> io::Result<()> {
@@ -148,10 +151,10 @@ pub mod mock_renderer {
 mod tests {
     use super::mock_renderer::RenderCommand;
     use super::*;
-    use crate::GameState;
     use crate::cell::Cell;
     use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
     use crate::game_color::GameColor;
+    use crate::GameState;
     use std::time::Duration;
 
     #[test]
@@ -470,37 +473,40 @@ pub fn draw<R: Renderer>(
                             None
                         };
 
-                    // Redraw if the blink on/off state has changed, or if animation just started.
-                    if prev_anim_count.is_none() || (prev_anim_count.unwrap_or(&0) % 2 != *count % 2)
-                    {
-                        for x in 0..BOARD_WIDTH {
-                            renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
-                            if count % 2 == 0 {
-                                // "On" state
-                                if let Cell::Occupied(color) = state.board[y][x] {
-                                    renderer.set_foreground_color(color)?;
-                                    renderer.print("[]")?;
-                                    renderer.reset_color()?;
-                                } else if let Cell::Connected { color, count } = state.board[y][x] {
-                                    draw_connected_cell(
-                                        renderer,
-                                        color,
-                                        count,
-                                        (x as u16 * 2) + 1,
-                                        y as u16 + 1,
-                                    )?;
+                        // Redraw if the blink on/off state has changed, or if animation just started.
+                        if prev_anim_count.is_none()
+                            || (prev_anim_count.unwrap_or(&0) % 2 != *count % 2)
+                        {
+                            for x in 0..BOARD_WIDTH {
+                                renderer.move_to((x as u16 * 2) + 1, y as u16 + 1)?;
+                                if count % 2 == 0 {
+                                    // "On" state
+                                    if let Cell::Occupied(color) = state.board[y][x] {
+                                        renderer.set_foreground_color(color)?;
+                                        renderer.print("[]")?;
+                                        renderer.reset_color()?;
+                                    } else if let Cell::Connected { color, count } =
+                                        state.board[y][x]
+                                    {
+                                        draw_connected_cell(
+                                            renderer,
+                                            color,
+                                            count,
+                                            (x as u16 * 2) + 1,
+                                            y as u16 + 1,
+                                        )?;
+                                    } else {
+                                        renderer.print("  ")?;
+                                    }
                                 } else {
+                                    // "Off" state
                                     renderer.print("  ")?;
                                 }
-                            } else {
-                                // "Off" state
-                                renderer.print("  ")?;
                             }
                         }
+                        continue; // Done with this row
                     }
-                    continue; // Done with this row
                 }
-            }
 
                 // Default drawing for non-blinking lines
                 for (x, &cell) in row.iter().enumerate() {

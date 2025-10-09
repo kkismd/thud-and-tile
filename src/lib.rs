@@ -1,12 +1,12 @@
 //! Thud & Tile WASM Library
-//! 
+//!
 //! このモジュールは、Thud & TileゲームのWASM環境用エントリーポイントを提供します。
 //! JavaScript環境からアクセス可能なAPIを実装し、ゲームロジックとUI間の橋渡しを行います。
 
-#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use wasm_bindgen::prelude::*;
+use std::collections::{HashSet, VecDeque};
 use std::time::Duration;
-use std::collections::{VecDeque, HashSet}; // BFS用とAnimation管理用
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
+use wasm_bindgen::prelude::*; // BFS用とAnimation管理用
 
 // 共通モジュールのimport
 mod animation;
@@ -17,7 +17,7 @@ mod animation;
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
-    
+
     // JavaScript Date.now()へのアクセス
     #[wasm_bindgen(js_namespace = Date, js_name = now)]
     fn js_date_now() -> f64;
@@ -109,24 +109,24 @@ impl TimeProvider for MockTimeProvider {
 }
 
 // モジュールのインポート
+mod board_logic;
+mod cell;
 mod config;
 mod game_color;
 mod game_input;
 mod random;
 mod scheduler;
 mod scoring;
-mod cell;
-mod board_logic;
 mod tetromino;
 
+use animation::{calculate_line_clear_score, process_line_clear, Animation};
+use cell::Cell;
 use config::*;
 use game_color::GameColor;
 use game_input::GameInput;
-use random::{RandomProvider, create_default_random_provider};
-use cell::Cell;
+use random::{create_default_random_provider, RandomProvider};
 use scoring::CustomScoreSystem;
 use tetromino::{get_srs_wall_kick_offsets_by_shape, Tetromino}; // CLI版のSRS関数とTetrominoをimport
-use animation::{Animation, calculate_line_clear_score, process_line_clear};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -152,44 +152,44 @@ impl WasmCustomScoreSystem {
             inner: CustomScoreSystem::new(),
         }
     }
-    
+
     /// 指定された色にスコアを加算（u8でGameColorを指定）
     /// 0=Cyan, 1=Magenta, 2=Yellow, その他は無視
     #[wasm_bindgen]
     pub fn add_score(&mut self, color_index: u8, points: u32) {
         let color = match color_index {
             0 => GameColor::Cyan,
-            1 => GameColor::Magenta, 
+            1 => GameColor::Magenta,
             2 => GameColor::Yellow,
             _ => return, // 無効な色は無視
         };
         self.inner.scores.add(color, points);
     }
-    
+
     /// 合計スコアを取得
     #[wasm_bindgen]
     pub fn get_total_score(&self) -> u32 {
         self.inner.scores.total()
     }
-    
+
     /// Cyanスコアを取得
     #[wasm_bindgen]
     pub fn get_cyan_score(&self) -> u32 {
         self.inner.scores.cyan
     }
-    
+
     /// Magentaスコアを取得
     #[wasm_bindgen]
     pub fn get_magenta_score(&self) -> u32 {
         self.inner.scores.magenta
     }
-    
+
     /// Yellowスコアを取得
     #[wasm_bindgen]
     pub fn get_yellow_score(&self) -> u32 {
         self.inner.scores.yellow
     }
-    
+
     /// 全色のスコアを配列で取得 [cyan, magenta, yellow]
     #[wasm_bindgen]
     pub fn get_all_scores(&self) -> Vec<u32> {
@@ -199,7 +199,7 @@ impl WasmCustomScoreSystem {
             self.inner.scores.yellow,
         ]
     }
-    
+
     /// 指定された色の最大チェーン数を更新
     #[wasm_bindgen]
     pub fn update_max_chain(&mut self, color_index: u8, chain_count: u32) {
@@ -211,7 +211,7 @@ impl WasmCustomScoreSystem {
         };
         self.inner.max_chains.update_max(color, chain_count);
     }
-    
+
     /// 指定された色の最大チェーン数を取得
     #[wasm_bindgen]
     pub fn get_max_chain(&self, color_index: u8) -> u32 {
@@ -223,7 +223,7 @@ impl WasmCustomScoreSystem {
         };
         self.inner.max_chains.get(color)
     }
-    
+
     /// 全色の最大チェーン数を配列で取得 [cyan, magenta, yellow]
     #[wasm_bindgen]
     pub fn get_all_max_chains(&self) -> Vec<u32> {
@@ -233,19 +233,19 @@ impl WasmCustomScoreSystem {
             self.inner.max_chains.yellow,
         ]
     }
-    
+
     /// 全体の最大チェーン数を取得
     #[wasm_bindgen]
     pub fn get_overall_max_chain(&self) -> u32 {
         self.inner.max_chains.max()
     }
-    
+
     /// スコア表示用文字列を取得（CLI版のDisplay traitと同等）
     #[wasm_bindgen]
     pub fn get_display_string(&self) -> String {
         format!("{}", self.inner)
     }
-    
+
     /// JavaScript用のスコア詳細情報を取得
     /// [total_score, cyan, magenta, yellow, max_chain, cyan_chain, magenta_chain, yellow_chain]
     #[wasm_bindgen]
@@ -319,7 +319,7 @@ pub struct SimpleTetromino {
     pub y: usize,
     pub rotation: u8,
     pub colors: Vec<GameColor>, // 各ブロックの色（4要素固定）
-    pub shape: u8, // 0=I, 1=O, 2=T, 3=L, 4=J, 5=S, 6=Z
+    pub shape: u8,              // 0=I, 1=O, 2=T, 3=L, 4=J, 5=S, 6=Z
 }
 
 impl SimpleTetromino {
@@ -327,7 +327,7 @@ impl SimpleTetromino {
         let mut provider = create_default_random_provider();
         let shape = provider.gen_range(0, 7) as u8;
         let color_palette = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
-        
+
         // CLI版と同じ隣接制約チェックを適用
         loop {
             let colors = [
@@ -336,20 +336,20 @@ impl SimpleTetromino {
                 color_palette[provider.gen_range(0, 3)],
                 color_palette[provider.gen_range(0, 3)],
             ];
-            
+
             let tetromino = Self::from_shape_with_colors(shape, colors);
-            
+
             // CLI版と同じ隣接制約チェック
             if Self::validate_adjacency_constraints(&tetromino) {
                 return tetromino;
             }
         }
     }
-    
+
     pub fn from_shape(shape: TetrominoShape) -> Self {
         let mut provider = create_default_random_provider();
         let color_palette = [GameColor::Cyan, GameColor::Magenta, GameColor::Yellow];
-        
+
         // CLI版と同じ隣接制約チェックを適用
         loop {
             let colors = [
@@ -358,16 +358,16 @@ impl SimpleTetromino {
                 color_palette[provider.gen_range(0, 3)],
                 color_palette[provider.gen_range(0, 3)],
             ];
-            
+
             let tetromino = Self::from_shape_with_colors(shape as u8, colors);
-            
+
             // CLI版と同じ隣接制約チェック
             if Self::validate_adjacency_constraints(&tetromino) {
                 return tetromino;
             }
         }
     }
-    
+
     /// 色配列を指定してテトロミノを作成（内部用）
     fn from_shape_with_colors(shape: u8, colors: [GameColor; 4]) -> Self {
         SimpleTetromino {
@@ -378,11 +378,11 @@ impl SimpleTetromino {
             shape,
         }
     }
-    
+
     /// 隣接制約を検証（CLI版と同じロジック）
     fn validate_adjacency_constraints(tetromino: &SimpleTetromino) -> bool {
         let blocks = tetromino.get_blocks_at_rotation(tetromino.rotation);
-        
+
         for i in 0..blocks.len() {
             for j in (i + 1)..blocks.len() {
                 let pos1 = blocks[i];
@@ -397,17 +397,17 @@ impl SimpleTetromino {
                 }
             }
         }
-        
+
         true
     }
-    
+
     /// CLI版と同じ色の回転マッピングを適用
     pub fn get_rotated_color_mapping(&self, new_index: usize) -> GameColor {
         // With SRS True Rotation and physical rotation order, all tetrominoes use direct mapping
         // Colors follow blocks naturally through the rotation sequence
         self.colors[new_index]
     }
-    
+
     pub fn get_blocks(&self) -> Vec<(i8, i8)> {
         match self.shape {
             0 => vec![(0, 1), (1, 1), (2, 1), (3, 1)], // I piece - SRS standard
@@ -417,24 +417,27 @@ impl SimpleTetromino {
             4 => vec![(0, 0), (0, 1), (1, 1), (2, 1)], // J piece - SRS standard
             5 => vec![(1, 0), (2, 0), (0, 1), (1, 1)], // S piece - SRS standard
             6 => vec![(0, 0), (1, 0), (1, 1), (2, 1)], // Z piece - SRS standard
-            _ => vec![(0, 0)], // Default
+            _ => vec![(0, 0)],                         // Default
         }
     }
-    
+
     pub fn get_blocks_at_rotation(&self, rotation: u8) -> Vec<(i8, i8)> {
         // 共通のSHAPES配列を使用してCLI・Web版を統一
-        if let Some(coordinates) = Tetromino::get_shape_coordinates(self.shape as usize, rotation as usize) {
+        if let Some(coordinates) =
+            Tetromino::get_shape_coordinates(self.shape as usize, rotation as usize)
+        {
             coordinates.to_vec()
         } else {
             // デフォルト座標（念のため）
             vec![(0, 0)]
         }
     }
-    
+
     /// 現在の回転状態でのブロック座標と色のペアを返す
     pub fn iter_blocks_with_colors(&self) -> Vec<((i8, i8), GameColor)> {
         let blocks = self.get_blocks_at_rotation(self.rotation);
-        blocks.into_iter()
+        blocks
+            .into_iter()
             .enumerate()
             .map(|(index, (dx, dy))| {
                 let abs_x = self.x as i8 + dx;
@@ -466,7 +469,7 @@ pub struct WasmGameState {
     last_fall_time: Duration,
     time_provider: WasmTimeProvider,
     tetromino_bag: WebTetrominoBag, // 7-bag実装
-    current_board_height: usize, // 動的ボード高さ（CLI版と同じ）
+    current_board_height: usize,    // 動的ボード高さ（CLI版と同じ）
     // アニメーション関連（CLI版と同等）
     animation: Vec<Animation>, // CLI版と同じVec<Animation>管理
 }
@@ -480,7 +483,7 @@ impl WasmGameState {
         console_log!("Creating new WasmGameState");
         let time_provider = WasmTimeProvider::new();
         let current_time = time_provider.now();
-        
+
         WasmGameState {
             board: vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT],
             custom_score_system: WasmCustomScoreSystem::new(),
@@ -492,10 +495,10 @@ impl WasmGameState {
             time_provider,
             tetromino_bag: WebTetrominoBag::new(),
             current_board_height: BOARD_HEIGHT, // CLI版と同じ初期値
-            animation: Vec::new(), // CLI版と同じ初期状態
+            animation: Vec::new(),              // CLI版と同じ初期状態
         }
     }
-    
+
     /// ゲームを開始
     #[wasm_bindgen]
     pub fn start_game(&mut self) {
@@ -507,34 +510,36 @@ impl WasmGameState {
         let current_time = self.time_provider.now();
         self.last_fall_time = current_time;
         self.current_board_height = BOARD_HEIGHT; // ボード高さもリセット
-        // アニメーション状態もリセット
+                                                  // アニメーション状態もリセット
         self.animation.clear();
-        
+
         // CLI版と同じピース初期化ロジック
         // 1. 最初にnext_pieceのみを生成（CLI版のnew()と同じ）
         self.current_piece = None;
         self.next_piece = Some(self.new_random_piece());
         // 2. spawn_pieceを呼び出してnext_piece → current_pieceの転送を行う
         self.spawn_piece();
-        
-        console_log!("Game started: current_piece from initial next_piece, new next_piece generated");
+
+        console_log!(
+            "Game started: current_piece from initial next_piece, new next_piece generated"
+        );
     }
-    
+
     /// 7-bagを使った新しいピース生成
     fn new_random_piece(&mut self) -> SimpleTetromino {
         let shape = self.tetromino_bag.next();
         SimpleTetromino::from_shape(shape)
     }
-    
+
     /// 新しいピースをスポーン（CLI版と同じロジック）
     pub fn spawn_piece(&mut self) {
         console_log!("spawn_piece called");
-        
+
         // next_pieceをcurrent_pieceにする
         self.current_piece = self.next_piece.take();
         // 新しいnext_pieceを生成する（7-bag使用）
         self.next_piece = Some(self.new_random_piece());
-        
+
         // current_pieceが有効な位置にあるかチェック
         if let Some(piece) = &self.current_piece {
             if !self.is_valid_position(piece, piece.x as i8, piece.y as i8, piece.rotation) {
@@ -542,47 +547,47 @@ impl WasmGameState {
                 console_log!("Game Over: piece cannot spawn");
             }
         }
-        
+
         console_log!("spawn_piece completed: next → current, new next generated");
     }
-    
+
     /// 現在の合計スコアを取得
     #[wasm_bindgen]
     pub fn get_score(&self) -> u32 {
         self.custom_score_system.get_total_score()
     }
-    
+
     /// 3色別スコアを取得 [cyan, magenta, yellow]
     #[wasm_bindgen]
     pub fn get_color_scores(&self) -> Vec<u32> {
         self.custom_score_system.get_all_scores()
     }
-    
+
     /// 3色別最大チェーン数を取得 [cyan, magenta, yellow]
     #[wasm_bindgen]
     pub fn get_max_chains(&self) -> Vec<u32> {
         self.custom_score_system.get_all_max_chains()
     }
-    
+
     /// スコア詳細情報を取得
     /// [total, cyan, magenta, yellow, max_chain, cyan_chain, magenta_chain, yellow_chain]
     #[wasm_bindgen]
     pub fn get_score_details(&self) -> Vec<u32> {
         self.custom_score_system.get_score_details()
     }
-    
+
     /// スコア表示用文字列を取得
     #[wasm_bindgen]
     pub fn get_score_display(&self) -> String {
         self.custom_score_system.get_display_string()
     }
-    
+
     /// ゲームモードを取得
     #[wasm_bindgen]
     pub fn get_game_mode(&self) -> u8 {
         self.game_mode
     }
-    
+
     /// ボードの状態を取得（JavaScriptで扱いやすい形式）
     #[wasm_bindgen]
     pub fn get_board_state(&self) -> Vec<u8> {
@@ -596,31 +601,31 @@ impl WasmGameState {
                             GameColor::Cyan => 1,
                             GameColor::Magenta => 2,
                             GameColor::Yellow => 3,
-                            GameColor::Grey => 20,   // グレーラインのマッピングを追加
+                            GameColor::Grey => 20, // グレーラインのマッピングを追加
                             _ => {
                                 console_log!("Warning: Unexpected color in board: {:?}", color);
                                 4 // 他の色は4以降
                             }
                         };
                         result.push(color_id);
-                    },
+                    }
                     Cell::Connected { color, count: _ } => {
                         let color_id = match color {
-                            GameColor::Cyan => 10,    // JavaScript側の期待値に合わせる
+                            GameColor::Cyan => 10, // JavaScript側の期待値に合わせる
                             GameColor::Magenta => 11,
                             GameColor::Yellow => 12,
-                            GameColor::Grey => 20,   // グレー Connected cells
-                            _ => 13, // 他の色は13以降
+                            GameColor::Grey => 20, // グレー Connected cells
+                            _ => 13,               // 他の色は13以降
                         };
                         result.push(color_id);
-                    },
+                    }
                     Cell::Solid => result.push(21),
                 }
             }
         }
         result
     }
-    
+
     /// 入力を処理
     #[wasm_bindgen]
     pub fn handle_input(&mut self, input_code: u8) -> bool {
@@ -635,9 +640,9 @@ impl WasmGameState {
             7 => GameInput::Quit,
             _ => GameInput::Unknown,
         };
-        
+
         console_log!("Handling input: {:?}", game_input);
-        
+
         match game_input {
             GameInput::Restart => {
                 self.start_game();
@@ -689,17 +694,17 @@ impl WasmGameState {
                     false
                 }
             }
-            _ => false
+            _ => false,
         }
     }
-    
+
     /// 現在のピースを移動
     #[wasm_bindgen]
     pub fn move_current_piece(&mut self, dx: i8, dy: i8) -> bool {
         if let Some(ref piece) = self.current_piece {
             let new_x = piece.x as i8 + dx;
             let new_y = piece.y as i8 + dy;
-            
+
             if self.is_valid_position(piece, new_x, new_y, piece.rotation) {
                 if let Some(ref mut piece) = self.current_piece {
                     piece.x = new_x as usize;
@@ -711,7 +716,7 @@ impl WasmGameState {
         }
         false
     }
-    
+
     /// 現在のピースを回転（SRS準拠）
     #[wasm_bindgen]
     pub fn rotate_current_piece(&mut self, clockwise: bool) -> bool {
@@ -722,14 +727,15 @@ impl WasmGameState {
             } else {
                 (current_rotation + 3) % 4
             };
-            
+
             // CLI版のSRS関数を使用
-            let offsets = get_srs_wall_kick_offsets_by_shape(piece.shape, current_rotation, new_rotation);
-            
+            let offsets =
+                get_srs_wall_kick_offsets_by_shape(piece.shape, current_rotation, new_rotation);
+
             for &[offset_x, offset_y] in offsets {
                 let test_x = piece.x as i8 + offset_x;
                 let test_y = piece.y as i8 + offset_y;
-                
+
                 if self.is_valid_position(piece, test_x, test_y, new_rotation) {
                     // 回転成功
                     if let Some(ref mut piece) = self.current_piece {
@@ -737,27 +743,37 @@ impl WasmGameState {
                         piece.x = test_x as usize;
                         piece.y = test_y as usize;
                     }
-                    console_log!("SRS rotation successful: rotation {} at ({}, {})", new_rotation, test_x, test_y);
+                    console_log!(
+                        "SRS rotation successful: rotation {} at ({}, {})",
+                        new_rotation,
+                        test_x,
+                        test_y
+                    );
                     return true;
                 }
             }
-            
+
             console_log!("SRS rotation failed: no valid position found");
         }
         false
     }
-    
+
     /// ハードドロップ
     #[wasm_bindgen]
     pub fn hard_drop(&mut self) -> bool {
         if let Some(ref piece) = self.current_piece {
             let mut drop_distance = 0;
-            
+
             // 最大落下距離を計算
-            while self.is_valid_position(piece, piece.x as i8, piece.y as i8 + drop_distance + 1, piece.rotation) {
+            while self.is_valid_position(
+                piece,
+                piece.x as i8,
+                piece.y as i8 + drop_distance + 1,
+                piece.rotation,
+            ) {
                 drop_distance += 1;
             }
-            
+
             if drop_distance > 0 {
                 if let Some(ref mut piece) = self.current_piece {
                     piece.y = (piece.y as i8 + drop_distance) as usize;
@@ -769,31 +785,39 @@ impl WasmGameState {
         }
         false
     }
-    
+
     /// ピースを固定
     #[wasm_bindgen]
     pub fn lock_piece(&mut self) {
         if let Some(piece) = self.current_piece.take() {
             console_log!("Locking piece with colors: {:?}", piece.colors);
-            
+
             // ピースをボードに配置（CLI版と同様の処理）
             let blocks = piece.get_blocks_at_rotation(piece.rotation);
             for (block_index, (dx, dy)) in blocks.iter().enumerate() {
                 let board_x = piece.x as i8 + dx;
                 let board_y = piece.y as i8 + dy;
-                
-                if board_x >= 0 && board_x < BOARD_WIDTH as i8 && 
-                   board_y >= 0 && board_y < BOARD_HEIGHT as i8 {
+
+                if board_x >= 0
+                    && board_x < BOARD_WIDTH as i8
+                    && board_y >= 0
+                    && board_y < BOARD_HEIGHT as i8
+                {
                     // 各ブロックに個別の色を使用
                     let block_color = piece.colors[block_index % piece.colors.len()];
                     self.board[board_y as usize][board_x as usize] = Cell::Occupied(block_color);
-                    console_log!("Placing block {} at ({}, {}) with color {:?}", 
-                        block_index, board_x, board_y, block_color);
+                    console_log!(
+                        "Placing block {} at ({}, {}) with color {:?}",
+                        block_index,
+                        board_x,
+                        board_y,
+                        block_color
+                    );
                 }
             }
-            
+
             console_log!("Piece locked at position ({}, {})", piece.x, piece.y);
-            
+
             // CLI版と同じライン消去検出とアニメーション処理
             // 1. 完成ラインを検出（CLI版と同じロジック）
             let mut lines_to_clear: Vec<usize> = self.board[0..self.current_board_height]
@@ -801,7 +825,7 @@ impl WasmGameState {
                 .enumerate()
                 .filter(|(_, row)| {
                     row.iter().all(|&cell| {
-                        matches!(cell, Cell::Occupied(_)) 
+                        matches!(cell, Cell::Occupied(_))
                             || matches!(cell, Cell::Connected { color: _, count: _ })
                     })
                 })
@@ -811,16 +835,20 @@ impl WasmGameState {
 
             // 2. CLI版と同じ隣接ブロック処理（消去前に実行）
             crate::board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear);
-            
+
             // 3. CLI版と同じconnected block counts更新
             self.update_connected_block_counts();
-            
+
             // 4. CLI版と同じmax_chains更新
             self.update_max_chains();
-            
+
             // 5. Calculate scores for lines to be cleared (before starting animation)
             for &line_y in &lines_to_clear {
-                let scores = animation::calculate_line_clear_score(&self.board, line_y, &self.custom_score_system.inner.max_chains);
+                let scores = animation::calculate_line_clear_score(
+                    &self.board,
+                    line_y,
+                    &self.custom_score_system.inner.max_chains,
+                );
                 for (color, points) in scores {
                     let color_index = match color {
                         GameColor::Cyan => 0,
@@ -831,7 +859,7 @@ impl WasmGameState {
                     self.custom_score_system.add_score(color_index, points);
                 }
             }
-            
+
             // 6. ライン消去処理とアニメーション開始
             if !lines_to_clear.is_empty() {
                 let start_time = self.time_provider.now();
@@ -841,22 +869,24 @@ impl WasmGameState {
                     start_time,
                 };
                 self.animation.push(line_blink_animation);
-                console_log!("Starting line clear animation for {} lines", lines_to_clear.len());
+                console_log!(
+                    "Starting line clear animation for {} lines",
+                    lines_to_clear.len()
+                );
             } else {
                 // ラインクリアなしの場合、すぐに新しいピースをスポーン
                 self.spawn_piece();
             }
-            
+
             console_log!("Piece locked, next piece spawned or animation started");
         }
     }
-    
-    
+
     /// Connected cellsの詳細情報を取得 [x, y, count, x, y, count, ...]
     #[wasm_bindgen]
     pub fn get_connected_cells_info(&self) -> Vec<i32> {
         let mut result = Vec::new();
-        
+
         for y in 0..self.current_board_height {
             for x in 0..BOARD_WIDTH {
                 if let Cell::Connected { color: _, count } = self.board[y][x] {
@@ -866,53 +896,60 @@ impl WasmGameState {
                 }
             }
         }
-        
+
         result
     }
-    
+
     /// 現在のピース情報を取得（JavaScript用）
     #[wasm_bindgen]
     pub fn get_current_piece_info(&self) -> Vec<i32> {
         if let Some(ref piece) = self.current_piece {
-            vec![piece.x as i32, piece.y as i32, piece.rotation as i32, piece.shape as i32]
+            vec![
+                piece.x as i32,
+                piece.y as i32,
+                piece.rotation as i32,
+                piece.shape as i32,
+            ]
         } else {
             vec![]
         }
     }
-    
+
     /// 位置が有効かチェック
     fn is_valid_position(&self, piece: &SimpleTetromino, x: i8, y: i8, rotation: u8) -> bool {
         let blocks = piece.get_blocks_at_rotation(rotation);
-        
+
         for (dx, dy) in blocks {
             let board_x = x + dx;
             let board_y = y + dy;
-            
+
             // 水平境界チェック
             if board_x < 0 || board_x >= BOARD_WIDTH as i8 {
                 return false;
             }
-            
+
             // 下方境界チェック（CLI版と同じ動的高さ使用）
             if board_y >= self.current_board_height as i8 {
                 return false;
             }
-            
+
             // 衝突チェック（ボード内の可視領域のみ）
-            if board_y >= 0 && !matches!(self.board[board_y as usize][board_x as usize], Cell::Empty) {
+            if board_y >= 0
+                && !matches!(self.board[board_y as usize][board_x as usize], Cell::Empty)
+            {
                 return false;
             }
-            
+
             // y < 0 (ボード上部の見えない領域) は許可（スポーン時の回転用）
         }
-        
+
         true
     }
 
     /// ゴーストピースの位置（現在のテトロミノが真下に落下する最終位置）を計算
     fn calculate_ghost_position(&self, piece: &SimpleTetromino) -> Option<(i8, i8)> {
         let mut ghost_y = piece.y as i8;
-        
+
         // 現在位置から下方向に1つずつ降りて、有効でない位置の直前を見つける
         loop {
             if !self.is_valid_position(piece, piece.x as i8, ghost_y + 1, piece.rotation) {
@@ -920,7 +957,7 @@ impl WasmGameState {
             }
             ghost_y += 1;
         }
-        
+
         // 現在位置と同じ場合はゴーストピースを表示しない
         if ghost_y == piece.y as i8 {
             None
@@ -928,29 +965,30 @@ impl WasmGameState {
             Some((piece.x as i8, ghost_y))
         }
     }
-    
+
     /// 自動落下処理 - JavaScriptから定期的に呼び出される
     #[wasm_bindgen]
     pub fn auto_fall(&mut self) -> bool {
-        if self.game_mode != 1 { // Playingモードでない場合はスキップ
+        if self.game_mode != 1 {
+            // Playingモードでない場合はスキップ
             return false;
         }
-        
+
         // アニメーション処理を実行
         self.update_animation();
-        
+
         // アニメーション中は新しいピースの処理を停止
         if !self.animation.is_empty() {
             return true;
         }
-        
+
         let current_time = self.time_provider.now();
-        
+
         // 落下時間チェック
         if current_time - self.last_fall_time >= self.fall_speed {
             if let Some(ref piece) = self.current_piece {
                 let new_y = piece.y as i8 + 1;
-                
+
                 // 下に移動可能かチェック
                 if self.is_valid_position(piece, piece.x as i8, new_y, piece.rotation) {
                     // 移動実行
@@ -967,33 +1005,33 @@ impl WasmGameState {
                 // 現在のピースがない場合は新しいピースを生成
                 self.spawn_piece();
             }
-            
+
             self.last_fall_time = current_time;
             return true;
         }
-        
+
         false
     }
-    
+
     /// 自動落下速度を取得（ミリ秒）
     #[wasm_bindgen]
     pub fn get_fall_speed_ms(&self) -> u32 {
         self.fall_speed.as_millis() as u32
     }
-    
+
     /// 自動落下速度を設定（ミリ秒）
     #[wasm_bindgen]
     pub fn set_fall_speed_ms(&mut self, ms: u32) {
         self.fall_speed = Duration::from_millis(ms as u64);
         console_log!("Fall speed set to {}ms", ms);
     }
-    
+
     /// 現在のボード高さを取得（Dynamic Board Height System）
     #[wasm_bindgen]
     pub fn get_current_board_height(&self) -> usize {
         self.current_board_height
     }
-    
+
     /// 現在のボード高さを設定（Dynamic Board Height System）
     #[wasm_bindgen]
     pub fn set_current_board_height(&mut self, height: usize) {
@@ -1002,8 +1040,6 @@ impl WasmGameState {
         console_log!("Board height set to {}", self.current_board_height);
     }
 }
-
-
 
 /// バージョン情報を返す
 #[cfg(target_arch = "wasm32")]
@@ -1026,14 +1062,14 @@ impl WasmGameState {
     pub fn get_current_piece_blocks(&self) -> Vec<i32> {
         if let Some(ref piece) = self.current_piece {
             let mut result = Vec::new();
-            
+
             // iter_blocks_with_colors()を使用して正しい位置と色の対応を取得
             for ((board_x, board_y), color) in piece.iter_blocks_with_colors() {
                 result.push(board_x as i32);
                 result.push(board_y as i32);
                 result.push(color as i32);
             }
-            
+
             result
         } else {
             vec![]
@@ -1045,10 +1081,10 @@ impl WasmGameState {
         if let Some(ref piece) = self.next_piece {
             vec![
                 piece.x as i32,
-                piece.y as i32, 
+                piece.y as i32,
                 piece.rotation as i32,
                 piece.colors[0] as i32, // 最初の色を代表色として使用
-                piece.shape as i32
+                piece.shape as i32,
             ]
         } else {
             vec![]
@@ -1059,7 +1095,7 @@ impl WasmGameState {
     pub fn get_next_piece_blocks(&self) -> Vec<i32> {
         if let Some(ref piece) = self.next_piece {
             let mut result = Vec::new();
-            
+
             // iter_blocks_with_colors()を使用して正しい位置と色の対応を取得
             // 次ピース表示用なので相対座標で返す
             for ((abs_x, abs_y), color) in piece.iter_blocks_with_colors() {
@@ -1069,7 +1105,7 @@ impl WasmGameState {
                 result.push(rel_y as i32);
                 result.push(color as i32);
             }
-            
+
             result
         } else {
             vec![]
@@ -1084,14 +1120,14 @@ impl WasmGameState {
                 let mut ghost_piece = piece.clone();
                 ghost_piece.x = ghost_x as usize;
                 ghost_piece.y = ghost_y as usize;
-                
+
                 let mut result = Vec::new();
                 for ((board_x, board_y), color) in ghost_piece.iter_blocks_with_colors() {
                     result.push(board_x as i32);
                     result.push(board_y as i32);
                     result.push(color as i32); // 各ブロックの個別色（半透明化はフロントエンド側で処理）
                 }
-                
+
                 result
             } else {
                 vec![]
@@ -1100,42 +1136,52 @@ impl WasmGameState {
             vec![]
         }
     }
-    
+
     /// アニメーション処理を実行（CLI版互換・共通モジュール使用）
     #[wasm_bindgen]
     pub fn update_animation(&mut self) {
         if self.animation.is_empty() {
             return;
         }
-        
+
         let current_time = self.time_provider.now();
-        
+
         // 共通アニメーション処理モジュールを使用
         let result = animation::update_animations(&mut self.animation, current_time);
-        
+
         // LineBlink完了によるライン消去とPush Down開始処理（CLI版互換）
         for completed_lines in result.completed_line_blinks.clone() {
             // CLI版と同じ処理順序：bottom/non-bottomに分離してライン消去処理
-            let (bottom_lines_cleared, non_bottom_lines_cleared) = 
-                animation::process_line_clear(&mut self.board, self.current_board_height, &completed_lines);
+            let (bottom_lines_cleared, non_bottom_lines_cleared) = animation::process_line_clear(
+                &mut self.board,
+                self.current_board_height,
+                &completed_lines,
+            );
 
             // Bottom lines の標準テトリス消去処理（PushDownアニメーションなし）
             if !bottom_lines_cleared.is_empty() {
                 self.update_all_connected_block_counts();
                 self.spawn_piece();
-                console_log!("Bottom line clear: {} lines cleared", bottom_lines_cleared.len());
+                console_log!(
+                    "Bottom line clear: {} lines cleared",
+                    bottom_lines_cleared.len()
+                );
             }
 
-            console_log!("Line clear animation completed: {} bottom, {} non-bottom", 
-                bottom_lines_cleared.len(), non_bottom_lines_cleared.len());
+            console_log!(
+                "Line clear animation completed: {} bottom, {} non-bottom",
+                bottom_lines_cleared.len(),
+                non_bottom_lines_cleared.len()
+            );
         }
-        
+
         // 継続するアニメーションを設定（先に設定）
         self.animation = result.continuing_animations;
 
         // LineBlink完了によるPushDownアニメーション開始処理（CLI版互換）
         for completed_lines in result.completed_line_blinks {
-            let non_bottom_lines_cleared: Vec<usize> = completed_lines.iter()
+            let non_bottom_lines_cleared: Vec<usize> = completed_lines
+                .iter()
                 .filter(|&&line_y| line_y != self.current_board_height - 1)
                 .cloned()
                 .collect();
@@ -1152,10 +1198,14 @@ impl WasmGameState {
                 });
             }
         }
-        
+
         // Push Down完了処理
         for gray_line_y in result.completed_push_downs {
-            match animation::process_push_down_step(&mut self.board, &mut self.current_board_height, gray_line_y) {
+            match animation::process_push_down_step(
+                &mut self.board,
+                &mut self.current_board_height,
+                gray_line_y,
+            ) {
                 animation::PushDownStepResult::Completed => {
                     // Push Down完了後にconnected block countsを更新
                     self.update_all_connected_block_counts();
@@ -1171,7 +1221,7 @@ impl WasmGameState {
                 }
             }
         }
-        
+
         // すべてのアニメーションが完了した場合、新しいピースをスポーン
         if self.animation.is_empty() {
             // アニメーション完了後にconnected block countsを最終更新
@@ -1179,38 +1229,50 @@ impl WasmGameState {
             self.spawn_piece();
         }
     }
-    
+
     /// グレーラインをSolidラインに変換し、board heightを減少（共通モジュール使用）
     fn finalize_gray_line(&mut self, gray_line_y: usize) {
         // 共通モジュールのPush Down完了処理を使用
-        match animation::process_push_down_step(&mut self.board, &mut self.current_board_height, gray_line_y) {
+        match animation::process_push_down_step(
+            &mut self.board,
+            &mut self.current_board_height,
+            gray_line_y,
+        ) {
             animation::PushDownStepResult::Completed => {
-                console_log!("Gray line {} finalized as Solid, board height reduced to {}", gray_line_y, self.current_board_height);
+                console_log!(
+                    "Gray line {} finalized as Solid, board height reduced to {}",
+                    gray_line_y,
+                    self.current_board_height
+                );
             }
             animation::PushDownStepResult::Moved { .. } => {
                 // この関数では完了のみを扱うため、移動は想定外
                 console_log!("Warning: Unexpected move result in finalize_gray_line");
             }
         }
-        
+
         // 将来的にここでconnected block countsの更新も行う
         // self.update_all_connected_block_counts();
     }
-    
+
     /// アニメーション情報を取得（JavaScript用）
     #[wasm_bindgen]
     pub fn get_animation_info(&self) -> Vec<i32> {
         if self.animation.is_empty() {
             return vec![];
         }
-        
+
         let mut result = Vec::new();
         let current_time = self.time_provider.now();
-        
+
         // 各アニメーションの情報を追加（CLI版と同等の詳細情報）
         for animation in &self.animation {
             match animation {
-                Animation::LineBlink { lines, count, start_time } => {
+                Animation::LineBlink {
+                    lines,
+                    count,
+                    start_time,
+                } => {
                     result.push(1); // LineBlink type id
                     let elapsed_ms = (current_time - *start_time).as_millis() as i32;
                     result.push(elapsed_ms);
@@ -1220,7 +1282,10 @@ impl WasmGameState {
                         result.push(line as i32);
                     }
                 }
-                Animation::PushDown { gray_line_y, start_time } => {
+                Animation::PushDown {
+                    gray_line_y,
+                    start_time,
+                } => {
                     result.push(2); // PushDown type id
                     let elapsed_ms = (current_time - *start_time).as_millis() as i32;
                     result.push(elapsed_ms);
@@ -1228,10 +1293,10 @@ impl WasmGameState {
                 }
             }
         }
-        
+
         result
     }
-    
+
     /// CLI版のcount_connected_blocks相当の実装（内部実装のみ）
     /// cleared_line_y より下の行の連結ブロックを BFS で検出してカウント
     fn count_connected_blocks(&self, cleared_line_y: usize) -> Vec<((usize, usize), u32)> {
@@ -1245,7 +1310,7 @@ impl WasmGameState {
                     Cell::Connected { color: c, count: _ } => Some(c),
                     _ => None,
                 };
-                
+
                 if let Some(color) = color {
                     if visited[y][x] {
                         continue;
@@ -1268,7 +1333,11 @@ impl WasmGameState {
                         ];
 
                         for (nx, ny) in neighbors {
-                            if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && (ny as usize) < self.current_board_height {
+                            if nx >= 0
+                                && nx < BOARD_WIDTH as i8
+                                && ny >= 0
+                                && (ny as usize) < self.current_board_height
+                            {
                                 let (nx_usize, ny_usize) = (nx as usize, ny as usize);
                                 if !visited[ny_usize][nx_usize] {
                                     let neighbor_color = match self.board[ny_usize][nx_usize] {
@@ -1298,7 +1367,7 @@ impl WasmGameState {
 
         results
     }
-    
+
     /// 全ボードの連結ブロック数を更新（CLI版のupdate_all_connected_block_counts相当）
     fn update_all_connected_block_counts(&mut self) {
         // 一度すべてのConnected cellをOccupied cellに戻す
@@ -1312,7 +1381,7 @@ impl WasmGameState {
 
         // 各セルについて連結コンポーネントサイズを再計算
         let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
-        
+
         for y in 0..self.current_board_height {
             for x in 0..BOARD_WIDTH {
                 if !visited[y][x] {
@@ -1334,10 +1403,16 @@ impl WasmGameState {
                             ];
 
                             for (nx, ny) in neighbors {
-                                if nx >= 0 && nx < BOARD_WIDTH as i8 && ny >= 0 && (ny as usize) < self.current_board_height {
+                                if nx >= 0
+                                    && nx < BOARD_WIDTH as i8
+                                    && ny >= 0
+                                    && (ny as usize) < self.current_board_height
+                                {
                                     let (nx_usize, ny_usize) = (nx as usize, ny as usize);
                                     if !visited[ny_usize][nx_usize] {
-                                        if let Cell::Occupied(neighbor_color) = self.board[ny_usize][nx_usize] {
+                                        if let Cell::Occupied(neighbor_color) =
+                                            self.board[ny_usize][nx_usize]
+                                        {
                                             if neighbor_color == color {
                                                 visited[ny_usize][nx_usize] = true;
                                                 queue.push_back((nx_usize, ny_usize));
@@ -1353,7 +1428,10 @@ impl WasmGameState {
                         let component_size = component.len() as u8; // u8にキャスト
                         for &(cx, cy) in &component {
                             if component_size > 1 {
-                                self.board[cy][cx] = Cell::Connected { color, count: component_size };
+                                self.board[cy][cx] = Cell::Connected {
+                                    color,
+                                    count: component_size,
+                                };
                             } else {
                                 self.board[cy][cx] = Cell::Occupied(color); // 単独ブロックはOccupiedのまま
                             }
@@ -1363,7 +1441,7 @@ impl WasmGameState {
             }
         }
     }
-    
+
     /// CLI版のupdate_connected_block_counts相当の実装
     /// ピースロック後に連結ブロック数を再計算・更新
     fn update_connected_block_counts(&mut self) {
@@ -1377,7 +1455,7 @@ impl WasmGameState {
             }
         }
     }
-    
+
     /// CLI版のupdate_max_chains相当の実装
     /// ボード全体をスキャンして各色の最大連結ブロック数を更新
     fn update_max_chains(&mut self) {
@@ -1413,11 +1491,11 @@ wasm_bindgen_test_configure!(run_in_browser);
 async fn wasm_node_compatible_test() {
     // Node.js環境でも実行可能な基本テスト
     console_log!("WASM Node.js compatible test running");
-    
+
     // 基本的なアサーション
     assert_eq!(2 + 2, 4);
     assert!(true);
-    
+
     console_log!("WASM Node.js compatible test passed");
 }
 
@@ -1436,11 +1514,11 @@ fn wasm_tetromino_operations() {
     // WASMでのテトロミノ操作テスト
     let mut game_state = WasmGameState::new();
     game_state.start_game();
-    
+
     // 現在ピース情報の取得テスト
     let piece_info = game_state.get_current_piece_info();
     console_log!("WASM current piece info: {:?}", piece_info);
-    
+
     // 回転テスト
     let rotation_result = game_state.rotate_current_piece(true);
     console_log!("WASM tetromino rotation test: {}", rotation_result);
@@ -1452,11 +1530,11 @@ fn wasm_animation_system() {
     // WASMでのアニメーション系統テスト
     let mut game_state = WasmGameState::new();
     game_state.start_game();
-    
+
     // アニメーション更新テスト
     game_state.update_animation();
     let animation_info = game_state.get_animation_info();
-    
+
     // アニメーション状態が適切に管理されているかテスト
     console_log!("WASM animation info: {:?}", animation_info);
     assert!(animation_info.len() > 0); // JSONが返されることを確認
@@ -1467,15 +1545,15 @@ fn wasm_animation_system() {
 fn wasm_score_system() {
     // WASMスコアシステムテスト
     let mut score_system = WasmCustomScoreSystem::new();
-    
+
     // スコア加算テスト
     score_system.add_score(0, 100); // Cyan
     score_system.add_score(1, 200); // Magenta
-    
+
     assert_eq!(score_system.get_cyan_score(), 100);
     assert_eq!(score_system.get_magenta_score(), 200);
     assert_eq!(score_system.get_total_score(), 300);
-    
+
     console_log!("WASM score system test passed");
 }
 
@@ -1485,10 +1563,13 @@ fn wasm_time_provider() {
     // WASM時間プロバイダーテスト
     let time_provider = WasmTimeProvider::new();
     let start_time = time_provider.now();
-    
+
     // 時間が適切に取得できるかテスト
     assert!(start_time.as_millis() >= 0);
-    console_log!("WASM time provider test passed: {}ms", start_time.as_millis());
+    console_log!(
+        "WASM time provider test passed: {}ms",
+        start_time.as_millis()
+    );
 }
 
 // Node.js環境での基本的なテスト
@@ -1497,18 +1578,18 @@ fn wasm_time_provider() {
 fn nodejs_compatibility_test() {
     // Node.js環境でのポリフィルをテスト
     console_log!("Node.js compatibility test starting");
-    
+
     // ランダム数生成のテスト
     let random_value = crate::random::js_math_random();
     assert!(random_value >= 0.0 && random_value < 1.0);
-    
+
     // 時間のテスト（Node.js環境でのjs_date_now）
     #[cfg(feature = "nodejs-test")]
     {
         let time = crate::js_date_now();
         assert!(time > 0.0);
     }
-    
+
     console_log!("Node.js compatibility test passed");
 }
 
@@ -1518,22 +1599,23 @@ fn nodejs_compatibility_test() {
 fn wasm_shared_animation_module() {
     // Mock time provider for testing
     let mut mock_time = MockTimeProvider::new();
-    
+
     // 共有アニメーションモジュールのテスト
     use crate::animation::Animation;
-    let animations = vec![
-        Animation::LineBlink {
-            lines: vec![19],
-            count: 1,
-            start_time: mock_time.now(),
-        }
-    ];
-    
+    let animations = vec![Animation::LineBlink {
+        lines: vec![19],
+        count: 1,
+        start_time: mock_time.now(),
+    }];
+
     // アニメーション更新テスト（時刻による更新）
     mock_time.advance(std::time::Duration::from_millis(500));
     let _current_time = mock_time.now();
-    
+
     // アニメーションが存在することを確認
     assert!(!animations.is_empty());
-    console_log!("WASM shared animation test passed with {} animations", animations.len());
+    console_log!(
+        "WASM shared animation test passed with {} animations",
+        animations.len()
+    );
 }
