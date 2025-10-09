@@ -183,6 +183,12 @@ pub fn remove_isolated_blocks(board: &mut Board, cleared_line_y: usize) {
 
 /// 盤面全体をスキャンし、10個以上の連結グループを検出して、獲得可能なボーナス段数を計算する
 /// 各グループの連結数から floor(count / 10) 段を計算し、合計を返す
+///
+/// TODO: リファクタリング - BFSロジックの重複を解消
+/// このファイル内の4つの関数（find_and_connect_adjacent_blocks, count_connected_blocks,
+/// remove_isolated_blocks, calculate_chain_bonus）が同じBFSアルゴリズムを重複実装している。
+/// 将来的に共通のBFS関数（find_connected_groups, extract_colorなど）を抽出して、
+/// コードの重複を削減し保守性を向上させる。
 pub fn calculate_chain_bonus(board: &Board) -> u32 {
     let mut total_bonus = 0;
     let mut visited = vec![vec![false; BOARD_WIDTH]; BOARD_HEIGHT];
