@@ -236,3 +236,52 @@ fn test_max_chain_only_increases_never_decreases() {
         5
     ); // Should remain unchanged
 }
+
+#[test]
+fn test_chain_bonus_added_on_lock_piece() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // 一番下のラインをすべて埋めてライン消去を発生させる（10個の連結）
+    for x in 0..BOARD_WIDTH {
+        state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(GameColor::Cyan);
+    }
+
+    // ピースをロックして連結数計算をトリガー
+    let piece = Tetromino::from_shape(TetrominoShape::O, [GameColor::Cyan; 4]);
+    state.current_piece = Some(piece);
+
+    assert_eq!(state.custom_score_system.chain_bonus, 0);
+
+    state.lock_piece(&time_provider);
+
+    // 10個の連結ブロック → floor(10 / 10) = 1 段
+    assert_eq!(state.custom_score_system.chain_bonus, 1);
+}
+
+#[test]
+fn test_chain_bonus_caps_at_ten() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // 下3行をすべて埋めてライン消去を発生させる（合計30個の連結）
+    for dy in 0..3 {
+        let y = BOARD_HEIGHT - 1 - dy;
+        for x in 0..BOARD_WIDTH {
+            state.board[y][x] = Cell::Occupied(GameColor::Magenta);
+        }
+    }
+
+    // 既に9段溜まっている状態を想定
+    state.custom_score_system.chain_bonus = 9;
+
+    let piece = Tetromino::from_shape(TetrominoShape::I, [GameColor::Magenta; 4]);
+    state.current_piece = Some(piece);
+
+    state.lock_piece(&time_provider);
+
+    // floor(30 / 10) = 3段 分加算されるが上限は10段
+    assert_eq!(state.custom_score_system.chain_bonus, 10);
+}
