@@ -1,5 +1,5 @@
 //! Core Board Logic - Pure Functions
-//! 
+//!
 //! CLI版とWASM版で共有するボード処理の純粋関数群
 //! 固定サイズ配列とデータコピーパターンで借用チェッカー競合を回避
 
@@ -52,8 +52,9 @@ pub fn find_connected_components(
             };
 
             if let Some(color) = cell_color {
-                let component = flood_fill_component(board, Point(x, y), color, &mut visited, exclude_lines);
-                
+                let component =
+                    flood_fill_component(board, Point(x, y), color, &mut visited, exclude_lines);
+
                 // すべてのコンポーネントを記録（孤立ブロックも含む）
                 if !component.is_empty() {
                     components.push(ConnectedComponent {
@@ -79,25 +80,25 @@ fn flood_fill_component(
 ) -> Vec<Point> {
     let mut component = Vec::new();
     let mut stack = vec![start];
-    
+
     while let Some(Point(x, y)) = stack.pop() {
         if visited[y][x] || exclude_lines.contains(&y) {
             continue;
         }
-        
+
         let cell_color = match board[y][x] {
             Cell::Occupied(color) => Some(color),
             Cell::Connected { color, .. } => Some(color),
             _ => None,
         };
-        
+
         if cell_color != Some(target_color) {
             continue;
         }
-        
+
         visited[y][x] = true;
         component.push(Point(x, y));
-        
+
         // 隣接セルをスタックに追加
         let neighbors = get_neighbors(Point(x, y));
         for neighbor in neighbors {
@@ -106,7 +107,7 @@ fn flood_fill_component(
             }
         }
     }
-    
+
     component
 }
 
@@ -114,28 +115,28 @@ fn flood_fill_component(
 fn get_neighbors(point: Point) -> Vec<Point> {
     let Point(x, y) = point;
     let mut neighbors = Vec::new();
-    
+
     let directions = [(-1, 0), (1, 0), (0, -1), (0, 1)];
-    
+
     for (dx, dy) in directions {
         let nx = x as i32 + dx;
         let ny = y as i32 + dy;
-        
+
         if nx >= 0 && nx < BOARD_WIDTH as i32 && ny >= 0 && ny < BOARD_HEIGHT as i32 {
             neighbors.push(Point(nx as usize, ny as usize));
         }
     }
-    
+
     neighbors
 }
 
 /// 【純粋関数】完成ライン（全セルが埋まっているライン）の検出
 pub fn find_complete_lines(board: FixedBoard, current_height: usize) -> Vec<usize> {
     let mut complete_lines = Vec::new();
-    
+
     for y in 0..current_height {
         let mut is_complete = true;
-        
+
         for x in 0..BOARD_WIDTH {
             match board[y][x] {
                 Cell::Empty => {
@@ -145,12 +146,12 @@ pub fn find_complete_lines(board: FixedBoard, current_height: usize) -> Vec<usiz
                 _ => {} // Occupied, Connected, Solid はすべて「埋まっている」扱い
             }
         }
-        
+
         if is_complete {
             complete_lines.push(y);
         }
     }
-    
+
     complete_lines
 }
 
@@ -158,9 +159,9 @@ pub fn find_complete_lines(board: FixedBoard, current_height: usize) -> Vec<usiz
 pub fn analyze_lines(lines: &[usize], current_height: usize) -> LineAnalysis {
     let mut bottom_lines = Vec::new();
     let mut non_bottom_lines = Vec::new();
-    
+
     let bottom_line = current_height.saturating_sub(1);
-    
+
     for &line_y in lines {
         if line_y == bottom_line {
             bottom_lines.push(line_y);
@@ -168,7 +169,7 @@ pub fn analyze_lines(lines: &[usize], current_height: usize) -> LineAnalysis {
             non_bottom_lines.push(line_y);
         }
     }
-    
+
     LineAnalysis {
         complete_lines: lines.to_vec(),
         bottom_lines,
@@ -198,13 +199,7 @@ pub fn count_connected_blocks_above_line(
             };
 
             if let Some(color) = cell_color {
-                let component = flood_fill_component(
-                    board, 
-                    Point(x, y), 
-                    color, 
-                    &mut visited, 
-                    &[]
-                );
+                let component = flood_fill_component(board, Point(x, y), color, &mut visited, &[]);
 
                 let component_size = component.len() as u32;
                 for point in component {
@@ -289,24 +284,24 @@ pub fn remove_isolated_blocks_from_board(
 /// animation.rsのcount_solid_lines_from_bottomから抽出
 pub fn count_solid_lines_from_bottom(board: FixedBoard, current_height: usize) -> usize {
     let mut solid_count = 0;
-    
+
     for y in (0..current_height).rev() {
         let mut is_solid_line = true;
-        
+
         for x in 0..BOARD_WIDTH {
             if board[y][x] != Cell::Solid {
                 is_solid_line = false;
                 break;
             }
         }
-        
+
         if is_solid_line {
             solid_count += 1;
         } else {
             break; // 底辺から連続していないSolidラインは無視
         }
     }
-    
+
     solid_count
 }
 
@@ -333,12 +328,12 @@ mod tests {
 
     fn create_test_board() -> FixedBoard {
         let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-        
+
         // テスト用パターン作成
         board[BOARD_HEIGHT - 1][0] = Cell::Occupied(GameColor::Red);
         board[BOARD_HEIGHT - 1][1] = Cell::Occupied(GameColor::Red);
         board[BOARD_HEIGHT - 2][0] = Cell::Occupied(GameColor::Blue);
-        
+
         board
     }
 
@@ -346,27 +341,27 @@ mod tests {
     fn test_find_connected_components() {
         let board = create_test_board();
         let components = find_connected_components(board, &[]);
-        
+
         // 赤ブロックが連結している
-        assert!(components.iter().any(|c| 
-            c.color == GameColor::Red && c.size == 2
-        ));
-        
+        assert!(components
+            .iter()
+            .any(|c| c.color == GameColor::Red && c.size == 2));
+
         // 青ブロックは孤立
-        assert!(components.iter().any(|c| 
-            c.color == GameColor::Blue && c.size == 1
-        ));
+        assert!(components
+            .iter()
+            .any(|c| c.color == GameColor::Blue && c.size == 1));
     }
 
     #[test]
     fn test_find_complete_lines() {
         let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-        
+
         // 最下行を完全に埋める
         for x in 0..BOARD_WIDTH {
             board[BOARD_HEIGHT - 1][x] = Cell::Occupied(GameColor::Red);
         }
-        
+
         let complete_lines = find_complete_lines(board, BOARD_HEIGHT);
         assert_eq!(complete_lines, vec![BOARD_HEIGHT - 1]);
     }
@@ -375,7 +370,7 @@ mod tests {
     fn test_analyze_lines() {
         let current_height = 15;
         let lines = vec![10, 14]; // 14が底辺ライン
-        
+
         let analysis = analyze_lines(&lines, current_height);
         assert_eq!(analysis.bottom_lines, vec![14]);
         assert_eq!(analysis.non_bottom_lines, vec![10]);
@@ -385,7 +380,7 @@ mod tests {
     fn test_find_isolated_blocks() {
         let board = create_test_board();
         let isolated = find_isolated_blocks(board, 0);
-        
+
         // 青ブロックが孤立している
         assert!(isolated.contains(&Point(0, BOARD_HEIGHT - 2)));
     }
@@ -393,13 +388,13 @@ mod tests {
     #[test]
     fn test_count_solid_lines_from_bottom() {
         let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-        
+
         // 底辺2ラインをSolidにする
         for x in 0..BOARD_WIDTH {
             board[BOARD_HEIGHT - 1][x] = Cell::Solid;
             board[BOARD_HEIGHT - 2][x] = Cell::Solid;
         }
-        
+
         let count = count_solid_lines_from_bottom(board, BOARD_HEIGHT);
         assert_eq!(count, 2);
     }

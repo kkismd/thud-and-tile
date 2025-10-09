@@ -82,13 +82,13 @@ impl InputProvider for CrosstermInputProvider {
                         }
                     }
                     KeyCode::Up => GameInput::RotateCounterClockwise,
-                    
+
                     // 文字キー（WASD）
                     KeyCode::Char('a') | KeyCode::Char('A') => GameInput::MoveLeft,
                     KeyCode::Char('d') | KeyCode::Char('D') => GameInput::MoveRight,
                     KeyCode::Char('s') | KeyCode::Char('S') => GameInput::SoftDrop,
                     KeyCode::Char('w') | KeyCode::Char('W') => GameInput::RotateCounterClockwise,
-                    
+
                     // その他のキー
                     KeyCode::Char(' ') => GameInput::HardDrop, // Spaceキーはハードドロップ
                     KeyCode::Char('q') | KeyCode::Char('Q') => GameInput::Quit,

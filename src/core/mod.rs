@@ -1,5 +1,5 @@
 //! Core Logic Module
-//! 
+//!
 //! CLI版とWASM版で共有する純粋関数ベースのコアロジック
 
 pub mod animation_logic;

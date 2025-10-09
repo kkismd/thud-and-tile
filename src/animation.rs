@@ -111,7 +111,7 @@ pub fn update_animations(
                     last_update,
                     chain_bonus_consumed,
                 };
-                
+
                 // TODO: update_animations関数のリファクタリング必要
                 // Phase 9-4完了後に統合処理として修正
                 // EraseLineアニメーション処理は現在main.rsで個別処理
@@ -194,28 +194,28 @@ pub fn process_erase_line_step(
             if *current_step < target_solid_lines.len() {
                 // 実際にSolidライン除去を実行
                 let removed = remove_solid_line_from_bottom(board, current_height);
-                
+
                 if removed.is_some() {
                     *current_step += 1;
                     *chain_bonus_consumed += 1;
                     *last_update = current_time;
 
                     if *current_step >= target_solid_lines.len() {
-                        EraseLineStepResult::Complete { 
-                            lines_erased: target_solid_lines.len() as u32 
+                        EraseLineStepResult::Complete {
+                            lines_erased: target_solid_lines.len() as u32,
                         }
                     } else {
                         EraseLineStepResult::Continue
                     }
                 } else {
                     // Solidライン不足による完了
-                    EraseLineStepResult::Complete { 
-                        lines_erased: *current_step as u32 
+                    EraseLineStepResult::Complete {
+                        lines_erased: *current_step as u32,
                     }
                 }
             } else {
-                EraseLineStepResult::Complete { 
-                    lines_erased: target_solid_lines.len() as u32 
+                EraseLineStepResult::Complete {
+                    lines_erased: target_solid_lines.len() as u32,
                 }
             }
         } else {
@@ -303,11 +303,11 @@ pub fn process_line_clear(
 
 /// PushDown完了時のEraseLineアニメーション作成における制限判定
 /// CHAIN-BONUSの量とSolidライン数の最小値を返す
-/// 
+///
 /// # Arguments
 /// * `chain_bonus` - 現在のCHAIN-BONUS量
 /// * `solid_lines_count` - 対象のSolidライン数
-/// 
+///
 /// # Returns
 /// EraseLineアニメーションで処理すべきライン数
 pub fn determine_erase_line_count(chain_bonus: u32, solid_lines_count: usize) -> usize {
@@ -316,11 +316,11 @@ pub fn determine_erase_line_count(chain_bonus: u32, solid_lines_count: usize) ->
 
 /// EraseLineアニメーション完了時のCHAIN-BONUS消費処理
 /// 消費したCHAIN-BONUS量を返す
-/// 
+///
 /// # Arguments
 /// * `chain_bonus` - 現在のCHAIN-BONUS量への可変参照
 /// * `lines_erased` - 消去されたライン数
-/// 
+///
 /// # Returns
 /// 実際に消費されたCHAIN-BONUS量
 pub fn consume_chain_bonus_for_erase_line(chain_bonus: &mut u32, lines_erased: u32) -> u32 {
@@ -334,27 +334,27 @@ pub fn consume_chain_bonus_for_erase_line(chain_bonus: &mut u32, lines_erased: u
 /// ============================================================================
 
 /// 底辺からSolidライン（完全Solid行）の数をカウント
-/// 
+///
 /// Solidラインの定義：
 /// - ボードの幅（10セル）全てがCell::Solidで埋まっている行
 /// - 空セル、Occupied、Connected等が混在する行は非Solid
-/// 
+///
 /// # Arguments
 /// * `board` - ゲームボード
-/// 
+///
 /// # Returns
 /// 底辺から連続するSolidライン数
 pub fn count_solid_lines_from_bottom(board: &crate::cell::Board) -> usize {
     use crate::cell::Cell;
     use crate::config::BOARD_WIDTH;
-    
+
     let mut count = 0;
     let board_height = board.len();
-    
+
     // 底辺から上に向かってチェック（連続性が重要）
     for y in (0..board_height).rev() {
         let mut is_solid_line = true;
-        
+
         // 行が完全にSolidブロックで埋まっているかチェック
         for x in 0..BOARD_WIDTH {
             match board[y][x] {
@@ -368,7 +368,7 @@ pub fn count_solid_lines_from_bottom(board: &crate::cell::Board) -> usize {
                 }
             }
         }
-        
+
         if is_solid_line {
             count += 1;
         } else {
@@ -376,21 +376,21 @@ pub fn count_solid_lines_from_bottom(board: &crate::cell::Board) -> usize {
             break;
         }
     }
-    
+
     count
 }
 
 /// 底辺のSolidライン1行を除去し、上部に空行を追加
-/// 
+///
 /// EraseLineアニメーションの物理的な処理：
 /// 1. 底辺のSolidライン1行を削除
 /// 2. 上部（index 0）に新しい空行を挿入
 /// 3. ボード高を1行拡張（相殺効果）
-/// 
+///
 /// # Arguments
 /// * `board` - ゲームボード（可変参照）
 /// * `current_height` - 現在のボード高（可変参照、拡張される）
-/// 
+///
 /// # Returns
 /// 除去が成功した場合はSome(除去された行番号)、失敗した場合はNone
 pub fn remove_solid_line_from_bottom(
@@ -399,23 +399,23 @@ pub fn remove_solid_line_from_bottom(
 ) -> Option<usize> {
     use crate::cell::Cell;
     use crate::config::BOARD_WIDTH;
-    
+
     // 底辺にSolidラインがあるかチェック
     if count_solid_lines_from_bottom(board) == 0 {
         return None;
     }
-    
+
     let board_height = board.len();
     let bottom_line_y = board_height - 1;
-    
+
     // 底辺ライン除去
     board.remove(bottom_line_y);
-    
+
     // 上部に空行追加（相殺のための空間確保）
     board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-    
+
     // ボード高を1行拡張（相殺効果でプレイ領域が拡大）
     *current_height += 1;
-    
+
     Some(bottom_line_y)
 }

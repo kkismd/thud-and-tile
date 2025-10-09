@@ -58,16 +58,15 @@ fn test_consume_chain_bonus_underflow_protection() {
 #[test]
 fn test_erase_line_integration_pattern() {
     // EraseLineアニメーションでの使用パターンをテスト
-    let initial_state = CoreGameState::new()
-        .add_chain_bonus(100);
-    
+    let initial_state = CoreGameState::new().add_chain_bonus(100);
+
     // 3ライン除去のためにchain_bonusを消費
     let lines_to_erase = 3;
     let (state_after_erase, consumed) = initial_state.consume_chain_bonus(lines_to_erase);
-    
+
     assert_eq!(state_after_erase.chain_bonus, 97); // 100 - 3
     assert_eq!(consumed, 3);
-    
+
     // 追加のボーナス獲得
     let state_with_new_bonus = state_after_erase.add_chain_bonus(20);
     assert_eq!(state_with_new_bonus.chain_bonus, 117); // 97 + 20

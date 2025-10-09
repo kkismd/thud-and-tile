@@ -87,7 +87,7 @@ mod cell;
 use cell::{Board, Cell};
 
 mod scoring;
-use scoring::{CustomScoreSystem, calculate_line_clear_total_score, calculate_chain_increases};
+use scoring::{calculate_chain_increases, calculate_line_clear_total_score, CustomScoreSystem};
 
 mod tetromino;
 use tetromino::Tetromino;
@@ -95,9 +95,9 @@ use tetromino::Tetromino;
 mod board_logic;
 
 use animation::{
-    Animation, update_animations, PushDownStepResult, process_push_down_step,
-    count_solid_lines_from_bottom, determine_erase_line_count,
-    process_erase_line_step, EraseLineStepResult, consume_chain_bonus_for_erase_line
+    consume_chain_bonus_for_erase_line, count_solid_lines_from_bottom, determine_erase_line_count,
+    process_erase_line_step, process_push_down_step, update_animations, Animation,
+    EraseLineStepResult, PushDownStepResult,
 }; // アニメーション処理関数
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -215,10 +215,13 @@ impl GameState {
 
         // Update MAX-CHAIN based on current connected block counts
         self.update_max_chains();
-        
+
         // CHAIN-BONUS自動更新: 増加分を計算してCHAIN-BONUSに加算
-        let total_increase = calculate_chain_increases(&old_max_chains, &self.custom_score_system.max_chains);
-        self.custom_score_system.max_chains.add_chain_bonus(total_increase);
+        let total_increase =
+            calculate_chain_increases(&old_max_chains, &self.custom_score_system.max_chains);
+        self.custom_score_system
+            .max_chains
+            .add_chain_bonus(total_increase);
 
         // Calculate scores for lines to be cleared (before clearing)
         for &line_y in &lines_to_clear {
@@ -231,7 +234,7 @@ impl GameState {
             for (color, points) in scores {
                 self.custom_score_system.scores.add(color, points);
             }
-            
+
             // NEW SYSTEM: Add total_score calculation in parallel
             let total_score_points = calculate_line_clear_total_score(
                 &self.board,
@@ -369,7 +372,7 @@ impl GameState {
             for (color, points) in scores {
                 self.custom_score_system.scores.add(color, points);
             }
-            
+
             // NEW SYSTEM: Add total_score calculation in parallel
             let total_score_points = calculate_line_clear_total_score(
                 &self.board,
@@ -564,14 +567,13 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                 let solid_count = count_solid_lines_from_bottom(&state.board);
                 let chain_bonus = state.custom_score_system.max_chains.chain_bonus;
                 let erasable_lines = determine_erase_line_count(chain_bonus, solid_count);
-                
+
                 // enable_erase_lineフラグをチェック
                 if state.enable_erase_line && erasable_lines > 0 {
                     let board_height = state.board.len();
-                    let target_lines: Vec<usize> = (0..erasable_lines)
-                        .map(|i| board_height - 1 - i)
-                        .collect();
-                    
+                    let target_lines: Vec<usize> =
+                        (0..erasable_lines).map(|i| board_height - 1 - i).collect();
+
                     state.animation.push(Animation::EraseLine {
                         target_solid_lines: target_lines,
                         current_step: 0,
@@ -607,25 +609,26 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     }
 
     for &animation_index in &erase_line_animations_to_process {
-        if let Some(Animation::EraseLine { 
-            target_solid_lines, 
-            current_step, 
-            last_update, 
-            chain_bonus_consumed 
-        }) = state.animation.get(animation_index) {
+        if let Some(Animation::EraseLine {
+            target_solid_lines,
+            current_step,
+            last_update,
+            chain_bonus_consumed,
+        }) = state.animation.get(animation_index)
+        {
             let target_solid_lines = target_solid_lines.clone();
             let current_step = *current_step;
             let last_update = *last_update;
             let chain_bonus_consumed = *chain_bonus_consumed;
-            
+
             // 一時的なアニメーションオブジェクトを作成
-            let mut temp_animation = Animation::EraseLine { 
-                target_solid_lines, 
-                current_step, 
-                last_update, 
-                chain_bonus_consumed 
+            let mut temp_animation = Animation::EraseLine {
+                target_solid_lines,
+                current_step,
+                last_update,
+                chain_bonus_consumed,
             };
-            
+
             match process_erase_line_step(
                 &mut temp_animation,
                 current_time,
@@ -634,8 +637,18 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
             ) {
                 EraseLineStepResult::Continue => {
                     // EraseLineアニメーション継続 - 実際のアニメーション状態を更新
-                    if let Animation::EraseLine { current_step: step, last_update: update, .. } = &mut state.animation[animation_index] {
-                        if let Animation::EraseLine { current_step: temp_step, last_update: temp_update, .. } = temp_animation {
+                    if let Animation::EraseLine {
+                        current_step: step,
+                        last_update: update,
+                        ..
+                    } = &mut state.animation[animation_index]
+                    {
+                        if let Animation::EraseLine {
+                            current_step: temp_step,
+                            last_update: temp_update,
+                            ..
+                        } = temp_animation
+                        {
                             *step = temp_step;
                             *update = temp_update;
                         }
@@ -643,16 +656,18 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                 }
                 EraseLineStepResult::Complete { lines_erased } => {
                     // EraseLineアニメーション完了
-                    
+
                     // CHAIN-BONUS消費
                     let consumed = consume_chain_bonus_for_erase_line(
                         &mut state.custom_score_system.max_chains.chain_bonus,
-                        lines_erased
+                        lines_erased,
                     );
-                    
+
                     // EraseLineアニメーション除去
-                    state.animation.retain(|anim| !matches!(anim, Animation::EraseLine { .. }));
-                    
+                    state
+                        .animation
+                        .retain(|anim| !matches!(anim, Animation::EraseLine { .. }));
+
                     // アニメーションが空になったら新ピース生成
                     if state.animation.is_empty() {
                         state.spawn_piece();
@@ -703,7 +718,10 @@ fn main() -> io::Result<()> {
                             }
                             GameInput::ToggleEraseLine => {
                                 state.enable_erase_line = !state.enable_erase_line;
-                                render::draw_title_screen_with_options(&mut renderer, state.enable_erase_line)?;
+                                render::draw_title_screen_with_options(
+                                    &mut renderer,
+                                    state.enable_erase_line,
+                                )?;
                             }
                             GameInput::Quit => break,
                             _ => {}
@@ -757,7 +775,10 @@ fn main() -> io::Result<()> {
                                 let enable_erase_line = state.enable_erase_line; // 設定を保持
                                 state = GameState::new();
                                 state.enable_erase_line = enable_erase_line; // 設定を復元
-                                render::draw_title_screen_with_options(&mut renderer, state.enable_erase_line)?;
+                                render::draw_title_screen_with_options(
+                                    &mut renderer,
+                                    state.enable_erase_line,
+                                )?;
                             }
                             _ => {}
                         }

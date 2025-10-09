@@ -10,7 +10,7 @@ mod game_state_tests;
 mod integration_phase1_tests; // Integration Phase I テスト
 mod integration_phase2_tests; // Integration Phase II テスト (修正版)
 mod phase6_integration_tests;
-mod phase8_ui_tests;
 mod phase8_2_render_tests;
+mod phase8_ui_tests;
 // mod phase9_animation_tests; // 古いテスト、一時的にコメントアウト
 mod rotation_tests;

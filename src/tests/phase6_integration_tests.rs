@@ -1,9 +1,9 @@
 //! Phase 6のlock_piece統合テスト
 //! 新スコア計算システムの統合を検証
 
-use crate::scoring::CustomScoreSystem;
-use crate::game_color::GameColor;
 use crate::cell::Cell;
+use crate::game_color::GameColor;
+use crate::scoring::CustomScoreSystem;
 
 // テスト用のゲーム状態作成（簡易版）
 fn create_test_game_state() -> TestGameState {
@@ -30,7 +30,7 @@ fn setup_line_clear_scenario(game_state: &mut TestGameState) {
 fn lock_piece(game_state: &mut TestGameState) {
     // ライン消去検出とスコア計算を統合して実行
     let lines_to_clear = detect_full_lines(&game_state.board);
-    
+
     if !lines_to_clear.is_empty() {
         // 新スコア計算システムを使用
         let mut total_score = 0;
@@ -43,7 +43,7 @@ fn lock_piece(game_state: &mut TestGameState) {
             }
         }
         game_state.custom_score_system.total_score += total_score;
-        
+
         // ライン消去実行
         for line_y in lines_to_clear.iter().rev() {
             game_state.board.remove(*line_y);
@@ -67,12 +67,12 @@ fn detect_full_lines(board: &Vec<Vec<Cell>>) -> Vec<usize> {
 fn test_lock_piece_new_scoring_integration() {
     let mut game_state = create_test_game_state();
     game_state.custom_score_system.total_score = 0;
-    
+
     // ライン消去が発生する状況を作成
     setup_line_clear_scenario(&mut game_state);
-    
+
     lock_piece(&mut game_state);
-    
+
     // 新スコア計算が適用されていることを確認
     assert!(game_state.custom_score_system.total_score > 0);
 }
@@ -81,11 +81,11 @@ fn test_lock_piece_new_scoring_integration() {
 fn test_lock_piece_score_accumulation() {
     let mut game_state = create_test_game_state();
     game_state.custom_score_system.total_score = 100; // 既存スコア
-    
+
     setup_line_clear_scenario(&mut game_state);
-    
+
     lock_piece(&mut game_state);
-    
+
     // スコアが累積されることを確認（100 + 新しいスコア）
     assert!(game_state.custom_score_system.total_score > 100);
 }

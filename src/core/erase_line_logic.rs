@@ -1,11 +1,11 @@
 //! Core EraseLine Logic - Pure Functions
-//! 
+//!
 //! CLI版のEraseLineアニメーション機能をCore Moduleに移植
 //! chain_bonus管理、solid_line操作、animation_step処理の純粋関数群
 
-use crate::config::{BOARD_WIDTH, BOARD_HEIGHT};
-use crate::core::board_logic::FixedBoard;
 use crate::cell::Cell;
+use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
+use crate::core::board_logic::FixedBoard;
 
 /// EraseLineステップの処理結果
 #[derive(Debug, Clone, PartialEq)]
@@ -38,11 +38,11 @@ impl EraseLineAnimationState {
 
 /// 【純粋関数】PushDown完了時のEraseLineアニメーション開始判定
 /// chain_bonusの量とSolidライン数から消去可能ライン数を計算
-/// 
+///
 /// # Arguments
 /// * `chain_bonus` - 現在のCHAIN-BONUS量
 /// * `solid_lines_count` - 対象のSolidライン数
-/// 
+///
 /// # Returns
 /// EraseLineアニメーションで処理すべきライン数
 pub fn determine_erase_line_count(chain_bonus: u32, solid_lines_count: usize) -> usize {
@@ -50,11 +50,11 @@ pub fn determine_erase_line_count(chain_bonus: u32, solid_lines_count: usize) ->
 }
 
 /// 【純粋関数】EraseLineアニメーション完了時のCHAIN-BONUS消費処理
-/// 
+///
 /// # Arguments
 /// * `chain_bonus` - 現在のCHAIN-BONUS量
 /// * `lines_erased` - 消去されたライン数
-/// 
+///
 /// # Returns
 /// (消費後のchain_bonus, 実際に消費された量)
 pub fn consume_chain_bonus_for_erase_line(chain_bonus: u32, lines_erased: u32) -> (u32, u32) {
@@ -64,25 +64,25 @@ pub fn consume_chain_bonus_for_erase_line(chain_bonus: u32, lines_erased: u32) -
 }
 
 /// 【純粋関数】底辺から連続するSolidライン数をカウント
-/// 
+///
 /// CLI版と同等のロジック：
 /// - 物理的な底辺（BOARD_HEIGHT-1）から上に向かってチェック
 /// - 各行が完全にSolidセルで埋まっているかチェック  
 /// - 底辺からの連続性重視：非Solidライン発見時点でカウント終了
 /// - 空セル、Occupied、Connected等が混在する行は非Solid
-/// 
+///
 /// # Arguments
 /// * `board` - ゲームボード（固定サイズ配列）
-/// 
+///
 /// # Returns
 /// 底辺から連続するSolidライン数
 pub fn count_solid_lines_from_bottom(board: FixedBoard) -> usize {
     let mut count = 0;
-    
+
     // 物理的な底辺から上に向かってチェック（CLI版準拠）
     for y in (0..BOARD_HEIGHT).rev() {
         let mut is_solid_line = true;
-        
+
         // 行が完全にSolidブロックで埋まっているかチェック
         for x in 0..BOARD_WIDTH {
             match board[y][x] {
@@ -96,7 +96,7 @@ pub fn count_solid_lines_from_bottom(board: FixedBoard) -> usize {
                 }
             }
         }
-        
+
         if is_solid_line {
             count += 1;
         } else {
@@ -104,21 +104,21 @@ pub fn count_solid_lines_from_bottom(board: FixedBoard) -> usize {
             break;
         }
     }
-    
+
     count
 }
 
 /// 【純粋関数】底辺のSolidライン1行を除去し、上部に空行を追加
-/// 
+///
 /// EraseLineアニメーションの物理的な処理：
 /// 1. 底辺のSolidライン1行を削除
 /// 2. 上部（index 0）に新しい空行を挿入
 /// 3. ボード高を1行拡張（相殺効果）
-/// 
+///
 /// # Arguments
 /// * `board` - ゲームボード（固定サイズ配列）
 /// * `current_height` - 現在のボード高
-/// 
+///
 /// # Returns
 /// (更新されたboard, 新しいcurrent_height, 除去成功フラグ)
 pub fn remove_solid_line_from_bottom(
@@ -129,33 +129,33 @@ pub fn remove_solid_line_from_bottom(
     if count_solid_lines_from_bottom(board) == 0 {
         return (board, current_height, false);
     }
-    
+
     // CLI版準拠：物理的底辺ライン除去
     let bottom_line_y = BOARD_HEIGHT - 1;
-    
+
     // 底辺ライン除去をシミュレート：上の行を1つずつ下にシフト
     for y in (1..=bottom_line_y).rev() {
-        board[y] = board[y - 1];  // 上の行を下の行にコピー
+        board[y] = board[y - 1]; // 上の行を下の行にコピー
     }
-    
+
     // 最上部（index 0）に新しい空行を挿入
     board[0] = [Cell::Empty; BOARD_WIDTH];
-    
+
     // 3. ボード高を1行拡張（相殺効果でプレイ領域が拡大）
     let new_height = std::cmp::min(current_height + 1, BOARD_HEIGHT);
-    
+
     (board, new_height, true)
 }
 
 /// 【純粋関数】EraseLineアニメーション1ステップの処理
 /// 120ミリ秒間隔でのライン消去処理
-/// 
+///
 /// # Arguments
 /// * `animation_state` - 現在のアニメーション状態
 /// * `current_time_ms` - 現在時刻（ミリ秒）
 /// * `board` - ゲームボード
 /// * `current_height` - 現在のボード高
-/// 
+///
 /// # Returns
 /// (更新されたanimation_state, 更新されたboard, 新しいcurrent_height, ステップ結果)
 pub fn process_erase_line_step(
@@ -163,7 +163,12 @@ pub fn process_erase_line_step(
     current_time_ms: u64,
     board: FixedBoard,
     current_height: usize,
-) -> (EraseLineAnimationState, FixedBoard, usize, EraseLineStepResult) {
+) -> (
+    EraseLineAnimationState,
+    FixedBoard,
+    usize,
+    EraseLineStepResult,
+) {
     // 120ミリ秒ごとに1ライン消去
     let erase_interval_ms = 120;
     let elapsed_ms = current_time_ms.saturating_sub(animation_state.last_update_ms);
@@ -171,8 +176,9 @@ pub fn process_erase_line_step(
     if elapsed_ms >= erase_interval_ms {
         if animation_state.current_step < animation_state.target_lines.len() {
             // 実際にSolidライン除去を実行
-            let (new_board, new_height, removed) = remove_solid_line_from_bottom(board, current_height);
-            
+            let (new_board, new_height, removed) =
+                remove_solid_line_from_bottom(board, current_height);
+
             if removed {
                 animation_state.current_step += 1;
                 animation_state.chain_bonus_consumed += 1;
@@ -183,41 +189,66 @@ pub fn process_erase_line_step(
 
                 if current_step >= target_lines_len {
                     animation_state.is_completed = true;
-                    (animation_state, new_board, new_height, EraseLineStepResult::Complete { 
-                        lines_erased: target_lines_len as u32 
-                    })
+                    (
+                        animation_state,
+                        new_board,
+                        new_height,
+                        EraseLineStepResult::Complete {
+                            lines_erased: target_lines_len as u32,
+                        },
+                    )
                 } else {
-                    (animation_state, new_board, new_height, EraseLineStepResult::Continue)
+                    (
+                        animation_state,
+                        new_board,
+                        new_height,
+                        EraseLineStepResult::Continue,
+                    )
                 }
             } else {
                 // Solidライン不足による完了
                 let current_step = animation_state.current_step;
                 animation_state.is_completed = true;
-                (animation_state, board, current_height, EraseLineStepResult::Complete { 
-                    lines_erased: current_step as u32 
-                })
+                (
+                    animation_state,
+                    board,
+                    current_height,
+                    EraseLineStepResult::Complete {
+                        lines_erased: current_step as u32,
+                    },
+                )
             }
         } else {
             let target_lines_len = animation_state.target_lines.len();
             animation_state.is_completed = true;
-            (animation_state, board, current_height, EraseLineStepResult::Complete { 
-                lines_erased: target_lines_len as u32 
-            })
+            (
+                animation_state,
+                board,
+                current_height,
+                EraseLineStepResult::Complete {
+                    lines_erased: target_lines_len as u32,
+                },
+            )
         }
     } else {
-        (animation_state, board, current_height, EraseLineStepResult::Continue)
+        (
+            animation_state,
+            board,
+            current_height,
+            EraseLineStepResult::Continue,
+        )
     }
 }
 
 /// 【純粋関数】EraseLineアニメーション開始条件の判定
 /// enable_erase_lineフラグとchain_bonus、solid_line数を総合判定
-/// 
+///
 /// # Arguments
 /// * `enable_erase_line` - ToggleEraseLineで設定されるフラグ
 /// * `chain_bonus` - 現在のCHAIN-BONUS量
 /// * `board` - ゲームボード
 /// * `current_height` - 現在のボード高
-/// 
+///
 /// # Returns
 /// EraseLineアニメーション開始可否とtarget_lines
 pub fn should_start_erase_line_animation(
@@ -229,10 +260,10 @@ pub fn should_start_erase_line_animation(
     if !enable_erase_line {
         return (false, Vec::new());
     }
-    
+
     let solid_count = count_solid_lines_from_bottom(board);
     let erasable_lines = determine_erase_line_count(chain_bonus, solid_count);
-    
+
     if erasable_lines > 0 && current_height > 0 {
         let target_lines: Vec<usize> = (0..erasable_lines)
             .filter_map(|i| {
@@ -255,27 +286,30 @@ mod tests {
 
     fn create_test_board_with_solid_lines(solid_lines: usize) -> FixedBoard {
         let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-        
+
         // 底辺からsolid_lines分のSolidラインを作成
         for y in (BOARD_HEIGHT - solid_lines)..BOARD_HEIGHT {
             for x in 0..BOARD_WIDTH {
                 board[y][x] = Cell::Solid;
             }
         }
-        
+
         board
     }
 
-    fn create_test_board_with_solid_lines_at_height(solid_lines: usize, current_height: usize) -> FixedBoard {
+    fn create_test_board_with_solid_lines_at_height(
+        solid_lines: usize,
+        current_height: usize,
+    ) -> FixedBoard {
         let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-        
+
         // current_height範囲内で底辺からsolid_lines分のSolidラインを作成
         for y in (current_height.saturating_sub(solid_lines))..current_height {
             for x in 0..BOARD_WIDTH {
                 board[y][x] = Cell::Solid;
             }
         }
-        
+
         board
     }
 
@@ -284,7 +318,7 @@ mod tests {
         let board = create_test_board_with_solid_lines(3);
         let count = count_solid_lines_from_bottom(board);
         assert_eq!(count, 3);
-        
+
         // テストケース1: 空のボード（Solidライン無し）
         let empty_board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
         let count = count_solid_lines_from_bottom(empty_board);
@@ -308,7 +342,10 @@ mod tests {
             }
         }
         let count = count_solid_lines_from_bottom(board_two_solid);
-        assert_eq!(count, 2, "底辺から連続する2行のSolidラインがある場合は2であるべき");
+        assert_eq!(
+            count, 2,
+            "底辺から連続する2行のSolidラインがある場合は2であるべき"
+        );
 
         // テストケース4: 非連続のSolidライン（底辺Solid、1つ上Empty、2つ上Solid）
         let mut board_non_continuous = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
@@ -331,7 +368,10 @@ mod tests {
         }
         // board_incomplete[BOARD_HEIGHT-1][0] は Empty のまま
         let count = count_solid_lines_from_bottom(board_incomplete);
-        assert_eq!(count, 0, "不完全なラインはSolidラインとしてカウントしないべき");
+        assert_eq!(
+            count, 0,
+            "不完全なラインはSolidラインとしてカウントしないべき"
+        );
     }
 
     #[test]
@@ -346,7 +386,7 @@ mod tests {
         let (new_bonus, consumed) = consume_chain_bonus_for_erase_line(10, 3);
         assert_eq!(new_bonus, 7);
         assert_eq!(consumed, 3);
-        
+
         let (new_bonus, consumed) = consume_chain_bonus_for_erase_line(2, 5);
         assert_eq!(new_bonus, 0);
         assert_eq!(consumed, 2);
@@ -357,49 +397,56 @@ mod tests {
         // テストケース1: Solidラインが無い場合（除去失敗）
         let empty_board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
         let initial_height = 5;
-        let (result_board, result_height, success) = remove_solid_line_from_bottom(empty_board, initial_height);
-        
+        let (result_board, result_height, success) =
+            remove_solid_line_from_bottom(empty_board, initial_height);
+
         assert!(!success, "Solidラインが無い場合は除去失敗すべき");
         assert_eq!(result_height, initial_height, "除去失敗時は高さ変更なし");
         // ボードも変更されていないことを確認
         for y in 0..BOARD_HEIGHT {
             for x in 0..BOARD_WIDTH {
-                assert_eq!(result_board[y][x], Cell::Empty, "除去失敗時はボード変更なし");
+                assert_eq!(
+                    result_board[y][x],
+                    Cell::Empty,
+                    "除去失敗時はボード変更なし"
+                );
             }
         }
-        
+
         // テストケース2: 物理的底辺に1行のSolidライン（除去成功）
         let mut board_with_solid = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
         // 物理的底辺（BOARD_HEIGHT-1）にSolidライン作成
         for x in 0..BOARD_WIDTH {
             board_with_solid[BOARD_HEIGHT - 1][x] = Cell::Solid;
         }
-        
+
         let initial_height = 10;
         let solid_count_before = count_solid_lines_from_bottom(board_with_solid);
         println!("除去前のSolidライン数: {}", solid_count_before);
-        
-        let (result_board, result_height, success) = remove_solid_line_from_bottom(board_with_solid, initial_height);
-        
+
+        let (result_board, result_height, success) =
+            remove_solid_line_from_bottom(board_with_solid, initial_height);
+
         assert!(success, "Solidラインがある場合は除去成功すべき");
         assert_eq!(result_height, initial_height + 1, "除去成功時は高さ+1");
-        
+
         let solid_count_after = count_solid_lines_from_bottom(result_board);
         println!("除去後のSolidライン数: {}", solid_count_after);
-        
+
         assert_eq!(solid_count_after, 0, "除去後はSolidライン数が0になるべき");
     }
 
     #[test]
     fn test_should_start_erase_line_animation() {
         let board = create_test_board_with_solid_lines(3);
-        
+
         // enable_erase_line=false → 開始しない
         let (should_start, _) = should_start_erase_line_animation(false, 5, board, BOARD_HEIGHT);
         assert!(!should_start);
-        
+
         // enable_erase_line=true, chain_bonus=2, solid_lines=3 → 2ライン消去
-        let (should_start, target_lines) = should_start_erase_line_animation(true, 2, board, BOARD_HEIGHT);
+        let (should_start, target_lines) =
+            should_start_erase_line_animation(true, 2, board, BOARD_HEIGHT);
         assert!(should_start);
         assert_eq!(target_lines.len(), 2);
     }
@@ -408,7 +455,7 @@ mod tests {
     fn test_erase_line_animation_state() {
         let target_lines = vec![19, 18, 17];
         let state = EraseLineAnimationState::new(target_lines.clone(), 1000);
-        
+
         assert_eq!(state.target_lines, target_lines);
         assert_eq!(state.current_step, 0);
         assert_eq!(state.last_update_ms, 1000);

@@ -1,5 +1,5 @@
 //! Core Animation Logic - Pure Functions
-//! 
+//!
 //! CLI版とWASM版で共有するアニメーション処理の純粋関数群
 //! 借用チェッカー競合を完全に回避するため、データコピーパターンを使用
 
@@ -15,8 +15,8 @@ use std::time::Duration;
 pub struct AnimationState {
     pub animation_type: AnimationType,
     pub start_time_ms: u64,
-    pub lines: [usize; 4],     // 固定サイズ配列（テトリス最大4ライン）
-    pub lines_count: usize,    // 実際に使用中のライン数
+    pub lines: [usize; 4],  // 固定サイズ配列（テトリス最大4ライン）
+    pub lines_count: usize, // 実際に使用中のライン数
     pub current_step: usize,
     pub is_completed: bool,
     pub metadata: AnimationMetadata,
@@ -47,7 +47,7 @@ pub enum AnimationType {
 /// アニメーション追加情報
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AnimationMetadata {
-    pub gray_line_y: Option<usize>, // PushDown用
+    pub gray_line_y: Option<usize>,  // PushDown用
     pub chain_bonus_consumed: usize, // EraseLine用
 }
 
@@ -102,9 +102,9 @@ pub fn update_line_blink_state(
     let elapsed_ms = current_time_ms.saturating_sub(start_time_ms);
     let blink_step_ms = BLINK_ANIMATION_STEP.as_millis() as u64;
     let max_count = BLINK_COUNT_MAX;
-    
+
     let count = (elapsed_ms / blink_step_ms) as usize;
-    
+
     LineBlinkUpdateResult {
         is_completed: count >= max_count,
         current_count: count,
@@ -120,7 +120,7 @@ pub fn update_push_down_state(
 ) -> PushDownUpdateResult {
     let elapsed_ms = current_time_ms.saturating_sub(start_time_ms);
     let step_duration_ms = PUSH_DOWN_STEP_DURATION.as_millis() as u64;
-    
+
     PushDownUpdateResult {
         is_completed: false, // 具体的な完了判定は board state 必要
         should_move: elapsed_ms >= step_duration_ms,
@@ -136,11 +136,11 @@ pub fn update_erase_line_state(
 ) -> EraseLineUpdateResult {
     let elapsed_ms = current_time_ms.saturating_sub(start_time_ms);
     let erase_interval_ms = 120; // 120ミリ秒ごとに1ライン消去
-    
+
     let expected_step = (elapsed_ms / erase_interval_ms) as usize;
     let should_process_step = expected_step > current_step;
     let is_completed = current_step >= target_lines.len();
-    
+
     EraseLineUpdateResult {
         is_completed,
         lines_erased: current_step as u32,
@@ -160,7 +160,7 @@ pub fn update_all_animation_states(
         completed_push_downs: Vec::new(),
         completed_erase_lines: Vec::new(),
     };
-    
+
     for animation in animations {
         match animation.animation_type {
             AnimationType::LineBlink => {
@@ -170,7 +170,7 @@ pub fn update_all_animation_states(
                     animation.start_time_ms,
                     current_time_ms,
                 );
-                
+
                 if update_result.is_completed {
                     result.completed_line_blinks.push(lines_vec);
                 } else {
@@ -179,24 +179,24 @@ pub fn update_all_animation_states(
                     result.updated_animations.push(updated_animation);
                 }
             }
-            
+
             AnimationType::PushDown => {
                 let update_result = update_push_down_state(
                     animation.metadata.gray_line_y.unwrap_or(0),
                     animation.start_time_ms,
                     current_time_ms,
                 );
-                
+
                 if update_result.should_move {
                     // PushDownの完了判定はboard stateが必要なので外部処理
-                    result.completed_push_downs.push(
-                        animation.metadata.gray_line_y.unwrap_or(0)
-                    );
+                    result
+                        .completed_push_downs
+                        .push(animation.metadata.gray_line_y.unwrap_or(0));
                 } else {
                     result.updated_animations.push(animation);
                 }
             }
-            
+
             AnimationType::EraseLine => {
                 let lines_vec = lines_array_to_vec(animation.lines, animation.lines_count);
                 let update_result = update_erase_line_state(
@@ -205,12 +205,11 @@ pub fn update_all_animation_states(
                     animation.start_time_ms,
                     current_time_ms,
                 );
-                
+
                 if update_result.is_completed {
-                    result.completed_erase_lines.push((
-                        lines_vec,
-                        update_result.lines_erased,
-                    ));
+                    result
+                        .completed_erase_lines
+                        .push((lines_vec, update_result.lines_erased));
                 } else if update_result.should_process_step {
                     let mut updated_animation = animation;
                     updated_animation.current_step += 1;
@@ -221,7 +220,7 @@ pub fn update_all_animation_states(
             }
         }
     }
-    
+
     result
 }
 
@@ -241,10 +240,7 @@ fn lines_array_to_vec(lines: [usize; 4], count: usize) -> Vec<usize> {
 }
 
 /// 【純粋関数】アニメーション状態を作成
-pub fn create_line_blink_animation(
-    lines: Vec<usize>,
-    start_time_ms: u64,
-) -> AnimationState {
+pub fn create_line_blink_animation(lines: Vec<usize>, start_time_ms: u64) -> AnimationState {
     let (lines_array, lines_count) = lines_vec_to_array(lines);
     AnimationState {
         animation_type: AnimationType::LineBlink,
@@ -257,10 +253,7 @@ pub fn create_line_blink_animation(
     }
 }
 
-pub fn create_push_down_animation(
-    gray_line_y: usize,
-    start_time_ms: u64,
-) -> AnimationState {
+pub fn create_push_down_animation(gray_line_y: usize, start_time_ms: u64) -> AnimationState {
     let (lines_array, lines_count) = lines_vec_to_array(vec![gray_line_y]);
     AnimationState {
         animation_type: AnimationType::PushDown,
@@ -276,10 +269,7 @@ pub fn create_push_down_animation(
     }
 }
 
-pub fn create_erase_line_animation(
-    target_lines: Vec<usize>,
-    start_time_ms: u64,
-) -> AnimationState {
+pub fn create_erase_line_animation(target_lines: Vec<usize>, start_time_ms: u64) -> AnimationState {
     let (lines_array, lines_count) = lines_vec_to_array(target_lines);
     AnimationState {
         animation_type: AnimationType::EraseLine,
@@ -300,15 +290,12 @@ pub fn should_render_line_with_animation(
     current_time_ms: u64,
 ) -> bool {
     for animation in animations {
-        if animation.animation_type == AnimationType::LineBlink 
-            && animation.lines[..animation.lines_count].contains(&line_y) 
+        if animation.animation_type == AnimationType::LineBlink
+            && animation.lines[..animation.lines_count].contains(&line_y)
         {
             let lines_vec = lines_array_to_vec(animation.lines, animation.lines_count);
-            let blink_result = update_line_blink_state(
-                lines_vec,
-                animation.start_time_ms,
-                current_time_ms,
-            );
+            let blink_result =
+                update_line_blink_state(lines_vec, animation.start_time_ms, current_time_ms);
             return blink_result.is_visible;
         }
     }
@@ -323,51 +310,54 @@ mod tests {
     fn test_line_blink_update() {
         let lines = vec![5, 10, 15];
         let start_time = 0;
-        
+
         // 初期状態
         let result = update_line_blink_state(lines.clone(), start_time, 0);
         assert!(!result.is_completed);
         assert_eq!(result.current_count, 0);
         assert!(result.is_visible);
-        
+
         // 1回点滅後
         let blink_duration = BLINK_ANIMATION_STEP.as_millis() as u64;
         let result = update_line_blink_state(lines.clone(), start_time, blink_duration);
         assert!(!result.is_completed);
         assert_eq!(result.current_count, 1);
         assert!(!result.is_visible);
-        
+
         // 完了まで
         let total_duration = (BLINK_COUNT_MAX as u64) * blink_duration;
         let result = update_line_blink_state(lines, start_time, total_duration);
         assert!(result.is_completed);
     }
-    
+
     #[test]
     fn test_animation_state_creation() {
         let lines = vec![1, 2, 3];
         let start_time = 1000;
-        
+
         let animation = create_line_blink_animation(lines.clone(), start_time);
         assert_eq!(animation.animation_type, AnimationType::LineBlink);
-        assert_eq!(lines_array_to_vec(animation.lines, animation.lines_count), lines);
+        assert_eq!(
+            lines_array_to_vec(animation.lines, animation.lines_count),
+            lines
+        );
         assert_eq!(animation.start_time_ms, start_time);
         assert!(!animation.is_completed);
     }
-    
+
     #[test]
     fn test_multiple_animations_update() {
         let animations = vec![
             create_line_blink_animation(vec![5], 0),
             create_push_down_animation(10, 100),
         ];
-        
+
         let result = update_all_animation_states(animations, 1000);
-        
+
         // LineBlink は完了しているはず (1000ms >> 6 * 120ms)
         assert_eq!(result.completed_line_blinks.len(), 1);
         assert_eq!(result.completed_line_blinks[0], vec![5]);
-        
+
         // PushDown は移動処理が必要
         assert_eq!(result.completed_push_downs.len(), 1);
         assert_eq!(result.completed_push_downs[0], 10);

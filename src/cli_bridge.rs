@@ -1,11 +1,11 @@
 // CLI integration bridge for Phase 1 Week 2
 // 既存のCLI実装とcoreモジュールを統合するためのブリッジ
 
-use crate::core::game_state::{CoreGameState, CoreGameMode, CoreGameEvent};
-use crate::core::input_handler::process_input;
-use crate::core::board_logic::FixedBoard;
-use crate::game_input::GameInput;
 use crate::cell::Cell;
+use crate::core::board_logic::FixedBoard;
+use crate::core::game_state::{CoreGameEvent, CoreGameMode, CoreGameState};
+use crate::core::input_handler::process_input;
+use crate::game_input::GameInput;
 use crate::tetromino::Tetromino;
 use std::time::Duration;
 
@@ -51,7 +51,8 @@ impl CLIBridge {
 
     /// 既存のBoard形式からFixedBoard形式への変換
     pub fn convert_board_to_fixed(board: &crate::cell::Board) -> FixedBoard {
-        let mut fixed_board = [[Cell::Empty; crate::config::BOARD_WIDTH]; crate::config::BOARD_HEIGHT];
+        let mut fixed_board =
+            [[Cell::Empty; crate::config::BOARD_WIDTH]; crate::config::BOARD_HEIGHT];
         for (y, row) in board.iter().enumerate() {
             for (x, &cell) in row.iter().enumerate() {
                 fixed_board[y][x] = cell;
@@ -62,14 +63,15 @@ impl CLIBridge {
 
     /// FixedBoard形式から既存のBoard形式への変換
     pub fn convert_fixed_to_board(fixed_board: &FixedBoard) -> crate::cell::Board {
-        fixed_board
-            .iter()
-            .map(|row| row.to_vec())
-            .collect()
+        fixed_board.iter().map(|row| row.to_vec()).collect()
     }
 
     /// coreモジュールの入力処理を使用した入力ハンドリング
-    pub fn handle_input_core(&mut self, input: GameInput, current_time_ms: u64) -> Vec<CoreGameEvent> {
+    pub fn handle_input_core(
+        &mut self,
+        input: GameInput,
+        current_time_ms: u64,
+    ) -> Vec<CoreGameEvent> {
         let result = process_input(self.core_state.clone(), input, current_time_ms);
         self.core_state = result.new_state;
         result.events
@@ -100,7 +102,7 @@ impl CLIBridge {
         cli_state.lines_cleared = self.core_state.lines_cleared;
         cli_state.current_board_height = self.core_state.current_board_height;
         cli_state.enable_erase_line = self.core_state.enable_erase_line; // core側の値を使用
-        // chain_bonus同期（EraseLineアニメーション用）
+                                                                         // chain_bonus同期（EraseLineアニメーション用）
         cli_state.custom_score_system.max_chains.chain_bonus = self.core_state.chain_bonus;
         // 既存のCLI固有のフィールド
         cli_state.next_piece = self.next_piece.clone();
@@ -115,7 +117,7 @@ impl CLIBridge {
         self.core_state.lines_cleared = cli_state.lines_cleared;
         self.core_state.current_board_height = cli_state.current_board_height;
         self.core_state.enable_erase_line = cli_state.enable_erase_line; // CLI側の値を使用
-        // chain_bonus同期（EraseLineアニメーション用）
+                                                                         // chain_bonus同期（EraseLineアニメーション用）
         self.core_state.chain_bonus = cli_state.custom_score_system.max_chains.chain_bonus;
         // CLI固有のフィールドを保持
         self.next_piece = cli_state.next_piece.clone();
@@ -130,10 +132,8 @@ mod tests {
 
     #[test]
     fn test_board_conversion() {
-        let cli_board = vec![
-            vec![Cell::Empty; crate::config::BOARD_WIDTH]; 
-            crate::config::BOARD_HEIGHT
-        ];
+        let cli_board =
+            vec![vec![Cell::Empty; crate::config::BOARD_WIDTH]; crate::config::BOARD_HEIGHT];
         let fixed_board = CLIBridge::convert_board_to_fixed(&cli_board);
         let converted_back = CLIBridge::convert_fixed_to_board(&fixed_board);
         assert_eq!(cli_board, converted_back);
@@ -141,9 +141,17 @@ mod tests {
 
     #[test]
     fn test_mode_conversion() {
-        let core_modes = [CoreGameMode::Title, CoreGameMode::Playing, CoreGameMode::GameOver];
-        let cli_modes = [CLIGameMode::Title, CLIGameMode::Playing, CLIGameMode::GameOver];
-        
+        let core_modes = [
+            CoreGameMode::Title,
+            CoreGameMode::Playing,
+            CoreGameMode::GameOver,
+        ];
+        let cli_modes = [
+            CLIGameMode::Title,
+            CLIGameMode::Playing,
+            CLIGameMode::GameOver,
+        ];
+
         for (core, cli) in core_modes.iter().zip(cli_modes.iter()) {
             assert_eq!(*cli, CLIBridge::convert_mode_to_cli(*core));
             assert_eq!(*core, CLIBridge::convert_mode_to_core(*cli));

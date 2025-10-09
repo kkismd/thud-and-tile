@@ -1,9 +1,9 @@
 //! Core Input Handler - Unified Input Processing
-//! 
+//!
 //! CLI版とWASM版で共有する統一入力処理
 //! GameInputをCoreGameStateに適用する純粋関数
 
-use crate::core::game_state::{CoreGameState, CoreGameEvent, CoreGameMode};
+use crate::core::game_state::{CoreGameEvent, CoreGameMode, CoreGameState};
 use crate::game_input::GameInput;
 use crate::tetromino::Tetromino;
 
@@ -17,7 +17,11 @@ pub struct InputProcessResult {
 }
 
 /// 【純粋関数】入力をコアゲーム状態に適用
-pub fn process_input(state: CoreGameState, input: GameInput, current_time_ms: u64) -> InputProcessResult {
+pub fn process_input(
+    state: CoreGameState,
+    input: GameInput,
+    current_time_ms: u64,
+) -> InputProcessResult {
     match state.game_mode {
         CoreGameMode::Title => process_title_input(state, input, current_time_ms),
         CoreGameMode::Playing => process_playing_input(state, input, current_time_ms),
@@ -26,7 +30,11 @@ pub fn process_input(state: CoreGameState, input: GameInput, current_time_ms: u6
 }
 
 /// タイトルモード入力処理
-fn process_title_input(mut state: CoreGameState, input: GameInput, _current_time_ms: u64) -> InputProcessResult {
+fn process_title_input(
+    mut state: CoreGameState,
+    input: GameInput,
+    _current_time_ms: u64,
+) -> InputProcessResult {
     let mut events = Vec::new();
     let mut input_consumed = false;
     let mut render_required = false;
@@ -35,8 +43,8 @@ fn process_title_input(mut state: CoreGameState, input: GameInput, _current_time
         GameInput::Restart => {
             state.game_mode = CoreGameMode::Playing;
             state = state.spawn_piece();
-            events.push(CoreGameEvent::GameModeChanged { 
-                new_mode: CoreGameMode::Playing 
+            events.push(CoreGameEvent::GameModeChanged {
+                new_mode: CoreGameMode::Playing,
             });
             input_consumed = true;
             render_required = true;
@@ -65,7 +73,11 @@ fn process_title_input(mut state: CoreGameState, input: GameInput, _current_time
 }
 
 /// プレイングモード入力処理
-fn process_playing_input(mut state: CoreGameState, input: GameInput, current_time_ms: u64) -> InputProcessResult {
+fn process_playing_input(
+    mut state: CoreGameState,
+    input: GameInput,
+    current_time_ms: u64,
+) -> InputProcessResult {
     let mut events = Vec::new();
     let mut input_consumed = false;
     let mut render_required = false;
@@ -141,8 +153,8 @@ fn process_playing_input(mut state: CoreGameState, input: GameInput, current_tim
             GameInput::Pause => {
                 // ポーズ機能（今回は簡単にタイトルに戻る）
                 state.game_mode = CoreGameMode::Title;
-                events.push(CoreGameEvent::GameModeChanged { 
-                    new_mode: CoreGameMode::Title 
+                events.push(CoreGameEvent::GameModeChanged {
+                    new_mode: CoreGameMode::Title,
                 });
                 input_consumed = true;
                 render_required = true;
@@ -166,7 +178,11 @@ fn process_playing_input(mut state: CoreGameState, input: GameInput, current_tim
 }
 
 /// ゲームオーバーモード入力処理
-fn process_game_over_input(mut state: CoreGameState, input: GameInput, _current_time_ms: u64) -> InputProcessResult {
+fn process_game_over_input(
+    mut state: CoreGameState,
+    input: GameInput,
+    _current_time_ms: u64,
+) -> InputProcessResult {
     let mut events = Vec::new();
     let mut input_consumed = false;
     let mut render_required = false;
@@ -176,8 +192,8 @@ fn process_game_over_input(mut state: CoreGameState, input: GameInput, _current_
             // CLIの挙動に合わせて、タイトルモードに戻る
             state = CoreGameState::new();
             state.game_mode = CoreGameMode::Title;
-            events.push(CoreGameEvent::GameModeChanged { 
-                new_mode: CoreGameMode::Title 
+            events.push(CoreGameEvent::GameModeChanged {
+                new_mode: CoreGameMode::Title,
             });
             input_consumed = true;
             render_required = true;
@@ -200,15 +216,22 @@ fn process_game_over_input(mut state: CoreGameState, input: GameInput, _current_
 }
 
 /// 現在のピースをロックして次のピースをスポーン
-fn lock_current_piece(mut state: CoreGameState, current_time_ms: u64, events: &mut Vec<CoreGameEvent>) -> CoreGameState {
+fn lock_current_piece(
+    mut state: CoreGameState,
+    current_time_ms: u64,
+    events: &mut Vec<CoreGameEvent>,
+) -> CoreGameState {
     if let Some(piece) = state.current_piece.take() {
         // ピースをボードに配置
         state = state.place_piece(&piece);
-        
+
         // ピースロックイベント
         let first_block = piece.iter_blocks().next().unwrap();
         events.push(CoreGameEvent::PieceLocked {
-            position: crate::core::board_logic::Point(first_block.0.0 as usize, first_block.0.1 as usize),
+            position: crate::core::board_logic::Point(
+                first_block.0 .0 as usize,
+                first_block.0 .1 as usize,
+            ),
             shape: piece.shape,
         });
 
@@ -218,15 +241,18 @@ fn lock_current_piece(mut state: CoreGameState, current_time_ms: u64, events: &m
             .filter(|&y| {
                 use crate::cell::Cell;
                 (0..crate::config::BOARD_WIDTH).all(|x| {
-                    matches!(state.board[y][x], 
-                        Cell::Occupied(_) | Cell::Connected { .. })
+                    matches!(
+                        state.board[y][x],
+                        Cell::Occupied(_) | Cell::Connected { .. }
+                    )
                 })
             })
             .collect();
         lines_to_clear.sort_by(|a, b| b.cmp(a)); // 下から上へ
 
         // 2. 隣接ブロック検出とConnected変換（CLI版のfind_and_connect_adjacent_blocks相当）
-        let components = crate::core::board_logic::find_connected_components(state.board, &lines_to_clear);
+        let components =
+            crate::core::board_logic::find_connected_components(state.board, &lines_to_clear);
         state = state.apply_connected_components(components);
 
         // 3. CHAIN-BONUS自動更新: MAX-CHAIN更新前の値を保存
@@ -234,23 +260,27 @@ fn lock_current_piece(mut state: CoreGameState, current_time_ms: u64, events: &m
 
         // 4. MAX-CHAIN更新（CLI版準拠）
         state = state.update_max_chains_from_board();
-        
+
         // 5. CHAIN-BONUS自動更新: 増加分を計算してCHAIN-BONUSに加算
-        let total_increase = crate::core::game_state::CoreColorMaxChains::calculate_chain_increases(&old_max_chains, &state.max_chains);
+        let total_increase = crate::core::game_state::CoreColorMaxChains::calculate_chain_increases(
+            &old_max_chains,
+            &state.max_chains,
+        );
         state = state.add_chain_bonus(total_increase);
 
         // ライン消去チェック
-        let complete_lines = crate::core::board_logic::find_complete_lines(state.board, state.current_board_height);
-        
+        let complete_lines =
+            crate::core::board_logic::find_complete_lines(state.board, state.current_board_height);
+
         if !complete_lines.is_empty() {
             // ライン消去アニメーション開始
             state = state.start_line_blink(complete_lines.clone(), current_time_ms);
-            
+
             events.push(CoreGameEvent::LinesCleared {
                 lines: complete_lines.clone(),
                 is_bottom: complete_lines.contains(&(crate::config::BOARD_HEIGHT - 1)),
             });
-            
+
             events.push(CoreGameEvent::AnimationStarted {
                 animation_type: crate::core::animation_logic::AnimationType::LineBlink,
             });
@@ -265,8 +295,8 @@ fn lock_current_piece(mut state: CoreGameState, current_time_ms: u64, events: &m
                 state.game_mode = CoreGameMode::GameOver;
                 state.current_piece = None;
                 events.push(CoreGameEvent::GameOver);
-                events.push(CoreGameEvent::GameModeChanged { 
-                    new_mode: CoreGameMode::GameOver 
+                events.push(CoreGameEvent::GameModeChanged {
+                    new_mode: CoreGameMode::GameOver,
                 });
             }
         }
@@ -286,7 +316,7 @@ mod tests {
         assert_eq!(state.game_mode, CoreGameMode::Title);
 
         let result = process_input(state, GameInput::Restart, 0);
-        
+
         assert_eq!(result.new_state.game_mode, CoreGameMode::Playing);
         assert!(result.input_consumed);
         assert!(result.render_required);
@@ -301,12 +331,12 @@ mod tests {
 
         let original_piece = state.current_piece.as_ref().unwrap().clone();
         let original_first_block = original_piece.iter_blocks().next().unwrap();
-        
+
         let result = process_input(state, GameInput::MoveLeft, 0);
-        
+
         let new_piece = result.new_state.current_piece.as_ref().unwrap();
         let new_first_block = new_piece.iter_blocks().next().unwrap();
-        assert_eq!(new_first_block.0.0, original_first_block.0.0 - 1);
+        assert_eq!(new_first_block.0 .0, original_first_block.0 .0 - 1);
         assert!(result.input_consumed);
         assert!(result.render_required);
     }
@@ -318,12 +348,15 @@ mod tests {
         state = state.spawn_piece();
 
         let original_piece = state.current_piece.as_ref().unwrap().clone();
-        
+
         let result = process_input(state, GameInput::RotateClockwise, 0);
-        
+
         // 回転後のピースが異なることを確認
         let new_piece = result.new_state.current_piece.as_ref().unwrap();
-        assert_ne!(new_piece.get_rotation_state(), original_piece.get_rotation_state());
+        assert_ne!(
+            new_piece.get_rotation_state(),
+            original_piece.get_rotation_state()
+        );
         assert!(result.input_consumed);
         assert!(result.render_required);
     }
@@ -335,12 +368,15 @@ mod tests {
         state = state.spawn_piece();
 
         let original_piece = state.current_piece.as_ref().unwrap().clone();
-        
+
         let result = process_input(state, GameInput::RotateCounterClockwise, 0);
-        
+
         // 回転後のピースが異なることを確認
         let new_piece = result.new_state.current_piece.as_ref().unwrap();
-        assert_ne!(new_piece.get_rotation_state(), original_piece.get_rotation_state());
+        assert_ne!(
+            new_piece.get_rotation_state(),
+            original_piece.get_rotation_state()
+        );
         assert!(result.input_consumed);
         assert!(result.render_required);
     }
@@ -351,7 +387,7 @@ mod tests {
         state.game_mode = CoreGameMode::GameOver;
 
         let result = process_input(state, GameInput::Restart, 0);
-        
+
         // CLIの挙動に合わせてタイトルモードに戻る
         assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
         assert!(result.input_consumed);
@@ -364,14 +400,14 @@ mod tests {
         let mut state = CoreGameState::new();
         state.game_mode = CoreGameMode::Title;
         assert!(!state.enable_erase_line); // 初期状態はfalse
-        
+
         let result = process_input(state, GameInput::ToggleEraseLine, 0);
-        
+
         assert!(result.input_consumed);
         assert!(result.render_required);
         assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
         assert!(result.new_state.enable_erase_line); // トグルされてtrue
-        
+
         // もう一度トグルしてfalseに戻る
         let result2 = process_input(result.new_state, GameInput::ToggleEraseLine, 0);
         assert!(!result2.new_state.enable_erase_line); // trueからfalseに戻る
@@ -382,9 +418,9 @@ mod tests {
         let mut state = CoreGameState::new();
         state.game_mode = CoreGameMode::Playing;
         state.current_piece = Some(Tetromino::new_random());
-        
+
         let result = process_input(state, GameInput::Pause, 0);
-        
+
         assert!(result.input_consumed);
         assert!(result.render_required);
         assert_eq!(result.new_state.game_mode, CoreGameMode::Title);
@@ -395,7 +431,7 @@ mod tests {
     fn test_complete_input_coverage() {
         // 全てのGameInput入力が適切に処理されることを確認
         use crate::game_input::GameInput;
-        
+
         let inputs = [
             GameInput::MoveLeft,
             GameInput::MoveRight,
@@ -415,13 +451,17 @@ mod tests {
             let mut state = CoreGameState::new();
             state.game_mode = CoreGameMode::Playing;
             state.current_piece = Some(Tetromino::new_random());
-            
+
             let result = process_input(state, *input, 0);
             // 全ての入力が何らかの処理を行う（エラーにならない）ことを確認
             // Playing中の移動・回転系入力は消費される、制御系入力はモード変更かQuit
             match input {
-                GameInput::MoveLeft | GameInput::MoveRight | GameInput::SoftDrop | 
-                GameInput::HardDrop | GameInput::RotateClockwise | GameInput::RotateCounterClockwise => {
+                GameInput::MoveLeft
+                | GameInput::MoveRight
+                | GameInput::SoftDrop
+                | GameInput::HardDrop
+                | GameInput::RotateClockwise
+                | GameInput::RotateCounterClockwise => {
                     // 移動・回転系は入力が消費されるか、有効でなければ無視される
                     assert!(result.input_consumed || !result.input_consumed);
                 }
@@ -442,12 +482,12 @@ mod tests {
                 }
             }
         }
-        
+
         // Title状態でのテスト
         for input in &inputs {
             let mut state = CoreGameState::new();
             state.game_mode = CoreGameMode::Title;
-            
+
             let result = process_input(state, *input, 0);
             match input {
                 GameInput::Restart => {
@@ -466,12 +506,12 @@ mod tests {
                 }
             }
         }
-        
+
         // GameOver状態でのテスト
         for input in &inputs {
             let mut state = CoreGameState::new();
             state.game_mode = CoreGameMode::GameOver;
-            
+
             let result = process_input(state, *input, 0);
             match input {
                 GameInput::Restart => {

@@ -1,5 +1,5 @@
 //! Core Game State - Unified State Management
-//! 
+//!
 //! CLI版とWASM版で共有する統合ゲーム状態構造
 //! 純粋関数設計で借用チェッカー競合を完全回避
 
@@ -15,32 +15,32 @@ use crate::tetromino::{Tetromino, TetrominoShape};
 pub struct CoreGameState {
     /// 固定サイズボード（WASMセーフ）
     pub board: FixedBoard,
-    
+
     /// 現在のボード高さ
     pub current_board_height: usize,
-    
+
     /// アクティブなアニメーション群（固定サイズ配列）
-    pub animations: [AnimationState; 20],  // ボード高さ分の同時アニメーション
-    pub animations_count: usize,           // 実際に使用中のアニメーション数
-    
+    pub animations: [AnimationState; 20], // ボード高さ分の同時アニメーション
+    pub animations_count: usize, // 実際に使用中のアニメーション数
+
     /// 現在のピース（Option for safety）
     pub current_piece: Option<Tetromino>,
-    
+
     /// ゲームモード
     pub game_mode: CoreGameMode,
-    
+
     /// スコア関連
     pub score: u64,
     pub lines_cleared: u32,
     pub chain_bonus: u32,
-    
+
     /// スコア詳細（色別チェーン）
     pub max_chains: CoreColorMaxChains,
-    
+
     /// その他の統計
     pub pieces_placed: u32,
     pub elapsed_time_ms: u64,
-    
+
     /// EraseLineアニメーション有効フラグ
     pub enable_erase_line: bool,
 }
@@ -68,7 +68,13 @@ pub struct CoreColorMaxChains {
 impl Default for CoreColorMaxChains {
     fn default() -> Self {
         Self {
-            red: 1, green: 1, blue: 1, cyan: 1, magenta: 1, yellow: 1, grey: 1,
+            red: 1,
+            green: 1,
+            blue: 1,
+            cyan: 1,
+            magenta: 1,
+            yellow: 1,
+            grey: 1,
         }
     }
 }
@@ -87,7 +93,7 @@ impl CoreColorMaxChains {
             _ => 1,
         }
     }
-    
+
     pub fn set(&mut self, color: GameColor, value: u32) {
         match color {
             GameColor::Red => self.red = value,
@@ -98,12 +104,15 @@ impl CoreColorMaxChains {
             GameColor::Yellow => self.yellow = value,
             GameColor::Grey => self.grey = value,
             // その他の色は無視
-            _ => {},
+            _ => {}
         }
     }
 
     /// 【純粋関数】旧チェーンと新チェーンの増加分を計算（CLI版準拠）
-    pub fn calculate_chain_increases(old_chains: &CoreColorMaxChains, new_chains: &CoreColorMaxChains) -> u32 {
+    pub fn calculate_chain_increases(
+        old_chains: &CoreColorMaxChains,
+        new_chains: &CoreColorMaxChains,
+    ) -> u32 {
         let mut total_increases = 0u32;
 
         // 各色のMAX-CHAIN増加量を計算（減少時は0）
@@ -111,7 +120,8 @@ impl CoreColorMaxChains {
             total_increases = total_increases.saturating_add(new_chains.cyan - old_chains.cyan);
         }
         if new_chains.magenta > old_chains.magenta {
-            total_increases = total_increases.saturating_add(new_chains.magenta - old_chains.magenta);
+            total_increases =
+                total_increases.saturating_add(new_chains.magenta - old_chains.magenta);
         }
         if new_chains.yellow > old_chains.yellow {
             total_increases = total_increases.saturating_add(new_chains.yellow - old_chains.yellow);
@@ -146,23 +156,26 @@ pub struct CoreGameStateUpdateResult {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CoreGameEvent {
     /// ピースがロックされた
-    PieceLocked { position: Point, shape: TetrominoShape },
-    
+    PieceLocked {
+        position: Point,
+        shape: TetrominoShape,
+    },
+
     /// ラインクリアが発生
     LinesCleared { lines: Vec<usize>, is_bottom: bool },
-    
+
     /// アニメーション開始
     AnimationStarted { animation_type: AnimationType },
-    
+
     /// アニメーション完了
     AnimationCompleted { animation_type: AnimationType },
-    
+
     /// スコア更新
     ScoreUpdated { new_score: u64, added_points: u32 },
-    
+
     /// ゲームモード変更
     GameModeChanged { new_mode: CoreGameMode },
-    
+
     /// ゲームオーバー
     GameOver,
 }
@@ -181,12 +194,12 @@ impl CoreGameState {
             self.animations_count += 1;
         }
     }
-    
+
     /// 現在のアニメーション配列をVecとして取得するヘルパー
     fn get_active_animations(&self) -> Vec<AnimationState> {
         self.animations[..self.animations_count].to_vec()
     }
-    
+
     /// アニメーション配列をVecから更新するヘルパー
     fn update_animations_from_vec(&mut self, animations: Vec<AnimationState>) {
         let count = animations.len().min(20);
@@ -195,7 +208,7 @@ impl CoreGameState {
         }
         self.animations_count = count;
     }
-    
+
     /// 新しいゲーム状態を作成
     pub fn new() -> Self {
         Self {
@@ -214,22 +227,22 @@ impl CoreGameState {
             enable_erase_line: false, // デフォルトで無効
         }
     }
-    
+
     /// 【純粋関数】時間経過による状態更新
     pub fn update_with_time(mut self, current_time_ms: u64) -> CoreGameStateUpdateResult {
         use crate::core::animation_logic::update_all_animation_states;
-        
+
         let mut events = Vec::new();
         let mut render_required = false;
-        
+
         // 経過時間更新
         self.elapsed_time_ms = current_time_ms;
-        
+
         // アニメーション状態更新
         let active_animations = self.get_active_animations();
         let animation_result = update_all_animation_states(active_animations, current_time_ms);
         self.update_animations_from_vec(animation_result.updated_animations);
-        
+
         // 完了したアニメーション処理
         for _completed_lines in animation_result.completed_line_blinks {
             events.push(CoreGameEvent::AnimationCompleted {
@@ -237,14 +250,14 @@ impl CoreGameState {
             });
             render_required = true;
         }
-        
+
         for _completed_gray_line in animation_result.completed_push_downs {
             events.push(CoreGameEvent::AnimationCompleted {
                 animation_type: AnimationType::PushDown,
             });
             render_required = true;
         }
-        
+
         for (_completed_lines, erased_count) in animation_result.completed_erase_lines {
             events.push(CoreGameEvent::AnimationCompleted {
                 animation_type: AnimationType::EraseLine,
@@ -252,47 +265,47 @@ impl CoreGameState {
             self.chain_bonus = self.chain_bonus.saturating_sub(erased_count);
             render_required = true;
         }
-        
+
         CoreGameStateUpdateResult {
             new_state: self,
             events,
             render_required,
         }
     }
-    
+
     /// 【純粋関数】LineBlink アニメーション開始
     pub fn start_line_blink(mut self, lines: Vec<usize>, start_time_ms: u64) -> Self {
         use crate::core::animation_logic::create_line_blink_animation;
-        
+
         let animation = create_line_blink_animation(lines, start_time_ms);
         self.add_animation(animation);
         self
     }
-    
+
     /// 【純粋関数】PushDown アニメーション開始
     pub fn start_push_down(mut self, gray_line_y: usize, start_time_ms: u64) -> Self {
         use crate::core::animation_logic::create_push_down_animation;
-        
+
         let animation = create_push_down_animation(gray_line_y, start_time_ms);
         self.add_animation(animation);
         self
     }
-    
+
     /// 【純粋関数】EraseLine アニメーション開始
     pub fn start_erase_line(mut self, target_lines: Vec<usize>, start_time_ms: u64) -> Self {
         use crate::core::animation_logic::create_erase_line_animation;
-        
+
         let animation = create_erase_line_animation(target_lines, start_time_ms);
         self.add_animation(animation);
         self
     }
-    
+
     /// 【純粋関数】ライン消去処理
     pub fn clear_lines(mut self, lines: &[usize]) -> Self {
         use crate::core::board_logic::analyze_lines;
-        
+
         let analysis = analyze_lines(lines, self.current_board_height);
-        
+
         // 底辺ラインの標準クリア処理
         for &line_y in &analysis.bottom_lines {
             // ライン削除と上からの補充
@@ -300,23 +313,23 @@ impl CoreGameState {
                 self.board[y] = self.board[y - 1];
             }
             self.board[0] = [Cell::Empty; BOARD_WIDTH];
-            
+
             self.lines_cleared += 1;
         }
-        
+
         // 非底辺ラインをグレー化
         for &line_y in &analysis.non_bottom_lines {
             for x in 0..BOARD_WIDTH {
                 self.board[line_y][x] = Cell::Occupied(GameColor::Grey);
             }
         }
-        
+
         // ボード高さ再計算
         self.current_board_height = self.calculate_current_height();
-        
+
         self
     }
-    
+
     /// 【純粋関数】スコア加算
     pub fn add_score(mut self, points: u32) -> Self {
         self.score += points as u64;
@@ -335,7 +348,7 @@ impl CoreGameState {
         self.chain_bonus = self.chain_bonus.saturating_sub(consumed);
         (self, consumed)
     }
-    
+
     /// 【純粋関数】チェーン倍率更新
     pub fn update_chain_multiplier(mut self, color: GameColor, chain_count: u32) -> Self {
         let current_max = self.max_chains.get(color);
@@ -348,7 +361,7 @@ impl CoreGameState {
     /// 【純粋関数】ボード上のConnectedブロックからMAX-CHAIN更新（CLI版準拠）
     pub fn update_max_chains_from_board(mut self) -> Self {
         use crate::cell::Cell;
-        
+
         // ボード全体をスキャンして各色の最大Connected数を見つける
         for y in 0..self.current_board_height {
             for x in 0..crate::config::BOARD_WIDTH {
@@ -364,11 +377,14 @@ impl CoreGameState {
     }
 
     /// 【純粋関数】連結コンポーネントをボードに適用（CLI版準拠）
-    pub fn apply_connected_components(mut self, components: Vec<crate::core::board_logic::ConnectedComponent>) -> Self {
+    pub fn apply_connected_components(
+        mut self,
+        components: Vec<crate::core::board_logic::ConnectedComponent>,
+    ) -> Self {
         use crate::cell::Cell;
-        
+
         self.board = crate::core::board_logic::apply_connected_components(self.board, &components);
-        
+
         // 各Connectedブロックに正確なカウント数を設定
         for component in &components {
             let count = component.positions.len() as u8;
@@ -378,70 +394,72 @@ impl CoreGameState {
                 }
             }
         }
-        
+
         self
     }
-    
+
     /// 【純粋関数】現在のボード高さを計算
     pub fn calculate_current_height(&self) -> usize {
         use crate::core::board_logic::calculate_board_height;
         calculate_board_height(self.board)
     }
-    
+
     /// 【純粋関数】ピース配置可能性チェック
     pub fn can_place_piece(&self, piece: &Tetromino) -> bool {
         for ((bx, by), _) in piece.iter_blocks() {
             let bx = bx as usize;
             let by = by as usize;
-            
+
             if bx >= BOARD_WIDTH || by >= BOARD_HEIGHT {
                 return false;
             }
-            
+
             if self.board[by][bx] != Cell::Empty {
                 return false;
             }
         }
         true
     }
-    
+
     /// 【純粋関数】ピースをボードに配置
     pub fn place_piece(mut self, piece: &Tetromino) -> Self {
         for ((bx, by), color) in piece.iter_blocks() {
             let bx = bx as usize;
             let by = by as usize;
-            
+
             if bx < BOARD_WIDTH && by < BOARD_HEIGHT {
                 self.board[by][bx] = Cell::Occupied(color);
             }
         }
-        
+
         self.current_piece = None;
         self.pieces_placed += 1;
         self.current_board_height = self.calculate_current_height();
-        
+
         self
     }
-    
+
     /// 【純粋関数】新しいピースをスポーン
     pub fn spawn_piece(mut self) -> Self {
         self.current_piece = Some(Tetromino::new_random());
         self
     }
-    
+
     /// アニメーション実行中かどうか
     pub fn has_animations(&self) -> bool {
         self.animations_count > 0
     }
-    
+
     /// アクティブなアニメーション数
     pub fn animation_count(&self) -> usize {
         self.animations_count
     }
-    
+
     /// 指定タイプのアニメーションが実行中かどうか
     pub fn has_animation_type(&self, animation_type: AnimationType) -> bool {
-        self.animations[..self.animations_count].iter().any(|anim| anim.animation_type == animation_type)
+        self.animations[..self.animations_count]
+            .iter()
+            .any(|anim| anim.animation_type == animation_type)
     }
 }
 
@@ -462,16 +480,17 @@ impl CoreGameState {
     /// レンダリング情報の生成（WASM境界安全）
     pub fn generate_render_info(&self) -> CoreRenderInfo {
         let current_piece_blocks = if let Some(ref piece) = self.current_piece {
-            piece.iter_blocks()
+            piece
+                .iter_blocks()
                 .map(|((x, y), color)| (Point(x as usize, y as usize), color))
                 .collect()
         } else {
             Vec::new()
         };
-        
+
         // ゴーストピース計算（簡易版）
         let ghost_piece_blocks = Vec::new(); // TODO: 実装
-        
+
         CoreRenderInfo {
             board: self.board,
             current_piece_blocks,
@@ -503,7 +522,7 @@ mod tests {
     fn test_animation_start() {
         let state = CoreGameState::new();
         let state = state.start_line_blink(vec![5, 10], 1000);
-        
+
         assert!(state.has_animations());
         assert_eq!(state.animation_count(), 1);
         assert!(state.has_animation_type(AnimationType::LineBlink));
@@ -513,7 +532,7 @@ mod tests {
     fn test_score_addition() {
         let state = CoreGameState::new();
         let state = state.add_score(1000);
-        
+
         assert_eq!(state.score, 1000);
     }
 
@@ -521,9 +540,9 @@ mod tests {
     fn test_chain_multiplier_update() {
         let mut state = CoreGameState::new();
         state = state.update_chain_multiplier(GameColor::Red, 5);
-        
+
         assert_eq!(state.max_chains.get(GameColor::Red), 5);
-        
+
         // より低い値では更新されない
         state = state.update_chain_multiplier(GameColor::Red, 3);
         assert_eq!(state.max_chains.get(GameColor::Red), 5);
@@ -533,7 +552,7 @@ mod tests {
     fn test_piece_spawning() {
         let state = CoreGameState::new();
         let state = state.spawn_piece();
-        
+
         assert!(state.current_piece.is_some());
     }
 
@@ -541,7 +560,7 @@ mod tests {
     fn test_render_info_generation() {
         let state = CoreGameState::new();
         let render_info = state.generate_render_info();
-        
+
         assert_eq!(render_info.score, 0);
         assert_eq!(render_info.game_mode, 0); // Title
         assert!(!render_info.has_animations);

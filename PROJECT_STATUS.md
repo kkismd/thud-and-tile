@@ -71,7 +71,8 @@ Main Layer (main_*.rs)     - フェーズ別検証バイナリ
 ```
 
 ### ソース構成のポイント
-- `src/cli/cli_renderer_simple.rs`: 再設計対象。現行mainブランチではPhase 2C版が稼働中
+- `src/cli/cli_renderer.rs`: Phase 2D再設計の骨格（FrameBuilder + TerminalDriver統合版）
+- `src/cli/renderer/`: CLI描画責務分割モジュール群（`frame`, `frame_builder`, `settings`, `terminal_driver`）
 - `src/main_phase2c.rs`: 安定確認用エントリポイント
 - `phase2d-wip` ブランチ: 新イベントループ試作コードと付随テストを保管
 
@@ -85,8 +86,8 @@ Main Layer (main_*.rs)     - フェーズ別検証バイナリ
 - **タグ**: `phase1-completed`, `phase2a-completed`, `phase2b-completed`, `phase2c-completed`
 
 ## 次のアクション
-1. `IMPLEMENTATION_ROADMAP.md` に従い、レンダリング契約と差分設計を文章化
-2. 新しいFrameBuilderとターミナルドライバの骨格コードを作成
+1. `IMPLEMENTATION_ROADMAP.md` に従い、レンダリング契約と差分設計を文章化（骨格投入済み、差分描画仕様を書面化する）
+2. `CliRenderer::render_incremental` に差分描画ロジックを実装し、`TerminalDriver` の最小更新支援を追加
 3. スナップショットテスト (候補: `insta`) を導入し、決定論的フレーム出力を保証
 4. 再設計完了後にPhase 2D完了タグを付与し、Phase 3計画を再開
 

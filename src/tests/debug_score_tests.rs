@@ -401,20 +401,20 @@ fn test_lock_piece_uses_total_score() {
 #[test]
 fn test_phase4a1_detect_max_chain_increases() {
     use crate::scoring::{calculate_chain_increases, ColorMaxChains};
-    
-    let old_chains = ColorMaxChains { 
-        cyan: 2, 
-        magenta: 3, 
-        yellow: 4, 
-        chain_bonus: 0 
+
+    let old_chains = ColorMaxChains {
+        cyan: 2,
+        magenta: 3,
+        yellow: 4,
+        chain_bonus: 0,
     };
-    let new_chains = ColorMaxChains { 
-        cyan: 4, 
-        magenta: 3, 
-        yellow: 6, 
-        chain_bonus: 0 
+    let new_chains = ColorMaxChains {
+        cyan: 4,
+        magenta: 3,
+        yellow: 6,
+        chain_bonus: 0,
     };
-    
+
     let increases = calculate_chain_increases(&old_chains, &new_chains);
     assert_eq!(increases, 4); // (4-2) + (6-4) = 4
 }
