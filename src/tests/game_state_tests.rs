@@ -121,9 +121,9 @@ fn test_connected_blocks_count_updated_after_animation_completion() {
         start_time: time_provider.now(),
     });
 
-    // Turn the gray line to gray (simulating the line clear process)
+    // Turn the line to Solid (simulating the line clear process)
     for x in 0..BOARD_WIDTH {
-        state.board[state.current_board_height - 1][x] = Cell::Occupied(GameColor::Grey);
+        state.board[state.current_board_height - 1][x] = Cell::Solid;
     }
 
     // Process the animation - this should call update_all_connected_block_counts
@@ -181,18 +181,21 @@ fn test_line_clear_triggers_blink_animation() {
     // Create a piece to lock and trigger the line clear
     let piece = Tetromino::from_shape(
         TetrominoShape::I,
-        [GameColor::Red, GameColor::Red, GameColor::Red, GameColor::Red],
+        [
+            GameColor::Red,
+            GameColor::Red,
+            GameColor::Red,
+            GameColor::Red,
+        ],
     );
     state.current_piece = Some(piece);
 
     state.lock_piece(&time_provider);
 
-    assert!(
-        state
-            .animation
-            .iter()
-            .any(|anim| matches!(anim, Animation::LineBlink { .. }))
-    );
+    assert!(state
+        .animation
+        .iter()
+        .any(|anim| matches!(anim, Animation::LineBlink { .. })));
 }
 
 #[test]
@@ -213,7 +216,10 @@ fn test_bottom_line_is_cleared_normally() {
     state.animation.extend(new_animations);
 
     // Assert that the marker block has moved down into the bottom row
-    assert_eq!(state.board[BOARD_HEIGHT - 1][0], Cell::Occupied(GameColor::Red));
+    assert_eq!(
+        state.board[BOARD_HEIGHT - 1][0],
+        Cell::Occupied(GameColor::Red)
+    );
     // Assert that the top row is now empty
     assert!(state.board[0].iter().all(|&c| c == Cell::Empty));
     // Assert custom score system - should have 10 blue blocks worth of score
@@ -241,9 +247,9 @@ fn test_cleared_non_bottom_line_turns_gray() {
     let new_animations = state.clear_lines(&[clear_line_y], &time_provider);
     state.animation.extend(new_animations);
 
-    // Assert that the cleared line has turned gray
+    // Assert that the cleared line has turned Solid
     for x in 0..BOARD_WIDTH {
-        assert_eq!(state.board[clear_line_y][x], Cell::Occupied(GameColor::Grey));
+        assert_eq!(state.board[clear_line_y][x], Cell::Solid);
     }
 }
 
@@ -293,12 +299,20 @@ fn test_handle_animation_processes_line_blink() {
     // Call handle_animation
     handle_animation(&mut state, &time_provider);
 
-    println!("After animation: animations={:?}, current_piece={:?}", state.animation.len(), state.current_piece.is_some());
+    println!(
+        "After animation: animations={:?}, current_piece={:?}",
+        state.animation.len(),
+        state.current_piece.is_some()
+    );
 
     // After blinking, clear_lines should be called, which will either spawn a new piece
     // or add PushDown animations. In this case, it's a bottom line, so it should spawn a new piece.
     // The new implementation completes bottom line clears immediately and spawns a piece.
-    assert!(state.animation.is_empty(), "Expected empty animations, got {:?}", state.animation);
+    assert!(
+        state.animation.is_empty(),
+        "Expected empty animations, got {:?}",
+        state.animation
+    );
     assert!(state.current_piece.is_some());
     // Note: This test uses Blue blocks which are not part of custom scoring system
     assert_eq!(
@@ -326,30 +340,31 @@ fn test_handle_animation_processes_push_down() {
     println!("After clear_lines: animations={:?}", state.animation.len());
 
     // Ensure there's a PushDown animation
-    assert!(
-        state
-            .animation
-            .iter()
-            .any(|anim| matches!(anim, Animation::PushDown { .. }))
-    );
+    assert!(state
+        .animation
+        .iter()
+        .any(|anim| matches!(anim, Animation::PushDown { .. })));
 
     // Advance time to trigger the push down step
     time_provider.advance(PUSH_DOWN_STEP_DURATION);
     handle_animation(&mut state, &time_provider);
 
-    println!("After handle_animation: animations={:?}", state.animation.len());
-
-    // Assert that the gray line has moved down one step
-    // The new implementation processes push down through process_push_down_step
-    assert_eq!(
-        state.board[clear_line_y + 1][0],
-        Cell::Occupied(GameColor::Grey)
+    println!(
+        "After handle_animation: animations={:?}",
+        state.animation.len()
     );
+
+    // Assert that the Solid line has moved down one step
+    // The new implementation processes push down through process_push_down_step
+    assert_eq!(state.board[clear_line_y + 1][0], Cell::Solid);
     assert_eq!(state.board[clear_line_y][0], Cell::Empty);
 
     // Assert that the animation continues (unless it reached the bottom)
     // The new implementation continues animations until they reach the bottom
-    assert!(!state.animation.is_empty(), "Expected animations to continue, but got empty");
+    assert!(
+        !state.animation.is_empty(),
+        "Expected animations to continue, but got empty"
+    );
 }
 
 #[test]
@@ -410,9 +425,14 @@ fn test_lock_piece_ignores_solid_lines() {
     // Create a piece to lock and trigger the line clear
     let mut piece = Tetromino::from_shape(
         TetrominoShape::I,
-        [GameColor::Red, GameColor::Red, GameColor::Red, GameColor::Red],
+        [
+            GameColor::Red,
+            GameColor::Red,
+            GameColor::Red,
+            GameColor::Red,
+        ],
     );
-    // Position the piece so it will land at the second-to-bottom row  
+    // Position the piece so it will land at the second-to-bottom row
     piece.pos = (1, (BOARD_HEIGHT - 3) as i8);
     state.current_piece = Some(piece);
 
@@ -426,12 +446,9 @@ fn test_lock_piece_ignores_solid_lines() {
     for x in 0..BOARD_WIDTH {
         assert_eq!(state.board[BOARD_HEIGHT - 1][x], Cell::Solid);
     }
-    // Assert that the occupied line turned gray and triggered PushDown animation
+    // Assert that the occupied line turned Solid and triggered PushDown animation
     for x in 0..BOARD_WIDTH {
-        assert_eq!(
-            state.board[BOARD_HEIGHT - 2][x],
-            Cell::Occupied(GameColor::Grey)
-        );
+        assert_eq!(state.board[BOARD_HEIGHT - 2][x], Cell::Solid);
     }
     let expected_gray_line_y = BOARD_HEIGHT - 2;
     assert!(state.animation.iter().any(|anim| {
@@ -469,16 +486,16 @@ fn test_pushdown_animation_moves_line() {
     time_provider.advance(PUSH_DOWN_STEP_DURATION);
     handle_animation(&mut state, &time_provider);
 
-    // Assert: The gray line has moved down one step
+    // Assert: The Solid line has moved down one step
     assert_eq!(
         state.board[clear_line_y + 1][0],
-        Cell::Occupied(GameColor::Grey),
-        "Gray line should have moved down"
+        Cell::Solid,
+        "Solid line should have moved down"
     );
     assert_eq!(
         state.board[clear_line_y][0],
         Cell::Empty,
-        "Original gray line row should be empty"
+        "Original Solid line row should be empty"
     );
 }
 
@@ -502,12 +519,12 @@ fn test_multiple_gray_lines_stack_and_reduce_board_height() {
         handle_animation(&mut state, &time_provider);
     }
 
-    // Assert first gray line is solid and board height reduced
+    // Assert first Solid line is at bottom and board height reduced
     for x in 0..BOARD_WIDTH {
         assert_eq!(
             state.board[BOARD_HEIGHT - 1][x],
             Cell::Solid,
-            "First gray line should be solid"
+            "First Solid line should be at bottom"
         );
     }
     assert_eq!(
@@ -530,13 +547,13 @@ fn test_multiple_gray_lines_stack_and_reduce_board_height() {
         handle_animation(&mut state, &time_provider);
     }
 
-    // Assert second gray line is solid and board height reduced further
+    // Assert second Solid line is on top of first and board height reduced further
     // It should settle on top of the first solid line, at BOARD_HEIGHT - 2
     for x in 0..BOARD_WIDTH {
         assert_eq!(
             state.board[BOARD_HEIGHT - 2][x],
             Cell::Solid,
-            "Second gray line should be solid on top of the first"
+            "Second Solid line should be on top of the first"
         );
     }
     assert_eq!(
@@ -758,13 +775,24 @@ fn test_max_chain_updated_after_piece_landing() {
 
     // Initially, the custom score system should have zero max chains
     assert_eq!(state.custom_score_system.max_chains.get(GameColor::Cyan), 0);
-    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Magenta), 0);
-    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Yellow), 0);
+    assert_eq!(
+        state.custom_score_system.max_chains.get(GameColor::Magenta),
+        0
+    );
+    assert_eq!(
+        state.custom_score_system.max_chains.get(GameColor::Yellow),
+        0
+    );
 
     // Create a piece and place it to trigger a landing
     let piece = Tetromino::from_shape(
         TetrominoShape::I,
-        [GameColor::Cyan, GameColor::Cyan, GameColor::Cyan, GameColor::Cyan],
+        [
+            GameColor::Cyan,
+            GameColor::Cyan,
+            GameColor::Cyan,
+            GameColor::Cyan,
+        ],
     );
     state.current_piece = Some(piece);
 
@@ -822,7 +850,12 @@ fn test_max_chain_only_increases_never_decreases() {
     // Place a piece
     let piece = Tetromino::from_shape(
         TetrominoShape::O,
-        [GameColor::Cyan, GameColor::Cyan, GameColor::Cyan, GameColor::Cyan],
+        [
+            GameColor::Cyan,
+            GameColor::Cyan,
+            GameColor::Cyan,
+            GameColor::Cyan,
+        ],
     );
     state.current_piece = Some(piece);
 
@@ -831,8 +864,14 @@ fn test_max_chain_only_increases_never_decreases() {
 
     // Max chains should not decrease even if current connected count is smaller
     assert_eq!(state.custom_score_system.max_chains.get(GameColor::Cyan), 8); // Should remain 8, not decrease to smaller count
-    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Magenta), 10); // Should remain unchanged
-    assert_eq!(state.custom_score_system.max_chains.get(GameColor::Yellow), 5); // Should remain unchanged
+    assert_eq!(
+        state.custom_score_system.max_chains.get(GameColor::Magenta),
+        10
+    ); // Should remain unchanged
+    assert_eq!(
+        state.custom_score_system.max_chains.get(GameColor::Yellow),
+        5
+    ); // Should remain unchanged
 }
 
 #[test]
