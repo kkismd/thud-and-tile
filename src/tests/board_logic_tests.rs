@@ -4,31 +4,31 @@ use super::*;
 fn test_isolated_blocks_are_removed_on_non_bottom_clear() {
     // This test verifies the board_logic::remove_isolated_blocks function directly
     let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-    
+
     let cleared_line_y = BOARD_HEIGHT - 5;
-    
+
     // Create a full line that will be "cleared"
     for x in 0..BOARD_WIDTH {
         board[cleared_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
-    
+
     // Place an isolated single block below the cleared line
     board[cleared_line_y + 2][5] = Cell::Occupied(GameColor::Red);
-    
+
     // Place a connected pair of blocks below the cleared line
     board[cleared_line_y + 3][2] = Cell::Occupied(GameColor::Green);
     board[cleared_line_y + 3][3] = Cell::Occupied(GameColor::Green);
-    
+
     // Call the remove_isolated_blocks function
     board_logic::remove_isolated_blocks(&mut board, cleared_line_y);
-    
+
     // The isolated red block should be removed
     assert_eq!(
         board[cleared_line_y + 2][5],
         Cell::Empty,
         "Isolated red block should be removed"
     );
-    
+
     // The connected green blocks should remain
     assert_ne!(
         board[cleared_line_y + 3][2],
