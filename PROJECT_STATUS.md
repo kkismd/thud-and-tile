@@ -2,13 +2,42 @@
 
 ## プロジェクト概要
 **目標**: Rust テトリスゲームのWASM統合による高性能化
+
+🔄 Phase 2D: CLI描画再設計 (進行中 → 基盤完了)
+**開始日**: 2025-10-08 / **基盤完了日**: 2025-10-09
+
+#### 完了済み
+- `phase2d-wip` のイベントループ試作を保管し、安定ブランチをフェーズ2Cの状態へ復元
+- CLIレンダラーの責務分割アーキテクチャを実装:
+  - `Frame`: フレームデータとクリアフラグを保持
+  - `FrameBuilder`: ゲーム状態からフレーム文字列を構築
+  - `TerminalDriver`: ターミナル出力とフル/差分描画を制御
+  - `CliRenderSettings`: 描画設定の管理
+- `CliRenderer` を新構成で再実装し、`render_full` と `render_incremental` を提供
+- 旧CLI表示仕様を完全維持しながら、差分更新の基盤を整備
+
+#### 進行中のタスク
+- アニメーション統合と `CliAnimationManager` 活用計画の具体化
+- スナップショットテスト導入 (候補: `insta`)
+- レンダリング契約とエッジケース対応の文書化
+
+#### 設計方針
+一般的なテトリスUIや外部実装を参照せず、旧CLI版の表示仕様・レイアウトを忠実に踏襲すること。
+再設計完了後にPhase 2Dを正式完了とし、Phase 3 (WASM統合最終実装) に進む。**: Rust テトリスゲームのWASM統合による高性能化
 **開始日**: 2025年10月8日
 **現在のフェーズ**: Phase 2D (CLI描画再設計 - 再計画中)
 
-## 最新トピック (2025-10-08)
-- Phase 2Dで実験したターミナルイベントループを `phase2d-wip` ブランチへ退避
-- 安定ラインである `feature/wasm-integration-from-complete` をタグ `phase2c-completed` の状態にロールバック
-- CLIレンダラーをゼロベースで再設計する4ステップ計画を確定
+## 最新トピック (2025-10-09)
+- **Phase 2D再設計完了**: CLIレンダラーを責務分割し、差分描画の基盤を導入 (コミット: 67ee02f)
+- `src/cli/renderer/` 配下に `Frame`, `FrameBuilder`, `TerminalDriver`, `CliRenderSettings` を新設
+- `cli_renderer_simple.rs` を削除し、`cli_renderer.rs` を FrameBuilder + TerminalDriver 統合版へ再構築
+- 差分描画メソッド `render_incremental` と `present_incremental_frame` を実装し、旧CLI表示仕様を完全維持
+
+## 経緯 (2025-10-08 → 2025-10-09)
+1. Phase 2Dで実験したターミナルイベントループを `phase2d-wip` ブランチへ退避
+2. 安定ラインである `feature/wasm-integration-from-complete` をタグ `phase2c-completed` の状態にロールバック
+3. CLIレンダラーをゼロベースで再設計する4ステップ計画を確定
+4. **再設計実施**: 責務分離モジュール群を投入し、差分描画基盤を構築完了
 
 ## 進行状況
 
@@ -59,7 +88,7 @@
 - `MIGRATION_RISK_COMPREHENSIVE_ANALYSIS.md` – リスク管理マスター
 - `ROADMAP.md` / `FINAL_COMPLETION_REPORT.md`
 
-## 技術状況 (2025-10-08)
+## 技術状況 (2025-10-09)
 
 ### アーキテクチャ
 ```
@@ -71,14 +100,20 @@ Main Layer (main_*.rs)     - フェーズ別検証バイナリ
 ```
 
 ### ソース構成のポイント
-- `src/cli/cli_renderer.rs`: Phase 2D再設計の骨格（FrameBuilder + TerminalDriver統合版）
-- `src/cli/renderer/`: CLI描画責務分割モジュール群（`frame`, `frame_builder`, `settings`, `terminal_driver`）
+- `src/cli/cli_renderer.rs`: Phase 2D再設計版（FrameBuilder + TerminalDriver統合、差分描画対応）
+- `src/cli/renderer/`: CLI描画責務分割モジュール群
+  - `frame.rs`: フレームデータとクリアフラグ管理
+  - `frame_builder.rs`: ゲーム状態からフレーム構築（旧CLI表示仕様を完全再現）
+  - `terminal_driver.rs`: ターミナル出力制御（フル描画/差分描画切り替え）
+  - `settings.rs`: 描画設定（色・FPS・ダブルバッファ等）
 - `src/main_phase2c.rs`: 安定確認用エントリポイント
 - `phase2d-wip` ブランチ: 新イベントループ試作コードと付随テストを保管
 
 ### ビルドと検証
-- `cargo check --lib` / `cargo test --lib` (Phase 2C時点) – いずれも成功
-- Phase 2Dの新実装は未着手のため、再設計後にスナップショットテスト導入予定
+- `cargo check --lib`: 成功（既存 warning のみ）
+- `cargo test --lib`: Phase 2C時点で成功を確認
+- Phase 2D差分描画基盤の投入後もビルドエラーなし
+- スナップショットテスト未導入（次フェーズ予定）
 
 ## Gitリポジトリ状況
 - **安定ブランチ**: `feature/wasm-integration-from-complete` (HEAD = `phase2c-completed`)
@@ -86,9 +121,9 @@ Main Layer (main_*.rs)     - フェーズ別検証バイナリ
 - **タグ**: `phase1-completed`, `phase2a-completed`, `phase2b-completed`, `phase2c-completed`
 
 ## 次のアクション
-1. `IMPLEMENTATION_ROADMAP.md` に従い、レンダリング契約と差分設計を文章化（骨格投入済み、差分描画仕様を書面化する）
-2. `CliRenderer::render_incremental` に差分描画ロジックを実装し、`TerminalDriver` の最小更新支援を追加
-3. スナップショットテスト (候補: `insta`) を導入し、決定論的フレーム出力を保証
-4. 再設計完了後にPhase 2D完了タグを付与し、Phase 3計画を再開
+1. アニメーション統合: `CliAnimationManager` を `FrameBuilder` へ統合し、トランジション演出を追加
+2. スナップショットテスト導入: `insta` クレートを使い、決定論的フレーム出力を保証
+3. レンダリング契約の文書化: `IMPLEMENTATION_ROADMAP.md` へ入出力境界とエッジケース対応を追記
+4. Phase 2D完了タグ付与と Phase 3 (WASM統合最終実装) への移行準備
 
-**Phase 2Cまでの安定基盤を活かしつつ、Phase 2Dを段階的に再構築します。**
+**Phase 2D差分描画基盤は完成。次はアニメーション統合とテスト整備で完全性を高めます。**
