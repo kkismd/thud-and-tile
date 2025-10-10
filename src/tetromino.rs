@@ -423,8 +423,8 @@ impl Tetromino {
         [
             [(0, 0), (1, 0), (1, 1), (2, 1)], // State 0: A,B,C,D - standard Z shape
             [(2, 0), (2, 1), (1, 1), (1, 2)], // State 1: A,B,C,D after 90° rotation
-            [(0, 1), (1, 1), (1, 2), (2, 2)], // State 2: A,B,C,D after 180° rotation
-            [(1, 0), (1, 1), (0, 1), (0, 2)], // State 3: A,B,C,D after 270° rotation
+            [(2, 2), (1, 2), (1, 1), (0, 1)], // State 2: A,B,C,D after 180° rotation (fixed symmetry)
+            [(0, 2), (0, 1), (1, 1), (1, 0)], // State 3: A,B,C,D after 270° rotation (fixed symmetry)
         ],
     ];
 
