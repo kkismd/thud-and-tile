@@ -321,7 +321,7 @@ fn test_chain_bonus_matches_total_bonus_from_board() {
 }
 
 #[test]
-fn test_chain_bonus_is_capped_at_ten_when_total_exceeds_limit() {
+fn test_chain_bonus_accumulates_beyond_ten() {
     let time_provider = MockTimeProvider::new();
     let mut state = GameState::new();
     state.mode = GameMode::Playing;
@@ -340,8 +340,8 @@ fn test_chain_bonus_is_capped_at_ten_when_total_exceeds_limit() {
 
     state.lock_piece(&time_provider);
 
-    // 12段分だが上限で10段に丸め込まれる
-    assert_eq!(state.custom_score_system.chain_bonus, 10);
+    // 12段分がそのまま加算される
+    assert_eq!(state.custom_score_system.chain_bonus, 12);
 }
 
 #[test]

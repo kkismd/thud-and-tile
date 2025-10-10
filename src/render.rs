@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chain_bonus_gauge_updates_with_threshold_color() {
+    fn test_chain_bonus_display_updates_with_value() {
         let mut mock_renderer = mock_renderer::MockRenderer::new();
         let mut prev_state = GameState::new();
         prev_state.mode = GameMode::Playing;
@@ -334,62 +334,65 @@ mod tests {
         draw(&mut mock_renderer, &prev_state, &state).unwrap();
 
         let commands = mock_renderer.commands.borrow();
-        let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
-        let expected_gauge = chain_bonus_gauge_string(5);
-        let expected_sequence = vec![
-            RenderCommand::MoveTo(ui_x, 5),
-            RenderCommand::SetForegroundColor(GameColor::Yellow),
-            RenderCommand::Print(expected_gauge.clone()),
-        ];
-
-        let mut found_sequence = false;
-        for window in commands.windows(expected_sequence.len()) {
-            if window == expected_sequence.as_slice() {
-                found_sequence = true;
-                break;
+        let combined_line = commands.iter().find_map(|command| {
+            if let RenderCommand::Print(text) = command {
+                if text.contains("10-CHAIN-BONUS") {
+                    return Some(text.clone());
+                }
             }
-        }
+            None
+        });
 
-        assert!(
-            found_sequence,
-            "Expected gauge update not found. Commands: {:?}",
+        let combined_line = combined_line.expect(&format!(
+            "10-CHAIN-BONUS line not rendered. Commands: {:?}",
             commands
+        ));
+
+        let expected_line = format!("10-CHAIN-BONUS: {:>6}", state.custom_score_system.chain_bonus);
+        assert_eq!(
+            combined_line,
+            expected_line,
+            "Chain bonus value not rendered on the same line. Line: {:?}",
+            combined_line
         );
     }
 
     #[test]
-    fn test_chain_bonus_gauge_full_uses_warning_color() {
+    fn test_chain_bonus_display_handles_large_numbers() {
         let mut mock_renderer = mock_renderer::MockRenderer::new();
-    let mut prev_state = GameState::new();
-    prev_state.mode = GameMode::Playing;
-    prev_state.custom_score_system.chain_bonus = 9;
+        let mut prev_state = GameState::new();
+        prev_state.mode = GameMode::Playing;
+        prev_state.custom_score_system.chain_bonus = 12;
 
-    let mut state = prev_state.clone();
-    state.custom_score_system.chain_bonus = 10;
+        let mut state = prev_state.clone();
+        state.custom_score_system.chain_bonus = 120;
 
         draw(&mut mock_renderer, &prev_state, &state).unwrap();
 
         let commands = mock_renderer.commands.borrow();
-        let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
-        let expected_gauge = chain_bonus_gauge_string(10);
-        let expected_sequence = vec![
-            RenderCommand::MoveTo(ui_x, 5),
-            RenderCommand::SetForegroundColor(GameColor::DarkRed),
-            RenderCommand::Print(expected_gauge.clone()),
-        ];
+        let rendered_values: Vec<_> = commands
+            .iter()
+            .filter_map(|command| {
+                if let RenderCommand::Print(text) = command {
+                    Some(text.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-        let mut found_sequence = false;
-        for window in commands.windows(expected_sequence.len()) {
-            if window == expected_sequence.as_slice() {
-                found_sequence = true;
-                break;
-            }
-        }
+        let combined_line = rendered_values
+            .iter()
+            .find(|text| text.contains("10-CHAIN-BONUS"))
+            .cloned()
+            .expect(&format!("Label missing: {:?}", rendered_values));
 
-        assert!(
-            found_sequence,
-            "Expected full gauge warning not found. Commands: {:?}",
-            commands
+        let expected_line = format!("10-CHAIN-BONUS: {:>6}", state.custom_score_system.chain_bonus);
+        assert_eq!(
+            combined_line,
+            expected_line,
+            "Updated value missing on the same line. Line: {:?}",
+            combined_line
         );
     }
 }
@@ -436,33 +439,7 @@ fn draw_connected_cell<R: Renderer>(
     Ok(())
 }
 
-fn chain_bonus_gauge_string(chain_bonus: u32) -> String {
-    let capped = chain_bonus.min(10) as usize;
-    let filled = "█".repeat(capped);
-    let empty = "░".repeat(10 - capped);
-    let warn_suffix = if chain_bonus >= 10 { " ⚠ " } else { "    " };
-    format!(
-        "[{}{}] {:>2}/10{}",
-        filled,
-        empty,
-        chain_bonus.min(10),
-        warn_suffix
-    )
-}
-
-fn chain_bonus_gauge_color(chain_bonus: u32) -> GameColor {
-    if chain_bonus >= 10 {
-        GameColor::DarkRed
-    } else if chain_bonus >= 8 {
-        GameColor::Red
-    } else if chain_bonus >= 4 {
-        GameColor::Yellow
-    } else {
-        GameColor::Green
-    }
-}
-
-fn render_chain_bonus_ui<R: Renderer>(
+fn render_chain_bonus_value<R: Renderer>(
     renderer: &mut R,
     ui_x: u16,
     base_y: u16,
@@ -470,12 +447,10 @@ fn render_chain_bonus_ui<R: Renderer>(
 ) -> io::Result<()> {
     renderer.set_foreground_color(GameColor::White)?;
     renderer.move_to(ui_x, base_y)?;
-    renderer.print("CHAIN-BONUS:         ")?;
-
+    renderer.print(format!("10-CHAIN-BONUS: {:>6}", chain_bonus).as_str())?;
+    // Clear the previous second-line value to prevent stale characters
     renderer.move_to(ui_x, base_y + 1)?;
-    let gauge_color = chain_bonus_gauge_color(chain_bonus);
-    renderer.set_foreground_color(gauge_color)?;
-    renderer.print(chain_bonus_gauge_string(chain_bonus).as_str())?;
+    renderer.print("                     ")?;
     renderer.reset_color()?;
     Ok(())
 }
@@ -523,7 +498,7 @@ pub fn draw<R: Renderer>(
                 renderer.move_to(ui_x, 2)?;
                 renderer.print("SCORE:     0     ")?;
                 renderer.reset_color()?;
-                render_chain_bonus_ui(renderer, ui_x, 4, 0)?;
+                render_chain_bonus_value(renderer, ui_x, 4, 0)?;
                 renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 7)?;
                 renderer.print("MAX-CHAIN:         ")?;
@@ -701,7 +676,7 @@ pub fn draw<R: Renderer>(
             let chain_bonus_changed = prev_state.custom_score_system.chain_bonus
                 != state.custom_score_system.chain_bonus;
             if chain_bonus_changed {
-                render_chain_bonus_ui(
+                render_chain_bonus_value(
                     renderer,
                     ui_x,
                     4,

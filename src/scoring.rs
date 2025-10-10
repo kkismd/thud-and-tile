@@ -99,9 +99,9 @@ impl CustomScoreSystem {
         self.score.add(points);
     }
 
-    /// chain_bonusに段数を加算する。上限は10段。
+    /// chain_bonusに段数を加算する（制限なし）。
     pub fn add_chain_bonus(&mut self, lines: u32) {
-        self.chain_bonus = (self.chain_bonus + lines).min(10);
+        self.chain_bonus += lines;
     }
 
     /// chain_bonusから指定段数を消費する。足りない場合は0になる。
@@ -111,9 +111,9 @@ impl CustomScoreSystem {
         consumed
     }
 
-    /// 現在の盤面から算出されたボーナス段数でCHAIN-BONUSを上書きする（上限10）。
+    /// 現在の盤面から算出されたボーナス段数でchain_bonusを上書きする。
     pub fn set_chain_bonus_from_total(&mut self, total_bonus: u32) {
-        self.chain_bonus = total_bonus.min(10);
+        self.chain_bonus = total_bonus;
     }
 }
 
@@ -201,9 +201,8 @@ mod tests {
         system.set_chain_bonus_from_total(9);
         assert_eq!(system.chain_bonus, 9);
 
-        // 上限10に丸め込まれる
         system.set_chain_bonus_from_total(12);
-        assert_eq!(system.chain_bonus, 10);
+        assert_eq!(system.chain_bonus, 12);
     }
 
     #[test]
@@ -218,13 +217,13 @@ mod tests {
         system.add_chain_bonus(5);
         assert_eq!(system.chain_bonus, 8);
 
-        // 上限テスト：10段を超えない
+        // 10を超えてもそのまま加算される
         system.add_chain_bonus(5);
-        assert_eq!(system.chain_bonus, 10);
+        assert_eq!(system.chain_bonus, 13);
 
-        // さらに加算しても10のまま
+        // さらに加算
         system.add_chain_bonus(3);
-        assert_eq!(system.chain_bonus, 10);
+        assert_eq!(system.chain_bonus, 16);
     }
 
     #[test]
