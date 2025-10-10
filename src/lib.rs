@@ -222,6 +222,12 @@ impl WasmCustomScoreSystem {
             self.inner.max_chains.yellow,
         ]
     }
+
+    /// 現在のchain bonus段数を取得
+    #[wasm_bindgen]
+    pub fn get_chain_bonus(&self) -> u32 {
+        self.inner.chain_bonus
+    }
 }
 
 /// Web版用のTetrominoShape列挙型
@@ -524,6 +530,12 @@ impl WasmGameState {
         self.custom_score_system.get_all_max_chains()
     }
 
+    /// 現在のchain bonus段数を取得
+    #[wasm_bindgen]
+    pub fn get_chain_bonus(&self) -> u32 {
+        self.custom_score_system.get_chain_bonus()
+    }
+
     /// スコア詳細情報を取得
     /// [total, cyan_chain, magenta_chain, yellow_chain]
     #[wasm_bindgen]
@@ -796,6 +808,12 @@ impl WasmGameState {
 
             // 4. CLI版と同じmax_chains更新
             self.update_max_chains();
+
+            // 5. CLI版と同じchain-bonus更新
+            let total_chain_bonus = crate::board_logic::calculate_chain_bonus(&self.board);
+            self.custom_score_system
+                .inner
+                .set_chain_bonus_from_total(total_chain_bonus);
 
             // 5. Calculate scores for lines to be cleared (before starting animation)
             for &line_y in &lines_to_clear {
@@ -1107,14 +1125,24 @@ impl WasmGameState {
                 &completed_lines,
             );
 
+            let has_bottom_clears = !bottom_lines_cleared.is_empty();
+            let has_non_bottom_clears = !non_bottom_lines_cleared.is_empty();
+
             // Bottom lines の標準テトリス消去処理（PushDownアニメーションなし）
-            if !bottom_lines_cleared.is_empty() {
+            if has_bottom_clears {
                 self.update_all_connected_block_counts();
                 self.spawn_piece();
                 console_log!(
                     "Bottom line clear: {} lines cleared",
                     bottom_lines_cleared.len()
                 );
+            }
+
+            // Non-bottom lines はprocess_line_clearでSolid化済み（ここでは特別処理なし）
+
+            if has_bottom_clears || has_non_bottom_clears {
+                self.update_all_connected_block_counts();
+                self.consume_chain_bonus_for_solid_lines();
             }
 
             console_log!(
@@ -1140,33 +1168,33 @@ impl WasmGameState {
                 // 1. 孤立ブロック除去（CLI版互換）
                 crate::board_logic::remove_isolated_blocks(&mut self.board, y);
 
-                // 2. PushDownアニメーション開始（greyライン化は既にprocess_line_clearで実行済み）
+                // 2. PushDownアニメーション開始（ラインはprocess_line_clearで直接Solid化済み）
                 self.animation.push(animation::Animation::PushDown {
-                    gray_line_y: y,
+                    solid_line_y: y,
                     start_time: current_time,
                 });
             }
         }
 
         // Push Down完了処理
-        for gray_line_y in result.completed_push_downs {
+        for solid_line_y in result.completed_push_downs {
             match animation::process_push_down_step(
                 &mut self.board,
                 &mut self.current_board_height,
-                gray_line_y,
+                solid_line_y,
             ) {
                 animation::PushDownStepResult::Completed => {
                     // Push Down完了後にconnected block countsを更新
                     self.update_all_connected_block_counts();
-                    console_log!("PushDown animation completed for line {}", gray_line_y);
+                    console_log!("PushDown animation completed for line {}", solid_line_y);
                 }
-                animation::PushDownStepResult::Moved { new_gray_line_y } => {
+                animation::PushDownStepResult::Moved { new_solid_line_y } => {
                     // 新しい位置でPush Downアニメーションを継続
                     self.animation.push(animation::Animation::PushDown {
-                        gray_line_y: new_gray_line_y,
+                        solid_line_y: new_solid_line_y,
                         start_time: current_time,
                     });
-                    console_log!("PushDown animation moved line to {}", new_gray_line_y);
+                    console_log!("PushDown animation moved line to {}", new_solid_line_y);
                 }
             }
         }
@@ -1180,28 +1208,65 @@ impl WasmGameState {
     }
 
     /// グレーラインをSolidラインに変換し、board heightを減少（共通モジュール使用）
-    fn finalize_gray_line(&mut self, gray_line_y: usize) {
+    fn finalize_solid_line(&mut self, solid_line_y: usize) {
         // 共通モジュールのPush Down完了処理を使用
         match animation::process_push_down_step(
             &mut self.board,
             &mut self.current_board_height,
-            gray_line_y,
+            solid_line_y,
         ) {
             animation::PushDownStepResult::Completed => {
                 console_log!(
-                    "Gray line {} finalized as Solid, board height reduced to {}",
-                    gray_line_y,
+                    "Solid line {} finalized; board height reduced to {}",
+                    solid_line_y,
                     self.current_board_height
                 );
             }
             animation::PushDownStepResult::Moved { .. } => {
                 // この関数では完了のみを扱うため、移動は想定外
-                console_log!("Warning: Unexpected move result in finalize_gray_line");
+                console_log!("Warning: Unexpected move result in finalize_solid_line");
             }
         }
 
         // 将来的にここでconnected block countsの更新も行う
         // self.update_all_connected_block_counts();
+    }
+
+    fn consume_chain_bonus_for_solid_lines(&mut self) {
+        let mut solid_lines = 0usize;
+        let mut y = self.current_board_height;
+
+        while y < BOARD_HEIGHT && self.board[y].iter().all(|cell| matches!(cell, Cell::Solid)) {
+            solid_lines += 1;
+            y += 1;
+        }
+
+        if solid_lines == 0 {
+            return;
+        }
+
+        let removable = self
+            .custom_score_system
+            .inner
+            .consume_chain_bonus(solid_lines as u32) as usize;
+
+        if removable == 0 {
+            return;
+        }
+
+        for _ in 0..removable {
+            let row_index = self.current_board_height;
+            if row_index >= self.board.len() {
+                break;
+            }
+            self.board.remove(row_index);
+        }
+
+        for _ in 0..removable {
+            self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+        }
+
+        self.current_board_height = (self.current_board_height + removable).min(BOARD_HEIGHT);
     }
 
     /// アニメーション情報を取得（JavaScript用）
@@ -1232,13 +1297,13 @@ impl WasmGameState {
                     }
                 }
                 Animation::PushDown {
-                    gray_line_y,
+                    solid_line_y,
                     start_time,
                 } => {
                     result.push(2); // PushDown type id
                     let elapsed_ms = (current_time - *start_time).as_millis() as i32;
                     result.push(elapsed_ms);
-                    result.push(*gray_line_y as i32);
+                    result.push(*solid_line_y as i32);
                 }
             }
         }
