@@ -153,51 +153,16 @@ impl WasmCustomScoreSystem {
         }
     }
 
-    /// 指定された色にスコアを加算（u8でGameColorを指定）
-    /// 0=Cyan, 1=Magenta, 2=Yellow, その他は無視
+    /// スコアを加算（色別管理は行わない）
     #[wasm_bindgen]
-    pub fn add_score(&mut self, color_index: u8, points: u32) {
-        let color = match color_index {
-            0 => GameColor::Cyan,
-            1 => GameColor::Magenta,
-            2 => GameColor::Yellow,
-            _ => return, // 無効な色は無視
-        };
-        self.inner.scores.add(color, points);
+    pub fn add_score(&mut self, points: u32) {
+        self.inner.add_score(points);
     }
 
     /// 合計スコアを取得
     #[wasm_bindgen]
     pub fn get_total_score(&self) -> u32 {
-        self.inner.scores.total()
-    }
-
-    /// Cyanスコアを取得
-    #[wasm_bindgen]
-    pub fn get_cyan_score(&self) -> u32 {
-        self.inner.scores.cyan
-    }
-
-    /// Magentaスコアを取得
-    #[wasm_bindgen]
-    pub fn get_magenta_score(&self) -> u32 {
-        self.inner.scores.magenta
-    }
-
-    /// Yellowスコアを取得
-    #[wasm_bindgen]
-    pub fn get_yellow_score(&self) -> u32 {
-        self.inner.scores.yellow
-    }
-
-    /// 全色のスコアを配列で取得 [cyan, magenta, yellow]
-    #[wasm_bindgen]
-    pub fn get_all_scores(&self) -> Vec<u32> {
-        vec![
-            self.inner.scores.cyan,
-            self.inner.scores.magenta,
-            self.inner.scores.yellow,
-        ]
+        self.inner.score.total()
     }
 
     /// 指定された色の最大チェーン数を更新
@@ -247,15 +212,11 @@ impl WasmCustomScoreSystem {
     }
 
     /// JavaScript用のスコア詳細情報を取得
-    /// [total_score, cyan, magenta, yellow, max_chain, cyan_chain, magenta_chain, yellow_chain]
+    /// [total_score, cyan_chain, magenta_chain, yellow_chain]
     #[wasm_bindgen]
     pub fn get_score_details(&self) -> Vec<u32> {
         vec![
-            self.inner.scores.total(),
-            self.inner.scores.cyan,
-            self.inner.scores.magenta,
-            self.inner.scores.yellow,
-            self.inner.max_chains.max(),
+            self.inner.score.total(),
             self.inner.max_chains.cyan,
             self.inner.max_chains.magenta,
             self.inner.max_chains.yellow,
@@ -461,7 +422,7 @@ pub fn main() {
 #[wasm_bindgen]
 pub struct WasmGameState {
     board: Vec<Vec<Cell>>,
-    custom_score_system: WasmCustomScoreSystem, // 単一scoreをCustomScoreSystemに置換
+    custom_score_system: WasmCustomScoreSystem,
     current_piece: Option<SimpleTetromino>,
     next_piece: Option<SimpleTetromino>,
     game_mode: u8, // 0: Title, 1: Playing, 2: GameOver
@@ -557,12 +518,6 @@ impl WasmGameState {
         self.custom_score_system.get_total_score()
     }
 
-    /// 3色別スコアを取得 [cyan, magenta, yellow]
-    #[wasm_bindgen]
-    pub fn get_color_scores(&self) -> Vec<u32> {
-        self.custom_score_system.get_all_scores()
-    }
-
     /// 3色別最大チェーン数を取得 [cyan, magenta, yellow]
     #[wasm_bindgen]
     pub fn get_max_chains(&self) -> Vec<u32> {
@@ -570,7 +525,7 @@ impl WasmGameState {
     }
 
     /// スコア詳細情報を取得
-    /// [total, cyan, magenta, yellow, max_chain, cyan_chain, magenta_chain, yellow_chain]
+    /// [total, cyan_chain, magenta_chain, yellow_chain]
     #[wasm_bindgen]
     pub fn get_score_details(&self) -> Vec<u32> {
         self.custom_score_system.get_score_details()
@@ -849,14 +804,8 @@ impl WasmGameState {
                     line_y,
                     &self.custom_score_system.inner.max_chains,
                 );
-                for (color, points) in scores {
-                    let color_index = match color {
-                        GameColor::Cyan => 0,
-                        GameColor::Magenta => 1,
-                        GameColor::Yellow => 2,
-                        _ => 0,
-                    };
-                    self.custom_score_system.add_score(color_index, points);
+                for (_, points) in scores {
+                    self.custom_score_system.add_score(points);
                 }
             }
 
@@ -1547,8 +1496,8 @@ fn wasm_score_system() {
     let mut score_system = WasmCustomScoreSystem::new();
 
     // スコア加算テスト
-    score_system.add_score(0, 100); // Cyan
-    score_system.add_score(1, 200); // Magenta
+    score_system.add_score(100);
+    score_system.add_score(200);
 
     assert_eq!(score_system.get_cyan_score(), 100);
     assert_eq!(score_system.get_magenta_score(), 200);

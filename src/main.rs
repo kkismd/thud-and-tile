@@ -110,6 +110,8 @@ struct GameState {
     fall_speed: Duration,
     current_board_height: usize,
     custom_score_system: CustomScoreSystem,
+    chain_bonus_blink_on: bool,
+    last_chain_bonus_blink: Duration,
 }
 
 impl GameState {
@@ -124,6 +126,8 @@ impl GameState {
             fall_speed: FALL_SPEED_START,
             current_board_height: BOARD_HEIGHT,
             custom_score_system: CustomScoreSystem::new(),
+            chain_bonus_blink_on: true,
+            last_chain_bonus_blink: Duration::from_secs(0),
         }
     }
 
@@ -205,8 +209,7 @@ impl GameState {
 
         // 盤面全体の連結グループを評価し、CHAIN-BONUS獲得量を更新
         let total_chain_bonus = board_logic::calculate_chain_bonus(&self.board);
-        self
-            .custom_score_system
+        self.custom_score_system
             .set_chain_bonus_from_total(total_chain_bonus);
 
         // Calculate scores for lines to be cleared (before clearing)
@@ -216,8 +219,8 @@ impl GameState {
                 line_y,
                 &self.custom_score_system.max_chains,
             );
-            for (color, points) in scores {
-                self.custom_score_system.scores.add(color, points);
+            for (_, points) in scores {
+                self.custom_score_system.add_score(points);
             }
         }
 
@@ -333,15 +336,26 @@ impl GameState {
         }
     }
 
+    fn update_chain_bonus_blink(&mut self, now: Duration) {
+        if self.custom_score_system.chain_bonus < 10 {
+            self.chain_bonus_blink_on = true;
+            self.last_chain_bonus_blink = now;
+            return;
+        }
+
+        let blink_interval = Duration::from_millis(350);
+
+        if now >= self.last_chain_bonus_blink + blink_interval {
+            self.chain_bonus_blink_on = !self.chain_bonus_blink_on;
+            self.last_chain_bonus_blink = now;
+        }
+    }
+
     fn consume_chain_bonus_for_solid_lines(&mut self) {
         let mut solid_lines = 0usize;
         let mut y = self.current_board_height;
 
-        while y < BOARD_HEIGHT
-            && self.board[y]
-                .iter()
-                .all(|cell| matches!(cell, Cell::Solid))
-        {
+        while y < BOARD_HEIGHT && self.board[y].iter().all(|cell| matches!(cell, Cell::Solid)) {
             solid_lines += 1;
             y += 1;
         }
@@ -539,6 +553,8 @@ fn main() -> io::Result<()> {
     render::draw_title_screen(&mut renderer)?;
 
     loop {
+        state.update_chain_bonus_blink(time_provider.now());
+
         if state.mode != GameMode::Title {
             render::draw(&mut renderer, &prev_state, &state)?;
         }

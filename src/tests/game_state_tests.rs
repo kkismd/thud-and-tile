@@ -93,7 +93,7 @@ fn test_lock_piece_ignores_solid_lines() {
     }));
     // Assert custom score (no score yet, as PushDown animation is ongoing)
     assert_eq!(
-        state.custom_score_system.scores.total(),
+        state.custom_score_system.score.total(),
         0,
         "No custom score during animation"
     );
@@ -366,7 +366,9 @@ fn test_consuming_chain_bonus_removes_solid_lines_from_bottom() {
 
     // 消去対象だったSolidラインは完全に取り除かれ、代わりに空行が上部に追加される
     for y in 0..2 {
-        assert!(state.board[y].iter().all(|cell| matches!(cell, Cell::Empty)));
+        assert!(state.board[y]
+            .iter()
+            .all(|cell| matches!(cell, Cell::Empty)));
     }
     assert!(state
         .board

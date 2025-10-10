@@ -6,12 +6,10 @@ use crossterm::{
 };
 use std::io::{self, Write};
 
+use crate::animation::Animation;
 use crate::cell::Cell;
 use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
 use crate::game_color::GameColor;
-use std::time::Duration;
-
-use crate::animation::Animation;
 use crate::GameMode;
 use crate::GameState; // Import GameState from main.rs // 共通Animationを使用
 
@@ -323,6 +321,78 @@ mod tests {
             commands
         );
     }
+
+    #[test]
+    fn test_chain_bonus_gauge_updates_with_threshold_color() {
+        let mut mock_renderer = mock_renderer::MockRenderer::new();
+        let mut prev_state = GameState::new();
+        prev_state.mode = GameMode::Playing;
+
+        let mut state = prev_state.clone();
+        state.custom_score_system.chain_bonus = 5;
+
+        draw(&mut mock_renderer, &prev_state, &state).unwrap();
+
+        let commands = mock_renderer.commands.borrow();
+        let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
+        let expected_gauge = chain_bonus_gauge_string(5);
+        let expected_sequence = vec![
+            RenderCommand::MoveTo(ui_x, 5),
+            RenderCommand::SetForegroundColor(GameColor::Yellow),
+            RenderCommand::Print(expected_gauge.clone()),
+        ];
+
+        let mut found_sequence = false;
+        for window in commands.windows(expected_sequence.len()) {
+            if window == expected_sequence.as_slice() {
+                found_sequence = true;
+                break;
+            }
+        }
+
+        assert!(
+            found_sequence,
+            "Expected gauge update not found. Commands: {:?}",
+            commands
+        );
+    }
+
+    #[test]
+    fn test_chain_bonus_gauge_full_uses_warning_and_blink_color() {
+        let mut mock_renderer = mock_renderer::MockRenderer::new();
+        let mut prev_state = GameState::new();
+        prev_state.mode = GameMode::Playing;
+        prev_state.custom_score_system.chain_bonus = 10;
+        prev_state.chain_bonus_blink_on = true;
+
+        let mut state = prev_state.clone();
+        state.chain_bonus_blink_on = false;
+
+        draw(&mut mock_renderer, &prev_state, &state).unwrap();
+
+        let commands = mock_renderer.commands.borrow();
+        let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
+        let expected_gauge = chain_bonus_gauge_string(10);
+        let expected_sequence = vec![
+            RenderCommand::MoveTo(ui_x, 5),
+            RenderCommand::SetForegroundColor(GameColor::DarkRed),
+            RenderCommand::Print(expected_gauge.clone()),
+        ];
+
+        let mut found_sequence = false;
+        for window in commands.windows(expected_sequence.len()) {
+            if window == expected_sequence.as_slice() {
+                found_sequence = true;
+                break;
+            }
+        }
+
+        assert!(
+            found_sequence,
+            "Expected full gauge warning not found. Commands: {:?}",
+            commands
+        );
+    }
 }
 
 pub fn draw_title_screen<R: Renderer>(renderer: &mut R) -> io::Result<()> {
@@ -363,6 +433,55 @@ fn draw_connected_cell<R: Renderer>(
     renderer.set_background_color(color)?;
     renderer.set_foreground_color(GameColor::Black)?;
     renderer.print(&format!("{:>2}", count))?;
+    renderer.reset_color()?;
+    Ok(())
+}
+
+fn chain_bonus_gauge_string(chain_bonus: u32) -> String {
+    let capped = chain_bonus.min(10) as usize;
+    let filled = "█".repeat(capped);
+    let empty = "░".repeat(10 - capped);
+    let warn_suffix = if chain_bonus >= 10 { " ⚠ " } else { "    " };
+    format!(
+        "[{}{}] {:>2}/10{}",
+        filled,
+        empty,
+        chain_bonus.min(10),
+        warn_suffix
+    )
+}
+
+fn chain_bonus_gauge_color(chain_bonus: u32, blink_on: bool) -> GameColor {
+    if chain_bonus >= 10 {
+        if blink_on {
+            GameColor::Red
+        } else {
+            GameColor::DarkRed
+        }
+    } else if chain_bonus >= 8 {
+        GameColor::Red
+    } else if chain_bonus >= 4 {
+        GameColor::Yellow
+    } else {
+        GameColor::Green
+    }
+}
+
+fn render_chain_bonus_ui<R: Renderer>(
+    renderer: &mut R,
+    ui_x: u16,
+    base_y: u16,
+    chain_bonus: u32,
+    blink_on: bool,
+) -> io::Result<()> {
+    renderer.set_foreground_color(GameColor::White)?;
+    renderer.move_to(ui_x, base_y)?;
+    renderer.print("CHAIN-BONUS:         ")?;
+
+    renderer.move_to(ui_x, base_y + 1)?;
+    let gauge_color = chain_bonus_gauge_color(chain_bonus, blink_on);
+    renderer.set_foreground_color(gauge_color)?;
+    renderer.print(chain_bonus_gauge_string(chain_bonus).as_str())?;
     renderer.reset_color()?;
     Ok(())
 }
@@ -409,20 +528,18 @@ pub fn draw<R: Renderer>(
                 renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 2)?;
                 renderer.print("SCORE:     0     ")?;
-                renderer.move_to(ui_x, 3)?;
-                renderer.print("  CYAN:    0     ")?;
-                renderer.move_to(ui_x, 4)?;
-                renderer.print("  MAGENTA: 0     ")?;
-                renderer.move_to(ui_x, 5)?;
-                renderer.print("  YELLOW:  0     ")?;
+                renderer.reset_color()?;
+                render_chain_bonus_ui(renderer, ui_x, 4, 0, true)?;
+                renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 7)?;
-                renderer.print("MAX-CHAIN: 0     ")?;
+                renderer.print("MAX-CHAIN:         ")?;
                 renderer.move_to(ui_x, 8)?;
                 renderer.print("  CYAN:    0     ")?;
                 renderer.move_to(ui_x, 9)?;
                 renderer.print("  MAGENTA: 0     ")?;
                 renderer.move_to(ui_x, 10)?;
                 renderer.print("  YELLOW:  0     ")?;
+                renderer.reset_color()?;
             }
 
             // --- 消去フェーズ ---
@@ -576,39 +693,36 @@ pub fn draw<R: Renderer>(
 
             let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
 
-            // Display custom score system instead of simple score/lines
-            if prev_state.custom_score_system != state.custom_score_system {
+            let score_changed =
+                prev_state.custom_score_system.score != state.custom_score_system.score;
+            if score_changed {
                 renderer.set_foreground_color(GameColor::White)?;
-
-                // Display total score
                 renderer.move_to(ui_x, 2)?;
                 renderer.print(
-                    format!("SCORE:     {:<6}", state.custom_score_system.scores.total()).as_str(),
+                    format!("SCORE:     {:<6}", state.custom_score_system.score.total()).as_str(),
                 )?;
+                renderer.reset_color()?;
+            }
 
-                // Display color breakdown
-                renderer.move_to(ui_x, 3)?;
-                renderer.print(
-                    format!("  CYAN:    {:<6}", state.custom_score_system.scores.cyan).as_str(),
+            let chain_bonus_changed = prev_state.custom_score_system.chain_bonus
+                != state.custom_score_system.chain_bonus
+                || prev_state.chain_bonus_blink_on != state.chain_bonus_blink_on;
+            if chain_bonus_changed {
+                render_chain_bonus_ui(
+                    renderer,
+                    ui_x,
+                    4,
+                    state.custom_score_system.chain_bonus,
+                    state.chain_bonus_blink_on,
                 )?;
-                renderer.move_to(ui_x, 4)?;
-                renderer.print(
-                    format!("  MAGENTA: {:<6}", state.custom_score_system.scores.magenta).as_str(),
-                )?;
-                renderer.move_to(ui_x, 5)?;
-                renderer.print(
-                    format!("  YELLOW:  {:<6}", state.custom_score_system.scores.yellow).as_str(),
-                )?;
+            }
 
-                // Display max chain
+            let max_chain_changed =
+                prev_state.custom_score_system.max_chains != state.custom_score_system.max_chains;
+            if max_chain_changed {
+                renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 7)?;
-                renderer.print(
-                    format!(
-                        "MAX-CHAIN: {:<6}",
-                        state.custom_score_system.max_chains.max()
-                    )
-                    .as_str(),
-                )?;
+                renderer.print("MAX-CHAIN:         ")?;
                 renderer.move_to(ui_x, 8)?;
                 renderer.print(
                     format!(
@@ -633,7 +747,6 @@ pub fn draw<R: Renderer>(
                     )
                     .as_str(),
                 )?;
-
                 renderer.reset_color()?;
             }
 
@@ -657,7 +770,7 @@ pub fn draw<R: Renderer>(
             // 現在のNEXTミノを描画
             if let Some(next_piece) = &state.next_piece {
                 renderer.set_foreground_color(GameColor::White)?;
-                renderer.move_to(ui_x, 12)?;
+                renderer.move_to(ui_x, 13)?;
                 renderer.print("NEXT:")?; // "NEXT:" ラベル
 
                 for ((x, y), color) in next_piece.iter_blocks() {
