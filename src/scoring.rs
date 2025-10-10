@@ -128,6 +128,11 @@ impl CustomScoreSystem {
         self.chain_bonus -= consumed;
         consumed
     }
+
+    /// 現在の盤面から算出されたボーナス段数でCHAIN-BONUSを上書きする（上限10）。
+    pub fn set_chain_bonus_from_total(&mut self, total_bonus: u32) {
+        self.chain_bonus = total_bonus.min(10);
+    }
 }
 
 /// スコア表示用のフォーマット実装
@@ -223,6 +228,21 @@ mod tests {
         assert_eq!(system.scores.total(), 0);
         assert_eq!(system.max_chains.max(), 0);
         assert_eq!(system.chain_bonus, 0);
+    }
+
+    #[test]
+    fn test_set_chain_bonus_from_total() {
+        let mut system = CustomScoreSystem::new();
+
+        system.set_chain_bonus_from_total(3);
+        assert_eq!(system.chain_bonus, 3);
+
+        system.set_chain_bonus_from_total(9);
+        assert_eq!(system.chain_bonus, 9);
+
+        // 上限10に丸め込まれる
+        system.set_chain_bonus_from_total(12);
+        assert_eq!(system.chain_bonus, 10);
     }
 
     #[test]

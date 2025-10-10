@@ -203,13 +203,11 @@ impl GameState {
         // Update MAX-CHAIN based on current connected block counts
         self.update_max_chains();
 
-        // ライン消去が発生する場合にCHAIN-BONUSを加算
-        if !lines_to_clear.is_empty() {
-            let bonus_lines = board_logic::calculate_chain_bonus(&self.board);
-            if bonus_lines > 0 {
-                self.custom_score_system.add_chain_bonus(bonus_lines);
-            }
-        }
+        // 盤面全体の連結グループを評価し、CHAIN-BONUS獲得量を更新
+        let total_chain_bonus = board_logic::calculate_chain_bonus(&self.board);
+        self
+            .custom_score_system
+            .set_chain_bonus_from_total(total_chain_bonus);
 
         // Calculate scores for lines to be cleared (before clearing)
         for &line_y in &lines_to_clear {
