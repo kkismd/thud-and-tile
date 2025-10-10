@@ -358,15 +358,14 @@ mod tests {
     }
 
     #[test]
-    fn test_chain_bonus_gauge_full_uses_warning_and_blink_color() {
+    fn test_chain_bonus_gauge_full_uses_warning_color() {
         let mut mock_renderer = mock_renderer::MockRenderer::new();
-        let mut prev_state = GameState::new();
-        prev_state.mode = GameMode::Playing;
-        prev_state.custom_score_system.chain_bonus = 10;
-        prev_state.chain_bonus_blink_on = true;
+    let mut prev_state = GameState::new();
+    prev_state.mode = GameMode::Playing;
+    prev_state.custom_score_system.chain_bonus = 9;
 
-        let mut state = prev_state.clone();
-        state.chain_bonus_blink_on = false;
+    let mut state = prev_state.clone();
+    state.custom_score_system.chain_bonus = 10;
 
         draw(&mut mock_renderer, &prev_state, &state).unwrap();
 
@@ -451,13 +450,9 @@ fn chain_bonus_gauge_string(chain_bonus: u32) -> String {
     )
 }
 
-fn chain_bonus_gauge_color(chain_bonus: u32, blink_on: bool) -> GameColor {
+fn chain_bonus_gauge_color(chain_bonus: u32) -> GameColor {
     if chain_bonus >= 10 {
-        if blink_on {
-            GameColor::Red
-        } else {
-            GameColor::DarkRed
-        }
+        GameColor::DarkRed
     } else if chain_bonus >= 8 {
         GameColor::Red
     } else if chain_bonus >= 4 {
@@ -472,14 +467,13 @@ fn render_chain_bonus_ui<R: Renderer>(
     ui_x: u16,
     base_y: u16,
     chain_bonus: u32,
-    blink_on: bool,
 ) -> io::Result<()> {
     renderer.set_foreground_color(GameColor::White)?;
     renderer.move_to(ui_x, base_y)?;
     renderer.print("CHAIN-BONUS:         ")?;
 
     renderer.move_to(ui_x, base_y + 1)?;
-    let gauge_color = chain_bonus_gauge_color(chain_bonus, blink_on);
+    let gauge_color = chain_bonus_gauge_color(chain_bonus);
     renderer.set_foreground_color(gauge_color)?;
     renderer.print(chain_bonus_gauge_string(chain_bonus).as_str())?;
     renderer.reset_color()?;
@@ -529,7 +523,7 @@ pub fn draw<R: Renderer>(
                 renderer.move_to(ui_x, 2)?;
                 renderer.print("SCORE:     0     ")?;
                 renderer.reset_color()?;
-                render_chain_bonus_ui(renderer, ui_x, 4, 0, true)?;
+                render_chain_bonus_ui(renderer, ui_x, 4, 0)?;
                 renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 7)?;
                 renderer.print("MAX-CHAIN:         ")?;
@@ -705,15 +699,13 @@ pub fn draw<R: Renderer>(
             }
 
             let chain_bonus_changed = prev_state.custom_score_system.chain_bonus
-                != state.custom_score_system.chain_bonus
-                || prev_state.chain_bonus_blink_on != state.chain_bonus_blink_on;
+                != state.custom_score_system.chain_bonus;
             if chain_bonus_changed {
                 render_chain_bonus_ui(
                     renderer,
                     ui_x,
                     4,
                     state.custom_score_system.chain_bonus,
-                    state.chain_bonus_blink_on,
                 )?;
             }
 

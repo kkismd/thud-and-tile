@@ -110,8 +110,6 @@ struct GameState {
     fall_speed: Duration,
     current_board_height: usize,
     custom_score_system: CustomScoreSystem,
-    chain_bonus_blink_on: bool,
-    last_chain_bonus_blink: Duration,
 }
 
 impl GameState {
@@ -126,8 +124,6 @@ impl GameState {
             fall_speed: FALL_SPEED_START,
             current_board_height: BOARD_HEIGHT,
             custom_score_system: CustomScoreSystem::new(),
-            chain_bonus_blink_on: true,
-            last_chain_bonus_blink: Duration::from_secs(0),
         }
     }
 
@@ -336,21 +332,6 @@ impl GameState {
         }
     }
 
-    fn update_chain_bonus_blink(&mut self, now: Duration) {
-        if self.custom_score_system.chain_bonus < 10 {
-            self.chain_bonus_blink_on = true;
-            self.last_chain_bonus_blink = now;
-            return;
-        }
-
-        let blink_interval = Duration::from_millis(350);
-
-        if now >= self.last_chain_bonus_blink + blink_interval {
-            self.chain_bonus_blink_on = !self.chain_bonus_blink_on;
-            self.last_chain_bonus_blink = now;
-        }
-    }
-
     fn consume_chain_bonus_for_solid_lines(&mut self) {
         let mut solid_lines = 0usize;
         let mut y = self.current_board_height;
@@ -553,8 +534,6 @@ fn main() -> io::Result<()> {
     render::draw_title_screen(&mut renderer)?;
 
     loop {
-        state.update_chain_bonus_blink(time_provider.now());
-
         if state.mode != GameMode::Title {
             render::draw(&mut renderer, &prev_state, &state)?;
         }
