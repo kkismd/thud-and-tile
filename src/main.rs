@@ -333,6 +333,46 @@ impl GameState {
         }
     }
 
+    fn consume_chain_bonus_for_solid_lines(&mut self) {
+        let mut solid_lines = 0usize;
+        let mut y = self.current_board_height;
+
+        while y < BOARD_HEIGHT
+            && self.board[y]
+                .iter()
+                .all(|cell| matches!(cell, Cell::Solid))
+        {
+            solid_lines += 1;
+            y += 1;
+        }
+
+        if solid_lines == 0 {
+            return;
+        }
+
+        let removable = self
+            .custom_score_system
+            .consume_chain_bonus(solid_lines as u32) as usize;
+
+        if removable == 0 {
+            return;
+        }
+
+        for _ in 0..removable {
+            let row_index = self.current_board_height;
+            if row_index >= self.board.len() {
+                break;
+            }
+            self.board.remove(row_index);
+        }
+
+        for _ in 0..removable {
+            self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+        }
+
+        self.current_board_height = (self.current_board_height + removable).min(BOARD_HEIGHT);
+    }
+
     fn handle_input(&mut self, input: GameInput) {
         if self.current_piece.is_none() {
             return;
@@ -420,6 +460,7 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
         // Update connected blocks after any line clears
         if has_bottom_clears || has_non_bottom_clears {
             state.update_all_connected_block_counts();
+            state.consume_chain_bonus_for_solid_lines();
         }
     }
 

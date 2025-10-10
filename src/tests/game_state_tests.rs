@@ -343,3 +343,33 @@ fn test_chain_bonus_is_capped_at_ten_when_total_exceeds_limit() {
     // 12段分だが上限で10段に丸め込まれる
     assert_eq!(state.custom_score_system.chain_bonus, 10);
 }
+
+#[test]
+fn test_consuming_chain_bonus_removes_solid_lines_from_bottom() {
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // ボトム2段をSolidに設定し、現在のプレイ領域を2段分狭める
+    for y in (BOARD_HEIGHT - 2)..BOARD_HEIGHT {
+        for x in 0..BOARD_WIDTH {
+            state.board[y][x] = Cell::Solid;
+        }
+    }
+    state.current_board_height = BOARD_HEIGHT - 2;
+    state.custom_score_system.chain_bonus = 3;
+
+    state.consume_chain_bonus_for_solid_lines();
+
+    // Solidライン2段分だけ消去され、CHAIN-BONUSも2段消費される
+    assert_eq!(state.custom_score_system.chain_bonus, 1);
+    assert_eq!(state.current_board_height, BOARD_HEIGHT);
+
+    // 消去対象だったSolidラインは完全に取り除かれ、代わりに空行が上部に追加される
+    for y in 0..2 {
+        assert!(state.board[y].iter().all(|cell| matches!(cell, Cell::Empty)));
+    }
+    assert!(state
+        .board
+        .iter()
+        .all(|row| row.iter().all(|cell| !matches!(cell, Cell::Solid))));
+}
