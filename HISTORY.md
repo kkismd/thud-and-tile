@@ -2,6 +2,11 @@
 
 ## 2025-10-10 - CHAIN-BONUS刷新とPush Down既知課題の記録
 
+### ✅ Web版にCHAIN-BONUS表示を移植
+- WASM側のchain_bonusロジックをCLI版と同等に再計算・消費できるよう拡張
+- Web UIに`10-CHAIN`パネルを追加し、ブラウザ上でも累積段数をリアルタイム表示
+- README / game_spec.md をWeb版仕様更新に合わせて追記
+
 ### ✅ CHAIN-BONUS表示の刷新
 - CLI UIを数値表示（`10-CHAIN`）に統一し、SCORE/MAX-CHAINとの桁合わせを実施
 - 既存テストを更新し、大きな値でも表記崩れしないことを確認

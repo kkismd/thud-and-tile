@@ -42,6 +42,7 @@ Web版は別リポジトリで管理されています：
 **👉 [thud-and-tile-web](https://github.com/kkismd/thud-and-tile-web)**
 
 - ブラウザで遊べるWeb版
+- CLI版と同じ"10-CHAIN"表示で連鎖ストックを確認可能
 - タッチ操作対応（モバイル対応）
 - GitHub Pagesでデプロイ済み
 

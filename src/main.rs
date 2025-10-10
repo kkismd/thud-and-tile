@@ -473,19 +473,19 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
         for y in non_bottom_lines_cleared {
             // Trigger push-down animation
             state.animation.push(Animation::PushDown {
-                gray_line_y: y,
+                solid_line_y: y,
                 start_time: current_time,
             });
         }
     }
 
     // Handle completed push downs
-    for gray_line_y in result.completed_push_downs {
+    for solid_line_y in result.completed_push_downs {
         // Process push down step
         match process_push_down_step(
             &mut state.board,
             &mut state.current_board_height,
-            gray_line_y,
+            solid_line_y,
         ) {
             PushDownStepResult::Completed => {
                 // Push down completed - update connected blocks as board structure changed
@@ -496,13 +496,13 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                     state.spawn_piece();
                 }
             }
-            PushDownStepResult::Moved { new_gray_line_y } => {
+            PushDownStepResult::Moved { new_solid_line_y } => {
                 // Board structure changed - update connected blocks
                 state.update_all_connected_block_counts();
 
                 // Continue push down animation at new position
                 state.animation.push(Animation::PushDown {
-                    gray_line_y: new_gray_line_y,
+                    solid_line_y: new_solid_line_y,
                     start_time: current_time,
                 });
             }

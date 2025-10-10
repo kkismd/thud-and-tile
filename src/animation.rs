@@ -18,7 +18,7 @@ pub enum Animation {
         start_time: Duration,
     },
     PushDown {
-        gray_line_y: usize,
+        solid_line_y: usize,
         start_time: Duration,
     },
 }
@@ -28,7 +28,7 @@ pub enum Animation {
 pub struct AnimationResult {
     pub continuing_animations: Vec<Animation>,
     pub completed_line_blinks: Vec<Vec<usize>>, // 完了したLineBlink のラインリスト
-    pub completed_push_downs: Vec<usize>,       // 完了したPush Down のgray_line_y
+    pub completed_push_downs: Vec<usize>,       // 完了したPush Down のsolid_line_y
 }
 
 impl AnimationResult {
@@ -77,18 +77,18 @@ pub fn update_animations(
                 }
             }
             Animation::PushDown {
-                gray_line_y,
+                solid_line_y,
                 start_time,
             } => {
                 let elapsed = current_time - start_time;
 
                 if elapsed >= PUSH_DOWN_STEP_DURATION {
                     // Push Down 1ステップ実行またはアニメーション完了
-                    result.completed_push_downs.push(gray_line_y);
+                    result.completed_push_downs.push(solid_line_y);
                 } else {
                     // Push Down継続
                     result.continuing_animations.push(Animation::PushDown {
-                        gray_line_y,
+                        solid_line_y,
                         start_time,
                     });
                 }
@@ -103,9 +103,9 @@ pub fn update_animations(
 pub fn process_push_down_step(
     board: &mut Vec<Vec<Cell>>,
     current_board_height: &mut usize,
-    gray_line_y: usize,
+    solid_line_y: usize,
 ) -> PushDownStepResult {
-    let target_y = gray_line_y + 1;
+    let target_y = solid_line_y + 1;
 
     // Push Down完了条件をチェック
     if target_y >= *current_board_height
@@ -113,7 +113,7 @@ pub fn process_push_down_step(
     {
         // Push Down完了: Solidラインはそのまま残す
         for x in 0..BOARD_WIDTH {
-            board[gray_line_y][x] = Cell::Solid;
+            board[solid_line_y][x] = Cell::Solid;
         }
         *current_board_height = current_board_height.saturating_sub(1);
 
@@ -125,7 +125,7 @@ pub fn process_push_down_step(
             board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
 
             PushDownStepResult::Moved {
-                new_gray_line_y: target_y,
+                new_solid_line_y: target_y,
             }
         } else {
             PushDownStepResult::Completed
@@ -137,7 +137,7 @@ pub fn process_push_down_step(
 #[derive(Debug)]
 pub enum PushDownStepResult {
     Completed,
-    Moved { new_gray_line_y: usize },
+    Moved { new_solid_line_y: usize },
 }
 
 /// ライン消去時のスコア計算（CLI版とWASM版共通）

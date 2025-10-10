@@ -83,10 +83,10 @@ fn test_lock_piece_ignores_solid_lines() {
     for x in 0..BOARD_WIDTH {
         assert_eq!(state.board[BOARD_HEIGHT - 2][x], Cell::Solid);
     }
-    let expected_gray_line_y = BOARD_HEIGHT - 2;
+    let expected_solid_line_y = BOARD_HEIGHT - 2;
     assert!(state.animation.iter().any(|anim| {
-        if let Animation::PushDown { gray_line_y: y, .. } = anim {
-            *y == expected_gray_line_y
+        if let Animation::PushDown { solid_line_y: y, .. } = anim {
+            *y == expected_solid_line_y
         } else {
             false
         }
