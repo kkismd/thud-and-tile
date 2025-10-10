@@ -4,31 +4,31 @@ use super::*;
 fn test_isolated_blocks_are_removed_on_non_bottom_clear() {
     // This test verifies the board_logic::remove_isolated_blocks function directly
     let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
-    
+
     let cleared_line_y = BOARD_HEIGHT - 5;
-    
+
     // Create a full line that will be "cleared"
     for x in 0..BOARD_WIDTH {
         board[cleared_line_y][x] = Cell::Occupied(GameColor::Blue);
     }
-    
+
     // Place an isolated single block below the cleared line
     board[cleared_line_y + 2][5] = Cell::Occupied(GameColor::Red);
-    
+
     // Place a connected pair of blocks below the cleared line
     board[cleared_line_y + 3][2] = Cell::Occupied(GameColor::Green);
     board[cleared_line_y + 3][3] = Cell::Occupied(GameColor::Green);
-    
+
     // Call the remove_isolated_blocks function
     board_logic::remove_isolated_blocks(&mut board, cleared_line_y);
-    
+
     // The isolated red block should be removed
     assert_eq!(
         board[cleared_line_y + 2][5],
         Cell::Empty,
         "Isolated red block should be removed"
     );
-    
+
     // The connected green blocks should remain
     assert_ne!(
         board[cleared_line_y + 3][2],
@@ -195,4 +195,99 @@ fn test_connected_blocks_count_after_lock_piece() {
             5
         );
     }
+}
+
+#[test]
+fn test_calculate_chain_bonus_no_groups() {
+    // 空の盤面ではボーナスなし
+    let board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+    let bonus = board_logic::calculate_chain_bonus(&board);
+    assert_eq!(bonus, 0);
+}
+
+#[test]
+fn test_calculate_chain_bonus_small_groups() {
+    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+
+    // 9個のグループ（10未満なのでボーナスなし）
+    for i in 0..9 {
+        board[BOARD_HEIGHT - 1][i] = Cell::Connected {
+            color: GameColor::Cyan,
+            count: 9,
+        };
+    }
+
+    let bonus = board_logic::calculate_chain_bonus(&board);
+    assert_eq!(bonus, 0, "9個のグループではボーナスなし");
+}
+
+#[test]
+fn test_calculate_chain_bonus_exactly_10() {
+    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+
+    // 10個のグループ（1段のボーナス）
+    for i in 0..10 {
+        board[BOARD_HEIGHT - 1][i] = Cell::Occupied(GameColor::Cyan);
+    }
+
+    let bonus = board_logic::calculate_chain_bonus(&board);
+    assert_eq!(bonus, 1, "10個のグループで1段のボーナス");
+}
+
+#[test]
+fn test_calculate_chain_bonus_multiple_groups() {
+    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+
+    // グループ1: 15個（1段）
+    for i in 0..10 {
+        board[BOARD_HEIGHT - 1][i] = Cell::Connected {
+            color: GameColor::Cyan,
+            count: 15,
+        };
+    }
+    for i in 0..5 {
+        board[BOARD_HEIGHT - 2][i] = Cell::Connected {
+            color: GameColor::Cyan,
+            count: 15,
+        };
+    }
+
+    // グループ2: 23個（2段）
+    for i in 0..10 {
+        board[BOARD_HEIGHT - 5][i] = Cell::Occupied(GameColor::Magenta);
+    }
+    for i in 0..10 {
+        board[BOARD_HEIGHT - 6][i] = Cell::Occupied(GameColor::Magenta);
+    }
+    for i in 0..3 {
+        board[BOARD_HEIGHT - 7][i] = Cell::Occupied(GameColor::Magenta);
+    }
+
+    let bonus = board_logic::calculate_chain_bonus(&board);
+    assert_eq!(bonus, 3, "15個(1段) + 23個(2段) = 3段のボーナス");
+}
+
+#[test]
+fn test_calculate_chain_bonus_large_group() {
+    let mut board = vec![vec![Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+
+    // 35個のグループ（3段のボーナス）
+    for y in 0..4 {
+        for x in 0..10 {
+            board[BOARD_HEIGHT - 1 - y][x] = Cell::Connected {
+                color: GameColor::Yellow,
+                count: 40,
+            };
+        }
+    }
+    // 最後の行は5個だけ
+    for x in 0..5 {
+        board[BOARD_HEIGHT - 5][x] = Cell::Connected {
+            color: GameColor::Yellow,
+            count: 45,
+        };
+    }
+
+    let bonus = board_logic::calculate_chain_bonus(&board);
+    assert_eq!(bonus, 4, "45個のグループで4段のボーナス");
 }

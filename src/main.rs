@@ -203,6 +203,11 @@ impl GameState {
         // Update MAX-CHAIN based on current connected block counts
         self.update_max_chains();
 
+        // 盤面全体の連結グループを評価し、CHAIN-BONUS獲得量を更新
+        let total_chain_bonus = board_logic::calculate_chain_bonus(&self.board);
+        self.custom_score_system
+            .set_chain_bonus_from_total(total_chain_bonus);
+
         // Calculate scores for lines to be cleared (before clearing)
         for &line_y in &lines_to_clear {
             let scores = animation::calculate_line_clear_score(
@@ -210,8 +215,8 @@ impl GameState {
                 line_y,
                 &self.custom_score_system.max_chains,
             );
-            for (color, points) in scores {
-                self.custom_score_system.scores.add(color, points);
+            for (_, points) in scores {
+                self.custom_score_system.add_score(points);
             }
         }
 
@@ -327,6 +332,42 @@ impl GameState {
         }
     }
 
+    fn consume_chain_bonus_for_solid_lines(&mut self) {
+        let mut solid_lines = 0usize;
+        let mut y = self.current_board_height;
+
+        while y < BOARD_HEIGHT && self.board[y].iter().all(|cell| matches!(cell, Cell::Solid)) {
+            solid_lines += 1;
+            y += 1;
+        }
+
+        if solid_lines == 0 {
+            return;
+        }
+
+        let removable = self
+            .custom_score_system
+            .consume_chain_bonus(solid_lines as u32) as usize;
+
+        if removable == 0 {
+            return;
+        }
+
+        for _ in 0..removable {
+            let row_index = self.current_board_height;
+            if row_index >= self.board.len() {
+                break;
+            }
+            self.board.remove(row_index);
+        }
+
+        for _ in 0..removable {
+            self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
+        }
+
+        self.current_board_height = (self.current_board_height + removable).min(BOARD_HEIGHT);
+    }
+
     fn handle_input(&mut self, input: GameInput) {
         if self.current_piece.is_none() {
             return;
@@ -414,6 +455,7 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
         // Update connected blocks after any line clears
         if has_bottom_clears || has_non_bottom_clears {
             state.update_all_connected_block_counts();
+            state.consume_chain_bonus_for_solid_lines();
         }
     }
 

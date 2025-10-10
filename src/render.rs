@@ -6,12 +6,10 @@ use crossterm::{
 };
 use std::io::{self, Write};
 
+use crate::animation::Animation;
 use crate::cell::Cell;
 use crate::config::{BOARD_HEIGHT, BOARD_WIDTH};
 use crate::game_color::GameColor;
-use std::time::Duration;
-
-use crate::animation::Animation;
 use crate::GameMode;
 use crate::GameState; // Import GameState from main.rs // 共通Animationを使用
 
@@ -323,6 +321,80 @@ mod tests {
             commands
         );
     }
+
+    #[test]
+    fn test_chain_bonus_display_updates_with_value() {
+        let mut mock_renderer = mock_renderer::MockRenderer::new();
+        let mut prev_state = GameState::new();
+        prev_state.mode = GameMode::Playing;
+
+        let mut state = prev_state.clone();
+        state.custom_score_system.chain_bonus = 5;
+
+        draw(&mut mock_renderer, &prev_state, &state).unwrap();
+
+        let commands = mock_renderer.commands.borrow();
+        let combined_line = commands.iter().find_map(|command| {
+            if let RenderCommand::Print(text) = command {
+                if text.contains("10-CHAIN") {
+                    return Some(text.clone());
+                }
+            }
+            None
+        });
+
+        let combined_line = combined_line.expect(&format!(
+            "10-CHAIN line not rendered. Commands: {:?}",
+            commands
+        ));
+
+        let expected_line = format_ui_value("10-CHAIN:", state.custom_score_system.chain_bonus);
+        assert_eq!(
+            combined_line,
+            expected_line,
+            "Chain bonus value not rendered on the same line. Line: {:?}",
+            combined_line
+        );
+    }
+
+    #[test]
+    fn test_chain_bonus_display_handles_large_numbers() {
+        let mut mock_renderer = mock_renderer::MockRenderer::new();
+        let mut prev_state = GameState::new();
+        prev_state.mode = GameMode::Playing;
+        prev_state.custom_score_system.chain_bonus = 12;
+
+        let mut state = prev_state.clone();
+        state.custom_score_system.chain_bonus = 120;
+
+        draw(&mut mock_renderer, &prev_state, &state).unwrap();
+
+        let commands = mock_renderer.commands.borrow();
+        let rendered_values: Vec<_> = commands
+            .iter()
+            .filter_map(|command| {
+                if let RenderCommand::Print(text) = command {
+                    Some(text.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let combined_line = rendered_values
+            .iter()
+            .find(|text| text.contains("10-CHAIN"))
+            .cloned()
+            .expect(&format!("Label missing: {:?}", rendered_values));
+
+        let expected_line = format_ui_value("10-CHAIN:", state.custom_score_system.chain_bonus);
+        assert_eq!(
+            combined_line,
+            expected_line,
+            "Updated value missing on the same line. Line: {:?}",
+            combined_line
+        );
+    }
 }
 
 pub fn draw_title_screen<R: Renderer>(renderer: &mut R) -> io::Result<()> {
@@ -363,6 +435,33 @@ fn draw_connected_cell<R: Renderer>(
     renderer.set_background_color(color)?;
     renderer.set_foreground_color(GameColor::Black)?;
     renderer.print(&format!("{:>2}", count))?;
+    renderer.reset_color()?;
+    Ok(())
+}
+
+const UI_LABEL_WIDTH: usize = 12;
+const UI_VALUE_WIDTH: usize = 6;
+const UI_LINE_WIDTH: usize = UI_LABEL_WIDTH + UI_VALUE_WIDTH + 2;
+
+fn format_ui_value(label: &str, value: u32) -> String {
+    format!(
+        "{label:<label_width$}{value:>value_width$}  ",
+        label = label,
+        value = value,
+        label_width = UI_LABEL_WIDTH,
+        value_width = UI_VALUE_WIDTH
+    )
+}
+
+fn render_chain_bonus_value<R: Renderer>(
+    renderer: &mut R,
+    ui_x: u16,
+    base_y: u16,
+    chain_bonus: u32,
+) -> io::Result<()> {
+    renderer.set_foreground_color(GameColor::White)?;
+    renderer.move_to(ui_x, base_y)?;
+    renderer.print(format_ui_value("10-CHAIN:", chain_bonus).as_str())?;
     renderer.reset_color()?;
     Ok(())
 }
@@ -408,21 +507,21 @@ pub fn draw<R: Renderer>(
                 let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
                 renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 2)?;
-                renderer.print("SCORE:     0     ")?;
-                renderer.move_to(ui_x, 3)?;
-                renderer.print("  CYAN:    0     ")?;
-                renderer.move_to(ui_x, 4)?;
-                renderer.print("  MAGENTA: 0     ")?;
+                renderer.print(format_ui_value("SCORE:", 0).as_str())?;
+                renderer.reset_color()?;
+                render_chain_bonus_value(renderer, ui_x, 4, 0)?;
+                renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 5)?;
-                renderer.print("  YELLOW:  0     ")?;
+                renderer.print(
+                    format!("{:<width$}", "MAX-CHAIN:", width = UI_LINE_WIDTH).as_str(),
+                )?;
+                renderer.move_to(ui_x, 6)?;
+                renderer.print(format_ui_value("  CYAN:", 0).as_str())?;
                 renderer.move_to(ui_x, 7)?;
-                renderer.print("MAX-CHAIN: 0     ")?;
+                renderer.print(format_ui_value("  MAGENTA:", 0).as_str())?;
                 renderer.move_to(ui_x, 8)?;
-                renderer.print("  CYAN:    0     ")?;
-                renderer.move_to(ui_x, 9)?;
-                renderer.print("  MAGENTA: 0     ")?;
-                renderer.move_to(ui_x, 10)?;
-                renderer.print("  YELLOW:  0     ")?;
+                renderer.print(format_ui_value("  YELLOW:", 0).as_str())?;
+                renderer.reset_color()?;
             }
 
             // --- 消去フェーズ ---
@@ -576,64 +675,53 @@ pub fn draw<R: Renderer>(
 
             let ui_x = (BOARD_WIDTH * 2 + 4) as u16;
 
-            // Display custom score system instead of simple score/lines
-            if prev_state.custom_score_system != state.custom_score_system {
+            let score_changed =
+                prev_state.custom_score_system.score != state.custom_score_system.score;
+            if score_changed {
                 renderer.set_foreground_color(GameColor::White)?;
-
-                // Display total score
                 renderer.move_to(ui_x, 2)?;
                 renderer.print(
-                    format!("SCORE:     {:<6}", state.custom_score_system.scores.total()).as_str(),
+                    format_ui_value("SCORE:", state.custom_score_system.score.total()).as_str(),
                 )?;
+                renderer.reset_color()?;
+            }
 
-                // Display color breakdown
-                renderer.move_to(ui_x, 3)?;
-                renderer.print(
-                    format!("  CYAN:    {:<6}", state.custom_score_system.scores.cyan).as_str(),
+            let chain_bonus_changed = prev_state.custom_score_system.chain_bonus
+                != state.custom_score_system.chain_bonus;
+            if chain_bonus_changed {
+                render_chain_bonus_value(
+                    renderer,
+                    ui_x,
+                    4,
+                    state.custom_score_system.chain_bonus,
                 )?;
-                renderer.move_to(ui_x, 4)?;
-                renderer.print(
-                    format!("  MAGENTA: {:<6}", state.custom_score_system.scores.magenta).as_str(),
-                )?;
+            }
+
+            let max_chain_changed =
+                prev_state.custom_score_system.max_chains != state.custom_score_system.max_chains;
+            if max_chain_changed {
+                renderer.set_foreground_color(GameColor::White)?;
                 renderer.move_to(ui_x, 5)?;
                 renderer.print(
-                    format!("  YELLOW:  {:<6}", state.custom_score_system.scores.yellow).as_str(),
+                    format!("{:<width$}", "MAX-CHAIN:", width = UI_LINE_WIDTH).as_str(),
                 )?;
-
-                // Display max chain
+                renderer.move_to(ui_x, 6)?;
+                renderer.print(
+                    format_ui_value("  CYAN:", state.custom_score_system.max_chains.cyan).as_str(),
+                )?;
                 renderer.move_to(ui_x, 7)?;
                 renderer.print(
-                    format!(
-                        "MAX-CHAIN: {:<6}",
-                        state.custom_score_system.max_chains.max()
+                    format_ui_value(
+                        "  MAGENTA:",
+                        state.custom_score_system.max_chains.magenta
                     )
                     .as_str(),
                 )?;
                 renderer.move_to(ui_x, 8)?;
                 renderer.print(
-                    format!(
-                        "  CYAN:    {:<6}",
-                        state.custom_score_system.max_chains.cyan
-                    )
-                    .as_str(),
+                    format_ui_value("  YELLOW:", state.custom_score_system.max_chains.yellow)
+                        .as_str(),
                 )?;
-                renderer.move_to(ui_x, 9)?;
-                renderer.print(
-                    format!(
-                        "  MAGENTA: {:<6}",
-                        state.custom_score_system.max_chains.magenta
-                    )
-                    .as_str(),
-                )?;
-                renderer.move_to(ui_x, 10)?;
-                renderer.print(
-                    format!(
-                        "  YELLOW:  {:<6}",
-                        state.custom_score_system.max_chains.yellow
-                    )
-                    .as_str(),
-                )?;
-
                 renderer.reset_color()?;
             }
 
@@ -657,7 +745,7 @@ pub fn draw<R: Renderer>(
             // 現在のNEXTミノを描画
             if let Some(next_piece) = &state.next_piece {
                 renderer.set_foreground_color(GameColor::White)?;
-                renderer.move_to(ui_x, 12)?;
+                renderer.move_to(ui_x, 13)?;
                 renderer.print("NEXT:")?; // "NEXT:" ラベル
 
                 for ((x, y), color) in next_piece.iter_blocks() {

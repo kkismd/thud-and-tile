@@ -1,47 +1,25 @@
 use crate::game_color::GameColor;
 use std::fmt;
 
-/// 色別のスコアとMAX-CHAINを管理する構造体
+/// 総合スコアのみを管理する構造体
 #[derive(Clone, Debug, PartialEq)]
-pub struct ColorScores {
-    pub cyan: u32,
-    pub magenta: u32,
-    pub yellow: u32,
+pub struct TotalScore {
+    total: u32,
 }
 
-impl ColorScores {
+impl TotalScore {
     pub fn new() -> Self {
-        Self {
-            cyan: 0,
-            magenta: 0,
-            yellow: 0,
-        }
+        Self { total: 0 }
     }
 
-    /// 指定された色のスコアを取得
-    #[allow(dead_code)]
-    pub fn get(&self, color: GameColor) -> u32 {
-        match color {
-            GameColor::Cyan => self.cyan,
-            GameColor::Magenta => self.magenta,
-            GameColor::Yellow => self.yellow,
-            _ => 0, // 他の色は対象外
-        }
+    /// スコアを加算
+    pub fn add(&mut self, points: u32) {
+        self.total += points;
     }
 
-    /// 指定された色にスコアを加算
-    pub fn add(&mut self, color: GameColor, points: u32) {
-        match color {
-            GameColor::Cyan => self.cyan += points,
-            GameColor::Magenta => self.magenta += points,
-            GameColor::Yellow => self.yellow += points,
-            _ => {} // 他の色は何もしない
-        }
-    }
-
-    /// 合計スコアを計算
+    /// 合計スコアを取得
     pub fn total(&self) -> u32 {
-        self.cyan + self.magenta + self.yellow
+        self.total
     }
 }
 
@@ -103,28 +81,48 @@ impl ColorMaxChains {
 /// カスタムスコアシステム全体を管理する構造体
 #[derive(Clone, Debug, PartialEq)]
 pub struct CustomScoreSystem {
-    pub scores: ColorScores,
+    pub score: TotalScore,
     pub max_chains: ColorMaxChains,
+    pub chain_bonus: u32,
 }
 
 impl CustomScoreSystem {
     pub fn new() -> Self {
         Self {
-            scores: ColorScores::new(),
+            score: TotalScore::new(),
             max_chains: ColorMaxChains::new(),
+            chain_bonus: 0,
         }
+    }
+
+    pub fn add_score(&mut self, points: u32) {
+        self.score.add(points);
+    }
+
+    /// chain_bonusに段数を加算する（制限なし）。
+    pub fn add_chain_bonus(&mut self, lines: u32) {
+        self.chain_bonus += lines;
+    }
+
+    /// chain_bonusから指定段数を消費する。足りない場合は0になる。
+    pub fn consume_chain_bonus(&mut self, lines: u32) -> u32 {
+        let consumed = self.chain_bonus.min(lines);
+        self.chain_bonus -= consumed;
+        consumed
+    }
+
+    /// 現在の盤面から算出されたボーナス段数でchain_bonusを上書きする。
+    pub fn set_chain_bonus_from_total(&mut self, total_bonus: u32) {
+        self.chain_bonus = total_bonus;
     }
 }
 
 /// スコア表示用のフォーマット実装
 impl fmt::Display for CustomScoreSystem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "SCORE:    {}", self.scores.total())?;
-        writeln!(f, "  CYAN:    {}", self.scores.cyan)?;
-        writeln!(f, "  MAGENTA: {}", self.scores.magenta)?;
-        writeln!(f, "  YELLOW:  {}", self.scores.yellow)?;
+        writeln!(f, "SCORE:    {}", self.score.total())?;
         writeln!(f)?;
-        writeln!(f, "MAX-CHAIN: {}", self.max_chains.max())?;
+        writeln!(f, "MAX-CHAIN:")?;
         writeln!(f, "  CYAN:    {}", self.max_chains.cyan)?;
         writeln!(f, "  MAGENTA: {}", self.max_chains.magenta)?;
         write!(f, "  YELLOW:  {}", self.max_chains.yellow)
@@ -136,36 +134,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_color_scores_initialization() {
-        let scores = ColorScores::new();
-        assert_eq!(scores.cyan, 0);
-        assert_eq!(scores.magenta, 0);
-        assert_eq!(scores.yellow, 0);
-        assert_eq!(scores.total(), 0);
+    fn test_total_score_initialization() {
+        let score = TotalScore::new();
+        assert_eq!(score.total(), 0);
     }
 
     #[test]
-    fn test_color_scores_add() {
-        let mut scores = ColorScores::new();
-        scores.add(GameColor::Cyan, 100);
-        scores.add(GameColor::Magenta, 200);
-        scores.add(GameColor::Yellow, 300);
+    fn test_total_score_add() {
+        let mut score = TotalScore::new();
+        score.add(150);
+        score.add(275);
 
-        assert_eq!(scores.get(GameColor::Cyan), 100);
-        assert_eq!(scores.get(GameColor::Magenta), 200);
-        assert_eq!(scores.get(GameColor::Yellow), 300);
-        assert_eq!(scores.total(), 600);
-    }
-
-    #[test]
-    fn test_color_scores_ignore_invalid_colors() {
-        let mut scores = ColorScores::new();
-        scores.add(GameColor::Red, 100); // Should be ignored
-        scores.add(GameColor::Blue, 200); // Should be ignored
-
-        assert_eq!(scores.get(GameColor::Red), 0);
-        assert_eq!(scores.get(GameColor::Blue), 0);
-        assert_eq!(scores.total(), 0);
+        assert_eq!(score.total(), 425);
     }
 
     #[test]
@@ -206,21 +186,81 @@ mod tests {
     #[test]
     fn test_custom_score_system_initialization() {
         let system = CustomScoreSystem::new();
-        assert_eq!(system.scores.total(), 0);
+        assert_eq!(system.score.total(), 0);
         assert_eq!(system.max_chains.max(), 0);
+        assert_eq!(system.chain_bonus, 0);
+    }
+
+    #[test]
+    fn test_set_chain_bonus_from_total() {
+        let mut system = CustomScoreSystem::new();
+
+        system.set_chain_bonus_from_total(3);
+        assert_eq!(system.chain_bonus, 3);
+
+        system.set_chain_bonus_from_total(9);
+        assert_eq!(system.chain_bonus, 9);
+
+        system.set_chain_bonus_from_total(12);
+        assert_eq!(system.chain_bonus, 12);
+    }
+
+    #[test]
+    fn test_chain_bonus_add() {
+        let mut system = CustomScoreSystem::new();
+
+        // 通常の加算
+        system.add_chain_bonus(3);
+        assert_eq!(system.chain_bonus, 3);
+
+        // 累積
+        system.add_chain_bonus(5);
+        assert_eq!(system.chain_bonus, 8);
+
+        // 10を超えてもそのまま加算される
+        system.add_chain_bonus(5);
+        assert_eq!(system.chain_bonus, 13);
+
+        // さらに加算
+        system.add_chain_bonus(3);
+        assert_eq!(system.chain_bonus, 16);
+    }
+
+    #[test]
+    fn test_chain_bonus_consume() {
+        let mut system = CustomScoreSystem::new();
+        system.add_chain_bonus(7);
+
+        // 一部消費
+        let consumed = system.consume_chain_bonus(3);
+        assert_eq!(consumed, 3);
+        assert_eq!(system.chain_bonus, 4);
+
+        // さらに消費
+        let consumed = system.consume_chain_bonus(2);
+        assert_eq!(consumed, 2);
+        assert_eq!(system.chain_bonus, 2);
+
+        // 残り以上を消費しようとした場合
+        let consumed = system.consume_chain_bonus(5);
+        assert_eq!(consumed, 2); // 実際には2しかない
+        assert_eq!(system.chain_bonus, 0);
+
+        // 0の状態で消費
+        let consumed = system.consume_chain_bonus(3);
+        assert_eq!(consumed, 0);
+        assert_eq!(system.chain_bonus, 0);
     }
 
     #[test]
     fn test_custom_score_system_display() {
         let mut system = CustomScoreSystem::new();
-        system.scores.add(GameColor::Cyan, 200);
-        system.scores.add(GameColor::Magenta, 420);
-        system.scores.add(GameColor::Yellow, 500);
+        system.add_score(1120);
         system.max_chains.update_max(GameColor::Cyan, 2);
         system.max_chains.update_max(GameColor::Magenta, 4);
         system.max_chains.update_max(GameColor::Yellow, 5);
 
-        let expected = "SCORE:    1120\n  CYAN:    200\n  MAGENTA: 420\n  YELLOW:  500\n\nMAX-CHAIN: 5\n  CYAN:    2\n  MAGENTA: 4\n  YELLOW:  5";
+        let expected = "SCORE:    1120\n\nMAX-CHAIN:\n  CYAN:    2\n  MAGENTA: 4\n  YELLOW:  5";
         assert_eq!(format!("{}", system), expected);
     }
 }

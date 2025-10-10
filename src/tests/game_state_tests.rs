@@ -93,7 +93,7 @@ fn test_lock_piece_ignores_solid_lines() {
     }));
     // Assert custom score (no score yet, as PushDown animation is ongoing)
     assert_eq!(
-        state.custom_score_system.scores.total(),
+        state.custom_score_system.score.total(),
         0,
         "No custom score during animation"
     );
@@ -235,4 +235,143 @@ fn test_max_chain_only_increases_never_decreases() {
         state.custom_score_system.max_chains.get(GameColor::Yellow),
         5
     ); // Should remain unchanged
+}
+
+#[test]
+fn test_chain_bonus_increases_when_group_reaches_threshold() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // 既に6個連結しているシアンブロックを配置（閾値未満）
+    for x in 0..3 {
+        state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(GameColor::Cyan);
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(GameColor::Cyan);
+    }
+
+    // Iミノを右隣に配置してロックすると10個の連結になり、CHAIN-BONUSが1段加算される
+    let mut piece = Tetromino::from_shape(TetrominoShape::I, [GameColor::Cyan; 4]);
+    piece.pos = (3, (BOARD_HEIGHT - 2) as i8);
+    state.current_piece = Some(piece);
+
+    state.lock_piece(&time_provider);
+
+    assert_eq!(state.custom_score_system.chain_bonus, 1);
+}
+
+#[test]
+fn test_chain_bonus_updates_when_group_size_changes() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // 既存の6個連結ブロック
+    for x in 0..3 {
+        state.board[BOARD_HEIGHT - 1][x] = Cell::Occupied(GameColor::Cyan);
+        state.board[BOARD_HEIGHT - 2][x] = Cell::Occupied(GameColor::Cyan);
+    }
+
+    // 10個連結を達成する最初のIミノ
+    let mut first_piece = Tetromino::from_shape(TetrominoShape::I, [GameColor::Cyan; 4]);
+    first_piece.pos = (3, (BOARD_HEIGHT - 2) as i8);
+    state.current_piece = Some(first_piece);
+    state.lock_piece(&time_provider);
+
+    assert_eq!(state.custom_score_system.chain_bonus, 1);
+
+    // グループを縮小するため一部のブロックを空にする
+    state.board[BOARD_HEIGHT - 1][0] = Cell::Empty;
+    state.board[BOARD_HEIGHT - 2][0] = Cell::Empty;
+
+    // 2回目のロック（影響しない位置）
+    let mut second_piece = Tetromino::from_shape(TetrominoShape::I, [GameColor::Yellow; 4]);
+    second_piece.pos = (0, 0);
+    state.current_piece = Some(second_piece);
+
+    state.lock_piece(&time_provider);
+
+    // 連結数が減ったのでCHAIN-BONUSも再計算されて0になる
+    assert_eq!(state.custom_score_system.chain_bonus, 0);
+}
+
+#[test]
+fn test_chain_bonus_matches_total_bonus_from_board() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // 下3行をすべて埋めてライン消去を発生させる（合計30個の連結）
+    for dy in 0..3 {
+        let y = BOARD_HEIGHT - 1 - dy;
+        for x in 0..BOARD_WIDTH {
+            state.board[y][x] = Cell::Occupied(GameColor::Magenta);
+        }
+    }
+
+    // 既に9段溜まっている状態を想定
+    state.custom_score_system.chain_bonus = 9;
+
+    let piece = Tetromino::from_shape(TetrominoShape::I, [GameColor::Magenta; 4]);
+    state.current_piece = Some(piece);
+
+    state.lock_piece(&time_provider);
+
+    // floor(30 / 10) = 3段 に更新される
+    assert_eq!(state.custom_score_system.chain_bonus, 3);
+}
+
+#[test]
+fn test_chain_bonus_accumulates_beyond_ten() {
+    let time_provider = MockTimeProvider::new();
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // 盤面上部12行を同色で埋める（120ブロック → 12段分）
+    for y in (BOARD_HEIGHT - 12)..BOARD_HEIGHT {
+        for x in 0..BOARD_WIDTH {
+            state.board[y][x] = Cell::Occupied(GameColor::Cyan);
+        }
+    }
+
+    // ピースをロックして計算をトリガー
+    let mut piece = Tetromino::from_shape(TetrominoShape::O, [GameColor::Cyan; 4]);
+    piece.pos = (0, 0);
+    state.current_piece = Some(piece);
+
+    state.lock_piece(&time_provider);
+
+    // 12段分がそのまま加算される
+    assert_eq!(state.custom_score_system.chain_bonus, 12);
+}
+
+#[test]
+fn test_consuming_chain_bonus_removes_solid_lines_from_bottom() {
+    let mut state = GameState::new();
+    state.mode = GameMode::Playing;
+
+    // ボトム2段をSolidに設定し、現在のプレイ領域を2段分狭める
+    for y in (BOARD_HEIGHT - 2)..BOARD_HEIGHT {
+        for x in 0..BOARD_WIDTH {
+            state.board[y][x] = Cell::Solid;
+        }
+    }
+    state.current_board_height = BOARD_HEIGHT - 2;
+    state.custom_score_system.chain_bonus = 3;
+
+    state.consume_chain_bonus_for_solid_lines();
+
+    // Solidライン2段分だけ消去され、CHAIN-BONUSも2段消費される
+    assert_eq!(state.custom_score_system.chain_bonus, 1);
+    assert_eq!(state.current_board_height, BOARD_HEIGHT);
+
+    // 消去対象だったSolidラインは完全に取り除かれ、代わりに空行が上部に追加される
+    for y in 0..2 {
+        assert!(state.board[y]
+            .iter()
+            .all(|cell| matches!(cell, Cell::Empty)));
+    }
+    assert!(state
+        .board
+        .iter()
+        .all(|row| row.iter().all(|cell| !matches!(cell, Cell::Solid))));
 }
