@@ -1177,7 +1177,11 @@ impl WasmGameState {
         }
 
         // Push Down完了処理
-        for solid_line_y in result.completed_push_downs {
+        // 重要: 降順（下から上）でソートして処理することで、board.remove時のインデックスずれを防ぐ
+        let mut sorted_push_downs = result.completed_push_downs;
+        sorted_push_downs.sort_by(|a, b| b.cmp(a)); // 降順ソート
+        
+        for solid_line_y in sorted_push_downs {
             match animation::process_push_down_step(
                 &mut self.board,
                 &mut self.current_board_height,
