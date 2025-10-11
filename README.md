@@ -70,20 +70,40 @@ cargo build --release
 ```
 
 #### Web版用WASMビルド
+
+**前提条件**: `thud-and-tile`と`thud-and-tile-web`が同じ親ディレクトリにあること
+
 ```bash
+# thud-and-tileディレクトリから実行
+cd thud-and-tile
+
 # Web版プロジェクトのpkgディレクトリにWASMファイルを生成
+# 重要: --features wasm フラグを必ず指定してください
 wasm-pack build --target web --out-dir ../thud-and-tile-web/pkg --features wasm
 ```
+
+**ディレクトリ構造例**:
+```
+your-workspace/
+├── thud-and-tile/          # このリポジトリ（Rustコア）
+└── thud-and-tile-web/      # Web版リポジトリ
+    └── pkg/                # WASMビルド出力先
+```
+
+**注意**: `--features wasm`フラグを省略すると、wasm-bindgen関連のコンパイルエラーが発生します。
 
 ### テスト実行
 
 ```bash
-# 全テスト実行
+# 全テスト実行（CLI版のみ、63テスト）
 cargo test
 
 # 特定のテストのみ
 cargo test tetromino
 cargo test board_logic
+
+# テスト結果の詳細表示
+cargo test -- --nocapture
 ```
 
 ## 📁 プロジェクト構造

@@ -441,6 +441,75 @@ pub struct WasmGameState {
     animation: Vec<Animation>, // CLI版と同じVec<Animation>管理
 }
 
+/// 盤面から揃っているラインを1本だけ検出（下から上に探索）
+#[cfg(target_arch = "wasm32")]
+fn find_first_complete_line_wasm(board: &Vec<Vec<Cell>>, current_board_height: usize) -> Option<usize> {
+    // 下から上に探索（Push Downで下から処理するため）
+    for y in (0..current_board_height).rev() {
+        let is_complete = board[y].iter().all(|&cell| {
+            matches!(cell, Cell::Occupied(_)) || matches!(cell, Cell::Connected { color: _, count: _ })
+        });
+        if is_complete {
+            return Some(y);
+        }
+    }
+    None
+}
+
+/// 次の揃ったラインを検出してLineBlink アニメーションを開始（WASM版）
+#[cfg(target_arch = "wasm32")]
+fn check_and_start_next_line_animation_wasm(state: &mut WasmGameState) {
+    let current_time = state.time_provider.now();
+    
+    if let Some(line_y) = find_first_complete_line_wasm(&state.board, state.current_board_height) {
+        // 揃ったラインが1本見つかった
+        // 隣接ブロック接続処理
+        crate::board_logic::find_and_connect_adjacent_blocks(&mut state.board, &[line_y]);
+        
+        state.update_connected_block_counts();
+        state.update_max_chains();
+        
+        // 盤面全体の連結グループを評価し、CHAIN-BONUS獲得量を更新
+        let total_chain_bonus = crate::board_logic::calculate_chain_bonus(&state.board);
+        state.custom_score_system
+            .inner
+            .set_chain_bonus_from_total(total_chain_bonus);
+        
+        // スコア計算
+        let scores = animation::calculate_line_clear_score(
+            &state.board,
+            line_y,
+            &state.custom_score_system.inner.max_chains,
+        );
+        for (_, points) in scores {
+            state.custom_score_system.inner.add_score(points);
+        }
+        
+        // LineBlink アニメーション開始
+        state.animation.push(animation::Animation::LineBlink {
+            lines: vec![line_y],
+            count: 0,
+            start_time: current_time,
+        });
+        
+        console_log!("段階的検出: ライン {} のLineBlink開始", line_y);
+    } else {
+        // 揃ったラインがなくても、全体の隣接ブロック接続処理を実行
+        crate::board_logic::find_and_connect_adjacent_blocks(&mut state.board, &[]);
+        state.update_connected_block_counts();
+        state.update_max_chains();
+        
+        let total_chain_bonus = crate::board_logic::calculate_chain_bonus(&state.board);
+        state.custom_score_system
+            .inner
+            .set_chain_bonus_from_total(total_chain_bonus);
+        
+        // 揃ったラインがなければ新ピース生成
+        state.spawn_piece();
+        console_log!("段階的検出: 揃ったラインなし、新ピース生成");
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 impl WasmGameState {
@@ -785,67 +854,10 @@ impl WasmGameState {
 
             console_log!("Piece locked at position ({}, {})", piece.x, piece.y);
 
-            // CLI版と同じライン消去検出とアニメーション処理
-            // 1. 完成ラインを検出（CLI版と同じロジック）
-            let mut lines_to_clear: Vec<usize> = self.board[0..self.current_board_height]
-                .iter()
-                .enumerate()
-                .filter(|(_, row)| {
-                    row.iter().all(|&cell| {
-                        matches!(cell, Cell::Occupied(_))
-                            || matches!(cell, Cell::Connected { color: _, count: _ })
-                    })
-                })
-                .map(|(y, _)| y)
-                .collect();
-            lines_to_clear.sort_by(|a, b| b.cmp(a)); // CLI版と同じソート
+            // 段階的ライン検出：最初の1本だけを検出してアニメーション開始
+            check_and_start_next_line_animation_wasm(self);
 
-            // 2. CLI版と同じ隣接ブロック処理（消去前に実行）
-            crate::board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear);
-
-            // 3. CLI版と同じconnected block counts更新
-            self.update_connected_block_counts();
-
-            // 4. CLI版と同じmax_chains更新
-            self.update_max_chains();
-
-            // 5. CLI版と同じchain-bonus更新
-            let total_chain_bonus = crate::board_logic::calculate_chain_bonus(&self.board);
-            self.custom_score_system
-                .inner
-                .set_chain_bonus_from_total(total_chain_bonus);
-
-            // 5. Calculate scores for lines to be cleared (before starting animation)
-            for &line_y in &lines_to_clear {
-                let scores = animation::calculate_line_clear_score(
-                    &self.board,
-                    line_y,
-                    &self.custom_score_system.inner.max_chains,
-                );
-                for (_, points) in scores {
-                    self.custom_score_system.add_score(points);
-                }
-            }
-
-            // 6. ライン消去処理とアニメーション開始
-            if !lines_to_clear.is_empty() {
-                let start_time = self.time_provider.now();
-                let line_blink_animation = animation::Animation::LineBlink {
-                    lines: lines_to_clear.clone(),
-                    count: 0,
-                    start_time,
-                };
-                self.animation.push(line_blink_animation);
-                console_log!(
-                    "Starting line clear animation for {} lines",
-                    lines_to_clear.len()
-                );
-            } else {
-                // ラインクリアなしの場合、すぐに新しいピースをスポーン
-                self.spawn_piece();
-            }
-
-            console_log!("Piece locked, next piece spawned or animation started");
+            console_log!("Piece locked, line detection or spawn initiated");
         }
     }
 
@@ -1104,7 +1116,7 @@ impl WasmGameState {
         }
     }
 
-    /// アニメーション処理を実行（CLI版互換・共通モジュール使用）
+    /// アニメーション処理を実行（段階的ライン検出版）
     #[wasm_bindgen]
     pub fn update_animation(&mut self) {
         if self.animation.is_empty() {
@@ -1116,65 +1128,53 @@ impl WasmGameState {
         // 共通アニメーション処理モジュールを使用
         let result = animation::update_animations(&mut self.animation, current_time);
 
-        // LineBlink完了によるライン消去とPush Down開始処理（CLI版互換）
+        // LineBlink完了処理（段階的：1本ずつ）
         for completed_lines in result.completed_line_blinks.clone() {
-            // CLI版と同じ処理順序：bottom/non-bottomに分離してライン消去処理
-            let (bottom_lines_cleared, non_bottom_lines_cleared) = animation::process_line_clear(
-                &mut self.board,
-                self.current_board_height,
-                &completed_lines,
-            );
+            // 段階的検出では1本ずつ処理されるので、completed_linesには1本しか入っていない
+            assert_eq!(completed_lines.len(), 1, "段階的検出では1本ずつ処理する");
+            let line_y = completed_lines[0];
+            
+            // Bottom line かどうかを判定
+            let is_bottom_line = line_y == self.current_board_height - 1;
 
-            let has_bottom_clears = !bottom_lines_cleared.is_empty();
-            let has_non_bottom_clears = !non_bottom_lines_cleared.is_empty();
+            if is_bottom_line {
+                // Handle bottom line (standard Tetris clear)
+                self.board.remove(line_y);
+                self.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
 
-            // Bottom lines の標準テトリス消去処理（PushDownアニメーションなし）
-            if has_bottom_clears {
+                // Update connected block counts after bottom line clear
                 self.update_all_connected_block_counts();
-                self.spawn_piece();
-                console_log!(
-                    "Bottom line clear: {} lines cleared",
-                    bottom_lines_cleared.len()
-                );
-            }
+                
+                console_log!("Bottom line {} cleared", line_y);
+                
+                // Bottom line消去後、次のラインを検出
+                check_and_start_next_line_animation_wasm(self);
+            } else {
+                // Handle non-bottom line (custom clear with Solid conversion)
+                // Remove isolated blocks
+                crate::board_logic::remove_isolated_blocks(&mut self.board, line_y);
 
-            // Non-bottom lines はprocess_line_clearでSolid化済み（ここでは特別処理なし）
+                // Turn line to Solid
+                for x in 0..BOARD_WIDTH {
+                    self.board[line_y][x] = Cell::Solid;
+                }
 
-            if has_bottom_clears || has_non_bottom_clears {
+                // Update connected blocks after line clear
                 self.update_all_connected_block_counts();
                 self.consume_chain_bonus_for_solid_lines();
-            }
-
-            console_log!(
-                "Line clear animation completed: {} bottom, {} non-bottom",
-                bottom_lines_cleared.len(),
-                non_bottom_lines_cleared.len()
-            );
-        }
-
-        // 継続するアニメーションを設定（先に設定）
-        self.animation = result.continuing_animations;
-
-        // LineBlink完了によるPushDownアニメーション開始処理（CLI版互換）
-        for completed_lines in result.completed_line_blinks {
-            let non_bottom_lines_cleared: Vec<usize> = completed_lines
-                .iter()
-                .filter(|&&line_y| line_y != self.current_board_height - 1)
-                .cloned()
-                .collect();
-
-            // Non-bottom lines のPushDownアニメーション開始
-            for y in non_bottom_lines_cleared {
-                // 1. 孤立ブロック除去（CLI版互換）
-                crate::board_logic::remove_isolated_blocks(&mut self.board, y);
-
-                // 2. PushDownアニメーション開始（ラインはprocess_line_clearで直接Solid化済み）
+                
+                console_log!("Non-bottom line {} converted to Solid", line_y);
+                
+                // Trigger push-down animation
                 self.animation.push(animation::Animation::PushDown {
-                    solid_line_y: y,
+                    solid_line_y: line_y,
                     start_time: current_time,
                 });
             }
         }
+
+        // 継続するアニメーションを設定
+        self.animation.extend(result.continuing_animations);
 
         // Push Down完了処理
         for solid_line_y in result.completed_push_downs {
@@ -1187,6 +1187,11 @@ impl WasmGameState {
                     // Push Down完了後にconnected block countsを更新
                     self.update_all_connected_block_counts();
                     console_log!("PushDown animation completed for line {}", solid_line_y);
+                    
+                    // Push Down完了後、次のラインを検出
+                    if self.animation.is_empty() {
+                        check_and_start_next_line_animation_wasm(self);
+                    }
                 }
                 animation::PushDownStepResult::Moved { new_solid_line_y } => {
                     // 新しい位置でPush Downアニメーションを継続
@@ -1194,16 +1199,11 @@ impl WasmGameState {
                         solid_line_y: new_solid_line_y,
                         start_time: current_time,
                     });
+                    // Board structure changed - update connected blocks
+                    self.update_all_connected_block_counts();
                     console_log!("PushDown animation moved line to {}", new_solid_line_y);
                 }
             }
-        }
-
-        // すべてのアニメーションが完了した場合、新しいピースをスポーン
-        if self.animation.is_empty() {
-            // アニメーション完了後にconnected block countsを最終更新
-            self.update_all_connected_block_counts();
-            self.spawn_piece();
         }
     }
 

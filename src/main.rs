@@ -175,60 +175,13 @@ impl GameState {
         if let Some(piece) = self.current_piece.take() {
             for ((x, y), color) in piece.iter_blocks() {
                 if y >= 0 && y < BOARD_HEIGHT as i8 {
-                    // ここを修正
                     self.board[y as usize][x as usize] = Cell::Occupied(color);
                 }
             }
         }
 
-        // ここから隣接色スキャンロジックを追加
-        // find_and_connect_adjacent_blocks の前に lines_to_clear を計算
-        let mut lines_to_clear: Vec<usize> = self.board[0..self.current_board_height]
-            .iter()
-            .enumerate()
-            .filter(|(_, row)| {
-                row.iter().all(|&cell| {
-                    matches!(cell, Cell::Occupied(_))
-                        || matches!(cell, Cell::Connected { color: _, count: _ })
-                })
-            })
-            .map(|(y, _)| y)
-            .collect();
-        lines_to_clear.sort_by(|a, b| b.cmp(a)); // Sort in descending order to clear from bottom up
-
-        board_logic::find_and_connect_adjacent_blocks(&mut self.board, &lines_to_clear); // lines_to_clear を渡す
-
-        self.update_connected_block_counts();
-
-        // Update MAX-CHAIN based on current connected block counts
-        self.update_max_chains();
-
-        // 盤面全体の連結グループを評価し、CHAIN-BONUS獲得量を更新
-        let total_chain_bonus = board_logic::calculate_chain_bonus(&self.board);
-        self.custom_score_system
-            .set_chain_bonus_from_total(total_chain_bonus);
-
-        // Calculate scores for lines to be cleared (before clearing)
-        for &line_y in &lines_to_clear {
-            let scores = animation::calculate_line_clear_score(
-                &self.board,
-                line_y,
-                &self.custom_score_system.max_chains,
-            );
-            for (_, points) in scores {
-                self.custom_score_system.add_score(points);
-            }
-        }
-
-        if !lines_to_clear.is_empty() {
-            self.animation.push(Animation::LineBlink {
-                lines: lines_to_clear,
-                count: 0,
-                start_time: time_provider.now(),
-            });
-        } else {
-            self.spawn_piece();
-        }
+        // 段階的ライン検出：最初の1本だけを検出してアニメーション開始
+        check_and_start_next_line_animation(self, time_provider.now());
     }
 
     fn update_connected_block_counts(&mut self) {
@@ -404,6 +357,66 @@ impl GameState {
     }
 }
 
+/// 盤面から揃っているラインを1本だけ検出（下から上に探索）
+fn find_first_complete_line(board: &Vec<Vec<Cell>>, current_board_height: usize) -> Option<usize> {
+    // 下から上に探索（Push Downで下から処理するため）
+    for y in (0..current_board_height).rev() {
+        let is_complete = board[y].iter().all(|&cell| {
+            matches!(cell, Cell::Occupied(_)) || matches!(cell, Cell::Connected { color: _, count: _ })
+        });
+        if is_complete {
+            return Some(y);
+        }
+    }
+    None
+}
+
+/// 次の揃ったラインを検出してLineBlink アニメーションを開始
+fn check_and_start_next_line_animation(state: &mut GameState, current_time: Duration) {
+    if let Some(line_y) = find_first_complete_line(&state.board, state.current_board_height) {
+        // 揃ったラインが1本見つかった
+        // 隣接ブロック接続処理
+        board_logic::find_and_connect_adjacent_blocks(&mut state.board, &[line_y]);
+        
+        state.update_connected_block_counts();
+        state.update_max_chains();
+        
+        // 盤面全体の連結グループを評価し、CHAIN-BONUS獲得量を更新
+        let total_chain_bonus = board_logic::calculate_chain_bonus(&state.board);
+        state.custom_score_system
+            .set_chain_bonus_from_total(total_chain_bonus);
+        
+        // スコア計算
+        let scores = animation::calculate_line_clear_score(
+            &state.board,
+            line_y,
+            &state.custom_score_system.max_chains,
+        );
+        for (_, points) in scores {
+            state.custom_score_system.add_score(points);
+        }
+        
+        // LineBlink アニメーション開始
+        state.animation.push(Animation::LineBlink {
+            lines: vec![line_y],
+            count: 0,
+            start_time: current_time,
+        });
+    } else {
+        // 揃ったラインがなくても、全体の隣接ブロック接続処理を実行
+        board_logic::find_and_connect_adjacent_blocks(&mut state.board, &[]);
+        state.update_connected_block_counts();
+        state.update_max_chains();
+        
+        let total_chain_bonus = board_logic::calculate_chain_bonus(&state.board);
+        state.custom_score_system
+            .set_chain_bonus_from_total(total_chain_bonus);
+        
+        // 揃ったラインがなければ新ピース生成
+        state.spawn_piece();
+    }
+}
+
 fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     if state.animation.is_empty() {
         return;
@@ -413,71 +426,49 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
     let current_time = time_provider.now();
     let result = update_animations(&mut state.animation, current_time);
 
-    // Handle completed line clears
+    // Handle completed line clears (段階的処理：1本ずつ)
     for completed_lines in result.completed_line_blinks.clone() {
-        // Process line clear using shared logic
-        let (bottom_lines_cleared, non_bottom_lines_cleared) = completed_lines
-            .iter()
-            .partition::<Vec<_>, _>(|&&line_y| line_y == state.current_board_height - 1);
+        // 段階的検出では1本ずつ処理されるので、completed_linesには1本しか入っていない
+        assert_eq!(completed_lines.len(), 1, "段階的検出では1本ずつ処理する");
+        let line_y = completed_lines[0];
+        
+        // Bottom line かどうかを判定
+        let is_bottom_line = line_y == state.current_board_height - 1;
 
-        let has_bottom_clears = !bottom_lines_cleared.is_empty();
-        let has_non_bottom_clears = !non_bottom_lines_cleared.is_empty();
-
-        // Handle bottom lines (standard Tetris clear)
-        if has_bottom_clears {
-            let num_cleared = bottom_lines_cleared.len();
-            let mut sorted_lines: Vec<usize> = bottom_lines_cleared.into_iter().cloned().collect();
-            sorted_lines.sort_by(|a, b| b.cmp(a));
-
-            for &line_y in &sorted_lines {
-                state.board.remove(line_y);
-            }
-            for _ in 0..num_cleared {
-                state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
-            }
+        if is_bottom_line {
+            // Handle bottom line (standard Tetris clear)
+            state.board.remove(line_y);
+            state.board.insert(0, vec![Cell::Empty; BOARD_WIDTH]);
 
             // Update connected block counts after bottom line clear
             state.update_all_connected_block_counts();
-            state.spawn_piece();
-        }
-
-        // Handle non-bottom lines (custom clear with Solid conversion)
-        for &&y in &non_bottom_lines_cleared {
+            
+            // Bottom line消去後、次のラインを検出
+            check_and_start_next_line_animation(state, current_time);
+        } else {
+            // Handle non-bottom line (custom clear with Solid conversion)
             // Remove isolated blocks
-            board_logic::remove_isolated_blocks(&mut state.board, y);
+            board_logic::remove_isolated_blocks(&mut state.board, line_y);
 
             // Turn line to Solid
             for x in 0..BOARD_WIDTH {
-                state.board[y][x] = Cell::Solid;
+                state.board[line_y][x] = Cell::Solid;
             }
-        }
 
-        // Update connected blocks after any line clears
-        if has_bottom_clears || has_non_bottom_clears {
+            // Update connected blocks after line clear
             state.update_all_connected_block_counts();
             state.consume_chain_bonus_for_solid_lines();
-        }
-    }
-
-    // Set continuing animations first
-    state.animation = result.continuing_animations;
-
-    // Add push down animations for non-bottom lines
-    for completed_lines in result.completed_line_blinks {
-        let non_bottom_lines_cleared: Vec<usize> = completed_lines
-            .iter()
-            .filter(|&&line_y| line_y != state.current_board_height - 1)
-            .cloned()
-            .collect();
-
-        for y in non_bottom_lines_cleared {
+            
             // Trigger push-down animation
             state.animation.push(Animation::PushDown {
-                solid_line_y: y,
+                solid_line_y: line_y,
                 start_time: current_time,
             });
         }
     }
+
+    // Set continuing animations
+    state.animation.extend(result.continuing_animations);
 
     // Handle completed push downs
     for solid_line_y in result.completed_push_downs {
@@ -491,9 +482,9 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                 // Push down completed - update connected blocks as board structure changed
                 state.update_all_connected_block_counts();
 
-                // Potentially spawn new piece
+                // Push Down完了後、次のラインを検出
                 if state.animation.is_empty() {
-                    state.spawn_piece();
+                    check_and_start_next_line_animation(state, current_time);
                 }
             }
             PushDownStepResult::Moved { new_solid_line_y } => {
@@ -507,11 +498,6 @@ fn handle_animation(state: &mut GameState, time_provider: &dyn TimeProvider) {
                 });
             }
         }
-    }
-
-    // If all animations completed, spawn new piece
-    if state.animation.is_empty() {
-        state.spawn_piece();
     }
 }
 
